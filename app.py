@@ -605,6 +605,30 @@ def delete_event(eid):
     except Exception as e:
         flash(f"❌ Error: {e}", "error")
     return redirect(url_for("events"))
+    # ---------------- CERTIFICATE GENERATION ----------------
+@app.route("/certificates")
+@login_required
+def certificates():
+    try:
+        students = db_all("SELECT roll_no, name, class_name FROM students ORDER BY roll_no")
+    except:
+        students = []
+    return render_template("management/certificates.html", students=students)
+
+@app.route("/certificate/generate/<roll_no>/<cert_type>")
+@login_required
+def generate_certificate(roll_no, cert_type):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("Student not found", "error")
+        return redirect(url_for("certificates"))
+        
+    # TC ya Bonafide ke liye check karo ki dues pending hain ya nahi
+    pending_dues = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE roll_no=%s AND balance>0", (roll_no,))["t"]
+    
+    return render_template("management/certificate_print.html", 
+                           student=student, cert_type=cert_type, 
+                           pending_dues=pending_dues, today_date=today())
 
 
 # ---------------- APP START ----------------
