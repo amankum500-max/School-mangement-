@@ -39,6 +39,7 @@
     <div class="sidebar-logo">🏫 School ERP</div>
     <nav class="sidebar-nav">
       <a href="/dashboard" class="{% if '/dashboard' in request.path %}active{% endif %}">📊 Dashboard</a>
+      <a href="/attendance" class="{% if '/attendance' in request.path %}active{% endif %}">📅 Attendance</a>
       <a href="/students" class="{% if '/students' in request.path %}active{% endif %}">🎓 Students</a>
       <a href="/fees" class="{% if '/fees' in request.path %}active{% endif %}">💵 Fees</a>
       <a href="/logout" style="color: #ef4444; margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">🚪 Logout</a>
