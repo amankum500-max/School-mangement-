@@ -76,8 +76,7 @@ def dashboard():
         trend.reverse()
         trend_labels = [t['month'] for t in trend]
         trend_data = [float(t['total']) for t in trend]
-        
-        recent_notices = db_all("SELECT * FROM notices WHERE is_active = TRUE ORDER BY id DESC LIMIT 3")
+        recent_notices = db_all("SELECT * FROM notices ORDER BY id DESC LIMIT 3")
     except Exception as e:
         print("Dashboard Error:", e)
         students_count, total_due, today_collection = 0, 0, 0
