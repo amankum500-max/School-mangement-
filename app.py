@@ -420,6 +420,68 @@ def api_ai_chat():
         return jsonify({"reply": response.text})
     except Exception as e:
         return jsonify({"reply": f"❌ AI Error: {str(e)}"})
+        # ---------------- EXAMS & MARKS ----------------
+def calc_grade(pct):
+    if pct >= 90: return "A+"
+    if pct >= 80: return "A"
+    if pct >= 70: return "B"
+    if pct >= 60: return "C"
+    if pct >= 50: return "D"
+    return "F"
+
+@app.route("/result", methods=["GET", "POST"])
+@login_required
+def result():
+    if request.method == "POST":
+        d = request.form
+        try:
+            # Check if marks already exist for this subject/exam
+            existing = one("SELECT id FROM marks WHERE roll_no=%s AND subject=%s AND exam=%s", 
+                           (d["roll_no"], d["subject"], d["exam"]))
+            if existing:
+                run("UPDATE marks SET marks=%s, total=%s WHERE id=%s", 
+                    (d["marks"], d["total"], existing["id"]))
+                flash("✏️ Marks updated successfully!", "success")
+            else:
+                run("INSERT INTO marks (roll_no, subject, exam, marks, total) VALUES (%s,%s,%s,%s,%s)",
+                    (d["roll_no"], d["subject"], d["exam"], d["marks"], d["total"]))
+                flash("✅ Marks added successfully!", "success")
+        except Exception as e:
+            flash(f"❌ Error: {e}", "error")
+        return redirect(url_for("result", roll_no=d["roll_no"]))
+
+    roll = request.args.get("roll_no", "")
+    marks_data = []
+    student = None
+    if roll:
+        student = one("SELECT * FROM students WHERE roll_no=%s", (roll,))
+        marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll,))
+        
+    students_list = db_all("SELECT roll_no, name FROM students ORDER BY roll_no")
+    return render_template("exams/result.html", students=students_list, marks=marks_data, student=student, roll=roll)
+
+@app.route("/report-card/<roll_no>")
+@login_required
+def report_card(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("Student not found!", "error")
+        return redirect(url_for("students"))
+        
+    marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
+    
+    # Calculate totals and percentage
+    total_obtained = sum(float(m['marks'] or 0) for m in marks_data)
+    total_max = sum(float(m['total'] or 0) for m in marks_data)
+    percentage = (total_obtained / total_max * 100) if total_max > 0 else 0
+    overall_grade = calc_grade(percentage)
+    
+    return render_template("exams/report_card.html", 
+                           student=student, marks=marks_data, 
+                           total_obtained=total_obtained, total_max=total_max,
+                           percentage=round(percentage, 2), overall_grade=overall_grade,
+                           today_date=today())
+    
     
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
