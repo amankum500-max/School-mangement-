@@ -1,0 +1,50 @@
+{% extends "shared/base.html" %}
+{% block title %}Certificates{% endblock %}
+{% block page_title %}Certificate Generator{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <div style="font-size: 50px; margin-bottom: 10px;">📜</div>
+    <h2 style="color: var(--text);">Generate Student Certificate</h2>
+    <p style="color: #64748b; font-size: 14px;">Select a student and certificate type to generate a printable document.</p>
+  </div>
+
+  <form method="GET" onsubmit="generateCert(event)" style="display: flex; flex-direction: column; gap: 20px;">
+    <div>
+      <label style="font-size: 14px; font-weight: 600;">Select Student</label>
+      <select id="studentSelect" required style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-top: 8px; font-size: 15px; background: var(--bg); color: var(--text);">
+        <option value="">-- Choose Student --</option>
+        {% for s in students %}
+        <option value="{{ s.roll_no }}">{{ s.roll_no }} - {{ s.name }} (Class {{ s.class_name or '-' }})</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label style="font-size: 14px; font-weight: 600;">Certificate Type</label>
+      <select id="certTypeSelect" required style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-top: 8px; font-size: 15px; background: var(--bg); color: var(--text);">
+        <option value="bonafide">Bonafide Certificate (For Bank/Passport)</option>
+        <option value="tc">Transfer Certificate (TC)</option>
+        <option value="character">Character Certificate</option>
+      </select>
+    </div>
+
+    <button type="submit" class="btn" style="padding: 15px; font-size: 16px; background: #8b5cf6; margin-top: 10px;">⚙️ Generate & Print</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function generateCert(e) {
+    e.preventDefault();
+    const roll = document.getElementById('studentSelect').value;
+    const type = document.getElementById('certTypeSelect').value;
+    if (!roll) return alert('Please select a student!');
+    
+    // Nayi tab me certificate kholega
+    window.open(`/certificate/generate/${roll}/${type}`, '_blank');
+  }
+</script>
+{% endblock %}
