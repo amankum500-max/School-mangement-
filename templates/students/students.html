@@ -28,8 +28,9 @@
         <td>{{ s.class_name or '-' }}</td>
         <td>{{ s.father or '-' }}</td>
         <td>{{ s.parent_contact or '-' }}</td>
-        <td>
-          <a href="/collect/{{ s.roll_no }}" class="btn" style="padding: 6px 12px; font-size: 12px;">💰 Collect Fee</a>
+        <td style="display: flex; gap: 5px;">
+  <a href="/student/profile/{{ s.roll_no }}" class="btn" style="padding: 6px 10px; font-size: 12px; background: #6366f1;">👁️ Profile</a>
+  <a href="/collect/{{ s.roll_no }}" class="btn" style="padding: 6px 10px; font-size: 12px; background: #10b981;">💰 Fee</a>
         </td>
       </tr>
       {% else %}
