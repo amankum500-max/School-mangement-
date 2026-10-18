@@ -1,1 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block topbar_title %}Dashboard{% endblock %}
 
+{% block content %}
+<h1 style="margin-bottom: 20px;">Welcome to Dashboard! 👋</h1>
+
+<div class="kpi-grid">
+  <div class="kpi">
+    <h4>Total Students</h4>
+    <div class="val">{{ students }}</div>
+  </div>
+  <div class="kpi" style="border-top-color: #ef4444;">
+    <h4>Total Dues</h4>
+    <div class="val" style="color: #ef4444;">₹{{ total_due }}</div>
+  </div>
+  <div class="kpi" style="border-top-color: #10b981;">
+    <h4>Today's Collection</h4>
+    <div class="val" style="color: #10b981;">₹{{ today_collection }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Aapka Supabase Database perfectly connect ho gaya hai! ✅</h3>
+  <p style="margin-top: 10px; color: #64748b;">Ab aap naye features add kar sakte hain.</p>
+</div>
+{% endblock %}
