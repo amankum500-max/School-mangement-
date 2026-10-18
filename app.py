@@ -405,6 +405,30 @@ def report_card(roll_no):
                            total_obtained=total_obtained, total_max=total_max,
                            percentage=round(percentage, 2), overall_grade=overall_grade,
                            today_date=today())
+    # ---------------- NOTICES ----------------
+@app.route("/notices", methods=["GET", "POST"])
+@login_required
+def notices():
+    if request.method == "POST":
+        title = request.form.get("title")
+        content = request.form.get("content")
+        priority = request.form.get("priority", "Normal")
+        
+        if title and content:
+            run("INSERT INTO notices (title, content, priority, posted_date) VALUES (%s,%s,%s,%s)", 
+                (title, content, priority, today()))
+            flash("✅ Notice posted successfully!", "success")
+        return redirect(url_for("notices"))
+        
+    notice_list = db_all("SELECT * FROM notices WHERE is_active = TRUE ORDER BY id DESC")
+    return render_template("communication/notices.html", notices=notice_list)
+
+@app.route("/notice/delete/<int:nid>")
+@login_required
+def delete_notice(nid):
+    run("UPDATE notices SET is_active = FALSE WHERE id = %s", (nid,))
+    flash("🗑️ Notice removed", "success")
+    return redirect(url_for("notices"))
 
 
 # ---------------- APP START ----------------
