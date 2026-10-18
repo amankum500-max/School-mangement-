@@ -70,16 +70,48 @@
   @media (max-width: 1200px) { .col-2, .col-3, .col-4 { grid-column: span 2; } }
   @media (max-width: 768px) { .col-1, .col-2, .col-3, .col-4 { grid-column: span 1; } }
 
-  /* Top Header HUD */
+  /* Top Header HUD with Search */
   .hud-header {
     display: flex; justify-content: space-between; align-items: center;
     border-bottom: 2px solid rgba(0, 243, 255, 0.3); padding-bottom: 20px; margin-bottom: 25px;
+    flex-wrap: wrap; gap: 20px;
   }
-  .hud-title { font-size: 28px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 3px; margin: 0; }
+  .hud-title { font-size: 24px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 3px; margin: 0; }
   
+  /* --- Global Neon Search Bar --- */
+  .hud-search-wrap { flex: 1; max-width: 500px; position: relative; }
+  .hud-search-input {
+    width: 100%; padding: 12px 20px 12px 45px; border-radius: 8px;
+    background: rgba(0, 243, 255, 0.05); border: 1px solid rgba(0, 243, 255, 0.3);
+    color: #00f3ff; font-family: 'Courier New', monospace; font-size: 14px;
+    box-shadow: inset 0 0 10px rgba(0, 243, 255, 0.1); transition: 0.3s;
+  }
+  .hud-search-input:focus {
+    outline: none; border-color: #00f3ff; box-shadow: 0 0 15px rgba(0, 243, 255, 0.3), inset 0 0 15px rgba(0, 243, 255, 0.2);
+  }
+  .hud-search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #00f3ff; font-size: 16px; }
+  
+  /* Search Dropdown */
+  .hud-search-dropdown {
+    position: absolute; top: 110%; left: 0; width: 100%;
+    background: rgba(5, 5, 16, 0.95); border: 1px solid #00f3ff;
+    border-radius: 8px; max-height: 300px; overflow-y: auto;
+    display: none; z-index: 1000; box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+    backdrop-filter: blur(10px);
+  }
+  .hud-search-dropdown::-webkit-scrollbar { width: 6px; }
+  .hud-search-dropdown::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 3px; }
+  
+  .hud-search-item {
+    padding: 12px 20px; display: flex; align-items: center; gap: 15px;
+    color: rgba(255,255,255,0.8); text-decoration: none; font-family: 'Courier New', monospace;
+    border-bottom: 1px solid rgba(0, 243, 255, 0.1); transition: 0.2s; font-size: 14px;
+  }
+  .hud-search-item:hover { background: rgba(0, 243, 255, 0.15); color: #00f3ff; padding-left: 25px; }
+
   /* HUD Clock */
   .hud-clock {
-    font-family: 'Courier New', monospace; font-size: 28px; font-weight: 900;
+    font-family: 'Courier New', monospace; font-size: 24px; font-weight: 900;
     color: #00f3ff; text-shadow: 0 0 15px rgba(0, 243, 255, 0.6);
     background: rgba(0, 243, 255, 0.1); padding: 10px 20px; border: 1px solid rgba(0, 243, 255, 0.4); border-radius: 8px;
     position: relative; overflow: hidden;
@@ -111,12 +143,20 @@
 
 <div class="hud-bg"><div class="hud-grid"></div></div>
 
-<!-- HUD HEADER -->
+<!-- HUD HEADER WITH SEARCH BAR -->
 <div class="hud-header">
   <div>
     <h1 class="hud-title">SYSTEM: ONLINE</h1>
-    <div style="color: rgba(255,255,255,0.5); font-size: 14px; font-weight: 700; margin-top: 5px;">WELCOME BACK, {{ session.name|upper or 'ADMIN' }}</div>
+    <div style="color: rgba(255,255,255,0.5); font-size: 12px; font-weight: 700; margin-top: 5px;">WELCOME, {{ session.name|upper or 'ADMIN' }}</div>
   </div>
+
+  <!-- NEW GLOBAL SEARCH BAR -->
+  <div class="hud-search-wrap">
+    <span class="hud-search-icon">🔍</span>
+    <input type="text" class="hud-search-input" id="globalSearch" placeholder="Search features (e.g. Fees, AI, Students)..." onkeyup="searchFeatures()" autocomplete="off">
+    <div class="hud-search-dropdown" id="searchResults"></div>
+  </div>
+
   <div class="hud-clock">
     <span id="hud-time">00:00:00</span>
   </div>
@@ -174,7 +214,7 @@
     <div class="hud-label" style="margin-bottom: 15px;">🤖 AI COPILOT TERMINAL</div>
     <div class="hud-terminal">
       <span class="term-prompt">root@school-erp:~# ./analyze_data.sh</span>
-      <div>[OK] Connecting to PostgreSQL Database...<br>
+      <div>[OK] Connecting to Database...<br>
       [OK] Fetching live metrics...<br>
       [OK] Processing financial data...<br><br>
       <span style="color: #fff;">> Analysis Complete:</span><br>
@@ -223,19 +263,86 @@
 
 {% block scripts %}
 <script>
-  // 1. Initialize 3D Tilt
+  // ==========================================
+  // 1. GLOBAL SEARCH FEATURE LOGIC
+  // ==========================================
+  // Yahan saare pages/features ki list hai. Aap aage jo naye pages add karoge, unhe yahan add kar sakte ho.
+  const allFeatures = [
+    { icon: '📊', name: 'Dashboard', url: '/dashboard' },
+    { icon: '🎓', name: 'Students Directory', url: '/students' },
+    { icon: '💵', name: 'Fees Management', url: '/fees' },
+    { icon: '💰', name: 'Collect Fee', url: '/fees' }, 
+    { icon: '🧾', name: 'Monthly Bills', url: '/bills' },
+    { icon: '🚨', name: 'Defaulters List', url: '/defaulters' },
+    { icon: '📅', name: 'Attendance', url: '/attendance' },
+    { icon: '📝', name: 'Exams & Marks', url: '/result' },
+    { icon: '👨‍🏫', name: 'Staff Directory', url: '/staff' },
+    { icon: '📢', name: 'Notice Board', url: '/notices' },
+    { icon: '🏠', name: 'Hostel Management', url: '/hostel' },
+    { icon: '🚌', name: 'Transport', url: '/transport' },
+    { icon: '📚', name: 'Library', url: '/library' },
+    { icon: '📅', name: 'Events Calendar', url: '/events' },
+    { icon: '📜', name: 'Certificates', url: '/certificates' },
+    { icon: '👨‍👩‍👧', name: 'Parent Accounts', url: '/manage-parents' },
+    { icon: '📈', name: 'Analytics & Reports', url: '/analytics' },
+    { icon: '🤖', name: 'AI Assistant', url: '/ai-assistant' },
+    { icon: '⚙️', name: 'School Settings', url: '/settings' },
+    { icon: '💾', name: 'Backup Data', url: '/backup' }
+  ];
+
+  function searchFeatures() {
+    const query = document.getElementById('globalSearch').value.toLowerCase();
+    const dropdown = document.getElementById('searchResults');
+    
+    if (!query) {
+      dropdown.style.display = 'none';
+      return;
+    }
+
+    // Filter results
+    const filtered = allFeatures.filter(f => f.name.toLowerCase().includes(query) || f.url.includes(query));
+    
+    if (filtered.length === 0) {
+      dropdown.innerHTML = '<div style="padding: 15px; color: rgba(255,255,255,0.5); text-align: center; font-family: monospace;">No features found.</div>';
+    } else {
+      dropdown.innerHTML = filtered.map(f => `
+        <a href="${f.url}" class="hud-search-item">
+          <span style="font-size: 18px;">${f.icon}</span>
+          <span>${f.name}</span>
+        </a>
+      `).join('');
+    }
+    dropdown.style.display = 'block';
+  }
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(event) {
+    const searchWrap = document.querySelector('.hud-search-wrap');
+    const dropdown = document.getElementById('searchResults');
+    if (searchWrap && !searchWrap.contains(event.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+
+  // ==========================================
+  // 2. INITIALIZE 3D TILT
+  // ==========================================
   VanillaTilt.init(document.querySelectorAll(".tilt-card"), {
     max: 15, speed: 400, glare: true, "max-glare": 0.5, scale: 1.05
   });
 
-  // 2. HUD Clock
+  // ==========================================
+  // 3. HUD Clock
+  // ==========================================
   function updateClock() {
     const now = new Date();
-    document.getElementById('hud-time').innerText = now.toLocaleTimeString('en-GB'); // 24hr format
+    document.getElementById('hud-time').innerText = now.toLocaleTimeString('en-GB');
   }
   setInterval(updateClock, 1000); updateClock();
 
-  // 3. Number Counter
+  // ==========================================
+  // 4. Number Counter
+  // ==========================================
   document.querySelectorAll('.counter').forEach(counter => {
     const target = +counter.getAttribute('data-target');
     let current = 0;
@@ -247,7 +354,9 @@
     update();
   });
 
-  // 4. AI Terminal Typewriter
+  // ==========================================
+  // 5. AI Terminal Typewriter
+  // ==========================================
   const aiText = "Collection is 15% UP. Pending dues are HIGH. Recommendation: Initialize WhatsApp Reminder Protocol for defaulters immediately.";
   let i = 0;
   function typeAI() {
@@ -258,7 +367,9 @@
   }
   setTimeout(typeAI, 1200);
 
-  // 5. Neon Chart
+  // ==========================================
+  // 6. Neon Chart
+  // ==========================================
   Chart.defaults.font.family = "'Courier New', monospace";
   Chart.defaults.color = 'rgba(255,255,255,0.5)';
 
@@ -274,24 +385,17 @@
       datasets: [{
         label: 'Collection',
         data: [10000, 25000, 15000, 35000, 20000, 45000],
-        borderColor: '#00f3ff',
-        backgroundColor: gradient,
-        borderWidth: 2,
-        pointBackgroundColor: '#050510',
-        pointBorderColor: '#00f3ff',
-        pointBorderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 8,
-        fill: true, tension: 0.4,
-        shadowColor: '#00f3ff', shadowBlur: 10 // Glow effect
+        borderColor: '#00f3ff', backgroundColor: gradient, borderWidth: 2,
+        pointBackgroundColor: '#050510', pointBorderColor: '#00f3ff', pointBorderWidth: 2,
+        pointRadius: 4, pointHoverRadius: 8, fill: true, tension: 0.4
       }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: { 
-        y: { beginAtZero: true, grid: { color: 'rgba(0, 243, 255, 0.1)' }, ticks: { font: { family: 'Courier New' } } }, 
-        x: { grid: { display: false }, ticks: { font: { family: 'Courier New' } } } 
+        y: { beginAtZero: true, grid: { color: 'rgba(0, 243, 255, 0.1)' } }, 
+        x: { grid: { display: false } } 
       }
     }
   });
