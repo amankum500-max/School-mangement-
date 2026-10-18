@@ -799,7 +799,44 @@ def download_csv(table_name):
     except Exception as e:
         flash(f"❌ Error exporting data: {e}", "error")
         return redirect(url_for("backup"))
+# ---------------- STUDENT PROFILE & ID CARD ----------------
+@app.route("/student/profile/<roll_no>")
+@login_required
+def student_profile(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("Student not found!", "error")
+        return redirect(url_for("students"))
+        
+    # Fee Details
+    bills = db_all("SELECT * FROM bills WHERE roll_no=%s ORDER BY month DESC", (roll_no,))
+    total_due = sum(float(b['balance']) for b in bills)
+    
+    # Marks Details
+    marks = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
+    total_obtained = sum(float(m['marks'] or 0) for m in marks)
+    total_max = sum(float(m['total'] or 0) for m in marks)
+    percentage = round((total_obtained / total_max * 100), 2) if total_max > 0 else 0
+    
+    # Attendance Details
+    total_att = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s", (roll_no,))["c"]
+    present_att = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s AND status='Present'", (roll_no,))["c"]
+    att_pct = round((present_att / total_att * 100), 1) if total_att > 0 else 0
+    
+    return render_template("students/student_profile.html", 
+                           student=student, bills=bills, total_due=total_due,
+                           marks=marks, total_obtained=total_obtained, 
+                           total_max=total_max, percentage=percentage, 
+                           att_pct=att_pct)
 
+@app.route("/student/id-card/<roll_no>")
+@login_required
+def student_id_card(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("Student not found!", "error")
+        return redirect(url_for("students"))
+    return render_template("students/id_card.html", student=student)
 
 # ---------------- APP START ----------------
 if __name__ == "__main__":
