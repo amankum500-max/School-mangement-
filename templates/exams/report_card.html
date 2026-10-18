@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Report Card - {{ student.name }}</title>
+<style>
+  body { font-family: 'Inter', sans-serif; background: #f1f5f9; padding: 40px; }
+  .card-box { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-top: 8px solid #6366f1; }
+  .header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+  .header h1 { margin: 0; color: #1e293b; font-size: 28px; }
+  .header p { margin: 5px 0; color: #64748b; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+  
+  .student-info { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }
+  .info-item { font-size: 15px; }
+  .info-item span { color: #64748b; font-weight: 600; display: inline-block; width: 100px; }
+  
+  table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+  th { background: #f1f5f9; padding: 12px; text-align: left; border-bottom: 2px solid #cbd5e1; font-size: 13px; text-transform: uppercase; }
+  td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 15px; }
+  
+  .summary { display: flex; justify-content: space-between; align-items: center; background: #eff6ff; padding: 20px; border-radius: 8px; border: 1px solid #bfdbfe; }
+  .summary-item { text-align: center; }
+  .summary-item h4 { margin: 0 0 5px 0; color: #64748b; font-size: 13px; text-transform: uppercase; }
+  .summary-item h2 { margin: 0; color: #1e40af; font-size: 24px; }
+  
+  .footer { text-align: center; margin-top: 50px; padding-top: 20px; border-top: 2px dashed #e2e8f0; font-size: 12px; color: #94a3b8; display: flex; justify-content: space-between; }
+  .print-btn { display: block; width: 200px; margin: 20px auto; padding: 12px; text-align: center; background: #6366f1; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; cursor: pointer; border: none; font-size: 16px; }
+  @media print {
+    body { background: white; padding: 0; }
+    .card-box { box-shadow: none; border: 1px solid #ccc; }
+    .print-btn { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<button class="print-btn" onclick="window.print()">🖨️ Print Report Card</button>
+
+<div class="card-box">
+  <div class="header">
+    <h1>🏫 School ERP</h1>
+    <p>Annual Examination Report Card</p>
+  </div>
+
+  <div class="student-info">
+    <div class="info-item"><span>Student Name:</span> <strong>{{ student.name }}</strong></div>
+    <div class="info-item"><span>Roll Number:</span> <strong>{{ student.roll_no }}</strong></div>
+    <div class="info-item"><span>Class:</span> <strong>{{ student.class_name or '-' }}</strong></div>
+    <div class="info-item"><span>Father's Name:</span> <strong>{{ student.father or '-' }}</strong></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Subject</th>
+        <th>Exam Type</th>
+        <th>Max Marks</th>
+        <th>Obtained Marks</th>
+        <th>Grade</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in marks %}
+      {% set pct = (m.marks / m.total * 100) if m.total > 0 else 0 %}
+      {% set grade = 'A+' if pct >= 90 else 'A' if pct >= 80 else 'B' if pct >= 70 else 'C' if pct >= 60 else 'D' if pct >= 50 else 'F' %}
+      <tr>
+        <td><strong>{{ m.subject }}</strong></td>
+        <td>{{ m.exam }}</td>
+        <td>{{ m.total }}</td>
+        <td>{{ m.marks }}</td>
+        <td style="font-weight: bold; color: {% if pct >= 40 %}#10b981{% else %}#ef4444{% endif %};">{{ grade }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="summary">
+    <div class="summary-item">
+      <h4>Total Marks</h4>
+      <h2>{{ total_obtained }} / {{ total_max }}</h2>
+    </div>
+    <div class="summary-item">
+      <h4>Percentage</h4>
+      <h2>{{ percentage }}%</h2>
+    </div>
+    <div class="summary-item">
+      <h4>Overall Grade</h4>
+      <h2>{{ overall_grade }}</h2>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>
+      <br><br>
+      <strong>Class Teacher Sign</strong>
+    </div>
+    <div>
+      <br><br>
+      <strong>Principal Sign</strong>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
