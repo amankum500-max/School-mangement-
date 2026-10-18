@@ -100,7 +100,78 @@ def collect(roll_no):
             flash(f"❌ Error: {e}", "error")
             
     return redirect(url_for("fees"))
+   # ---------------- BILLS ----------------
+@app.route("/bills")
+@login_required
+def bills():
+    month = request.args.get("month", current_month())
+    try:
+        rows = db_all("SELECT * FROM bills WHERE month=%s ORDER BY roll_no", (month,))
+    except:
+        rows = []
+    return render_template("fees/bills.html", bills=rows, month=month)
+
+@app.route("/bills/generate", methods=["POST"])
+@login_required
+def generate_bills():
+    month = request.form["month"]
+    students = db_all("SELECT roll_no, name FROM students")
+    created = skipped = 0
     
+    for s in students:
+        roll = s["roll_no"]
+        # Check if bill already exists for this month
+        ex = one("SELECT id FROM bills WHERE roll_no=%s AND month=%s", (roll, month))
+        if ex:
+            skipped += 1; continue
+            
+        fs = one("SELECT * FROM student_fees WHERE roll_no=%s", (roll,))
+        if not fs:
+            skipped += 1; continue
+            
+        t = fs["tuition_fee"] or 0
+        tr = fs["transport_fee"] or 0
+        ho = fs["hostel_fee"] or 0
+        adm_paid = fs["admission_paid"] or 0
+        
+        prev_added = one("SELECT COALESCE(SUM(admission),0) a FROM bills WHERE roll_no=%s", (roll,))["a"]
+        adm = 0 if (adm_paid or prev_added > 0) else (fs["admission_fee"] or 0)
+        dr = 0 if prev_added > 0 else (fs["dress_fee"] or 0)
+        ex_f = 0 if prev_added > 0 else (fs["exam_fee"] or 0)
+        bk = 0 if prev_added > 0 else (fs["book_fee"] or 0)
+        nb = 0 if prev_added > 0 else (fs["notebook_fee"] or 0)
+        ms = fs["misc_fee"] or 0
+        
+        # Fetch previous dues
+        prev_due = one("SELECT COALESCE(SUM(balance),0) d FROM bills WHERE roll_no=%s AND balance>0", (roll,))["d"]
+        
+        total = t + tr + ho + adm + dr + ex_f + bk + nb + ms + prev_due
+        bill_no = f"B{month.replace('-','')}{roll}"
+
+        run("""INSERT INTO bills
+            (bill_no,roll_no,month,bill_date,tuition,transport,hostel,
+             admission,dress,exam,book,notebook,misc,prev_due,total,paid,balance,status)
+            VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (bill_no, roll, month, today(), t, tr, ho, adm, dr, ex_f, bk, nb, ms, prev_due, total, 0, total, "Unpaid"))
+        created += 1
+        
+    flash(f"✅ Bills generated: {created} | Skipped: {skipped}", "success")
+    return redirect(url_for("bills", month=month))
+
+# ---------------- DEFAULTERS ----------------
+@app.route("/defaulters")
+@login_required
+def defaulters():
+    try:
+        rows = db_all("""SELECT s.roll_no, s.name, s.class_name, s.section,
+                         s.parent_contact, b.month, b.balance
+                         FROM bills b JOIN students s ON b.roll_no = s.roll_no
+                         WHERE b.balance > 0 ORDER BY b.balance DESC""")
+        total = sum(float(r["balance"]) for r in rows)
+    except:
+        rows = []
+        total = 0
+    return render_template("fees/defaulters.html", defaulters=rows, total=total) 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
