@@ -27,7 +27,8 @@ def login():
             session["name"] = "System Admin"
             return redirect(url_for("dashboard"))
         flash("Invalid credentials!", "error")
-    return render_template("SHARED/AUTH (4)/login.html")
+    return render_template("auth/login.html")
+
 @app.route("/logout")
 def logout():
     session.clear()
@@ -44,13 +45,9 @@ def dashboard():
     except:
         students_count, total_due, today_collection = 0, 0, 0
 
-    return render_template("SHARED/dashboard.html",
+    return render_template("dashboard/dashboard.html",
         students=students_count, total_due=total_due,
-        today_collection=today_collection, lifetime_profit=0,
-        fee_status={"paid":0, "partial":0, "unpaid":0}, top_defaulters=[],
-        class_strength=[], performers_list=[], birthdays=[], recent=[], 
-        recent_admissions=[], monthly_trend=[], ai_insight="AI loading...",
-        monthly_target=100000, progress_pct=0, current_collection=0
+        today_collection=today_collection
     )
 
 # ---------------- STUDENTS ----------------
@@ -61,26 +58,7 @@ def students():
         rows = db_all("SELECT * FROM students ORDER BY roll_no")
     except:
         rows = []
-    
-    # Yahan exactly 4 space hone chahiye
-    return render_template("STUDENTS (6)/students.html", students=rows, classes=[], q="", class_filter="", fee_filter="", page=1, total_pages=1)
-
-# ---------------- FEES ----------------
-@app.route("/fees")
-@login_required
-def fees():
-    try:
-        rows = db_all("""
-            SELECT s.roll_no, s.name, s.class_name, 
-                   COALESCE(f.tuition_fee,0) as tuition_fee, 
-                   COALESCE((SELECT SUM(balance) FROM bills WHERE roll_no=s.roll_no AND balance>0), 0) as back_dues
-            FROM students s LEFT JOIN student_fees f ON s.roll_no = f.roll_no ORDER BY s.roll_no
-        """)
-    except:
-        rows = []
-        
-    # Yahan bhi exactly 4 space hone chahiye
-    return render_template("FEES (8)/fees.html", fees=rows)
+    return render_template("students/students.html", students=rows)
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
