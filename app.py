@@ -629,6 +629,86 @@ def generate_certificate(roll_no, cert_type):
     return render_template("management/certificate_print.html", 
                            student=student, cert_type=cert_type, 
                            pending_dues=pending_dues, today_date=today())
+    # ---------------- PARENT PORTAL (AUTH) ----------------
+@app.route("/parent-login", methods=["GET", "POST"])
+def parent_login():
+    if request.method == "POST":
+        u = request.form["username"].strip()
+        p = request.form["password"].strip()
+        
+        parent = one("SELECT * FROM parent_users WHERE username=%s AND password=%s AND is_active=TRUE", (u, p))
+        if parent:
+            session["parent_user"] = parent["username"]
+            session["parent_name"] = parent["parent_name"]
+            session["parent_child"] = parent["child_roll_no"]
+            return redirect(url_for("parent_dashboard"))
+        flash("Invalid parent credentials!", "error")
+    return render_template("auth/parent_login.html")
+
+@app.route("/parent-dashboard")
+def parent_dashboard():
+    if "parent_user" not in session:
+        return redirect(url_for("parent_login"))
+        
+    roll_no = session["parent_child"]
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("Student data not found!", "error")
+        return redirect(url_for("parent_login"))
+        
+    # 1. Fee Data
+    bills = db_all("SELECT * FROM bills WHERE roll_no=%s ORDER BY month DESC", (roll_no,))
+    total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE roll_no=%s AND balance>0", (roll_no,))["t"]
+    
+    # 2. Marks Data
+    marks = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
+    total_obtained = sum(float(m['marks'] or 0) for m in marks)
+    total_max = sum(float(m['total'] or 0) for m in marks)
+    percentage = round((total_obtained / total_max * 100), 2) if total_max > 0 else 0
+    
+    # 3. Attendance Data
+    total_att = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s", (roll_no,))["c"]
+    present_att = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s AND status='Present'", (roll_no,))["c"]
+    att_pct = round((present_att / total_att * 100), 1) if total_att > 0 else 100
+    
+    return render_template("parent/parent_dashboard.html", student=student, bills=bills, total_due=total_due, marks=marks, percentage=percentage, att_pct=att_pct)
+
+@app.route("/parent-logout")
+def parent_logout():
+    session.pop("parent_user", None)
+    session.pop("parent_name", None)
+    session.pop("parent_child", None)
+    return redirect(url_for("parent_login"))
+
+# ---------------- ADMIN: CREATE PARENT ACCOUNTS ----------------
+@app.route("/manage-parents", methods=["GET", "POST"])
+@login_required
+def manage_parents():
+    if request.method == "POST":
+        d = request.form
+        try:
+            run("INSERT INTO parent_users (username, password, parent_name, child_roll_no) VALUES (%s,%s,%s,%s)",
+                (d["username"], d["password"], d.get("parent_name"), d["child_roll_no"]))
+            flash("✅ Parent account created successfully!", "success")
+        except Exception as e:
+            flash(f"❌ Error: {e} (Username might already exist)", "error")
+        return redirect(url_for("manage_parents"))
+        
+    parents = db_all("""
+        SELECT pu.*, s.name as student_name 
+        FROM parent_users pu 
+        LEFT JOIN students s ON pu.child_roll_no = s.roll_no 
+        ORDER BY pu.id DESC
+    """)
+    students = db_all("SELECT roll_no, name FROM students ORDER BY roll_no")
+    return render_template("parent/manage_parents.html", parents=parents, students=students)
+
+@app.route("/parent/delete/<int:pid>")
+@login_required
+def delete_parent(pid):
+    run("DELETE FROM parent_users WHERE id=%s", (pid,))
+    flash("🗑️ Parent account deleted", "success")
+    return redirect(url_for("manage_parents"))
 
 
 # ---------------- APP START ----------------
