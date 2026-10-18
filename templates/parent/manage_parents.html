@@ -1,0 +1,65 @@
+{% extends "shared/base.html" %}
+{% block title %}Parent Accounts{% endblock %}
+{% block page_title %}Manage Parent Logins{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
+  
+  <!-- Create Parent Form -->
+  <div class="card" style="height: fit-content;">
+    <h3 style="margin-bottom: 15px;">➕ Create Parent Account</h3>
+    <form method="POST">
+      <label style="font-size: 13px; font-weight: 600;">Select Student</label>
+      <select name="child_roll_no" required style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px;">
+        <option value="">-- Choose Student --</option>
+        {% for s in students %}
+        <option value="{{ s.roll_no }}">{{ s.roll_no }} - {{ s.name }}</option>
+        {% endfor %}
+      </select>
+
+      <label style="font-size: 13px; font-weight: 600;">Parent Name</label>
+      <input type="text" name="parent_name" placeholder="e.g. Mr. Sharma" required style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px;">
+
+      <label style="font-size: 13px; font-weight: 600;">Username *</label>
+      <input type="text" name="username" placeholder="e.g. sunny_parent" required style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px;">
+      
+      <label style="font-size: 13px; font-weight: 600;">Password *</label>
+      <input type="text" name="password" value="parent123" required style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px;">
+      
+      <button type="submit" class="btn" style="width: 100%; background: #10b981;">Create Account</button>
+    </form>
+  </div>
+
+  <!-- Parent List -->
+  <div class="card">
+    <h3 style="margin-bottom: 15px;">Active Parent Accounts</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Parent Name</th>
+          <th>Username</th>
+          <th>Child (Roll No)</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in parents %}
+        <tr>
+          <td><strong>{{ p.parent_name }}</strong></td>
+          <td><code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">{{ p.username }}</code></td>
+          <td>{{ p.student_name or 'N/A' }} ({{ p.child_roll_no }})</td>
+          <td>
+            <a href="/parent/delete/{{ p.id }}" onclick="return confirm('Delete this parent account?')" style="text-decoration: none; font-size: 16px;">🗑️</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" style="text-align: center; color: #64748b;">No parent accounts created yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}
