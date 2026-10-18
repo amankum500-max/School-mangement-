@@ -747,6 +747,58 @@ def analytics():
                            monthly_data=monthly_data, class_dist=class_dist, 
                            top_payers=top_payers, total_collection=total_collection, 
                            pending_dues=pending_dues)
+    # ---------------- SYSTEM SETTINGS ----------------
+@app.route("/settings", methods=["GET", "POST"])
+@login_required
+def settings():
+    if request.method == "POST":
+        d = request.form
+        try:
+            run("""UPDATE school_settings SET school_name=%s, address=%s, phone=%s, email=%s, principal_name=%s, logo_url=%s WHERE id=1""",
+                (d["school_name"], d["address"], d["phone"], d["email"], d["principal_name"], d["logo_url"]))
+            flash("✅ Settings updated successfully!", "success")
+        except Exception as e:
+            flash(f"❌ Error: {e}", "error")
+        return redirect(url_for("settings"))
+        
+    return render_template("management/settings.html")
+
+# ---------------- BACKUP & EXPORT ----------------
+@app.route("/backup")
+@login_required
+def backup():
+    return render_template("management/backup.html")
+
+@app.route("/backup/download/<table_name>")
+@login_required
+def download_csv(table_name):
+    allowed_tables = ['students', 'fees', 'bills', 'payments', 'staff', 'marks', 'attendance']
+    if table_name not in allowed_tables:
+        flash("❌ Invalid table", "error")
+        return redirect(url_for("backup"))
+
+    try:
+        data = db_all(f"SELECT * FROM {table_name}")
+        if not data:
+            flash(f"⚠️ No data found in {table_name}", "warning")
+            return redirect(url_for("backup"))
+            
+        # CSV Generate karne ka logic
+        si = StringIO()
+        cw = csv.writer(si)
+        # Headers
+        cw.writerow(data[0].keys())
+        # Rows
+        for row in data:
+            cw.writerow(row.values())
+            
+        output = make_response(si.getvalue())
+        output.headers["Content-Disposition"] = f"attachment; filename={table_name}_backup.csv"
+        output.headers["Content-type"] = "text/csv"
+        return output
+    except Exception as e:
+        flash(f"❌ Error exporting data: {e}", "error")
+        return redirect(url_for("backup"))
 
 
 # ---------------- APP START ----------------
