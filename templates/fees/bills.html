@@ -1,0 +1,51 @@
+{% extends "shared/base.html" %}
+{% block title %}Bills{% endblock %}
+{% block page_title %}Monthly Bills{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+    <h3 style="color: var(--text);">Bills for {{ month }}</h3>
+    
+    <form method="POST" action="/bills/generate" style="display: flex; gap: 10px; align-items: center;">
+      <input type="month" name="month" value="{{ month }}" required style="padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text);">
+      <button type="submit" class="btn" onclick="return confirm('Generate bills for all students for this month?')">⚙️ Generate Bills</button>
+    </form>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Bill No</th>
+        <th>Roll No</th>
+        <th>Month</th>
+        <th>Total</th>
+        <th>Paid</th>
+        <th>Balance</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in bills %}
+      <tr>
+        <td><strong>{{ b.bill_no }}</strong></td>
+        <td>{{ b.roll_no }}</td>
+        <td>{{ b.month }}</td>
+        <td>₹{{ b.total }}</td>
+        <td style="color: #10b981;">₹{{ b.paid }}</td>
+        <td style="color: #ef4444; font-weight: bold;">₹{{ b.balance }}</td>
+        <td>
+          {% if b.status == 'Paid' %}<span style="background:#dcfce7;color:#166534;padding:4px 8px;border-radius:5px;font-size:12px;font-weight:bold;">Paid</span>
+          {% elif b.status == 'Partial' %}<span style="background:#fef3c7;color:#92400e;padding:4px 8px;border-radius:5px;font-size:12px;font-weight:bold;">Partial</span>
+          {% else %}<span style="background:#fee2e2;color:#991b1b;padding:4px 8px;border-radius:5px;font-size:12px;font-weight:bold;">Unpaid</span>{% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" style="text-align: center; color: #64748b;">No bills generated for this month.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
