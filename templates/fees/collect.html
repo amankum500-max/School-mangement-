@@ -1,0 +1,80 @@
+{% extends "shared/base.html" %}
+{% block title %}Collect Fee{% endblock %}
+{% block page_title %}Collect Fee - {{ student.name }}{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
+  
+  <!-- Left Side: Student Info -->
+  <div class="card" style="height: fit-content;">
+    <h3 style="border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">Student Details</h3>
+    <p style="margin-bottom: 8px;"><strong>Name:</strong> {{ student.name }}</p>
+    <p style="margin-bottom: 8px;"><strong>Roll No:</strong> {{ student.roll_no }}</p>
+    <p style="margin-bottom: 8px;"><strong>Class:</strong> {{ student.class_name or '-' }}</p>
+    <p style="margin-bottom: 8px;"><strong>Father:</strong> {{ student.father or '-' }}</p>
+    <p style="margin-bottom: 8px;"><strong>Contact:</strong> {{ student.parent_contact or '-' }}</p>
+    
+    <div style="margin-top: 20px; padding: 15px; background: #fee2e2; border-radius: 10px; border: 1px solid #fecaca;">
+      <h4 style="color: #991b1b; margin-bottom: 5px;">Total Pending Dues</h4>
+      <h2 style="color: #dc2626; font-size: 28px;">₹{{ total_due }}</h2>
+    </div>
+  </div>
+
+  <!-- Right Side: Collection Form & Bills -->
+  <div>
+    <div class="card">
+      <h3 style="margin-bottom: 15px;">Collect Payment</h3>
+      <form method="POST" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div>
+          <label style="font-weight: 600; font-size: 13px;">Amount (₹) *</label>
+          <input type="number" name="amount" step="0.01" min="1" required style="width: 100%; padding: 12px; border: 2px solid #6366f1; border-radius: 8px; font-size: 18px; font-weight: bold; margin-top: 5px;">
+        </div>
+        <div>
+          <label style="font-weight: 600; font-size: 13px;">Payment Mode</label>
+          <select name="mode" style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+            <option value="Cash">Cash</option>
+            <option value="UPI">UPI / PhonePe</option>
+            <option value="Online">Bank Transfer</option>
+            <option value="Cheque">Cheque</option>
+          </select>
+        </div>
+        <div style="grid-column: span 2;">
+          <label style="font-weight: 600; font-size: 13px;">Remark (Optional)</label>
+          <input type="text" name="remark" placeholder="E.g. Paid for October month..." style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+        <div style="grid-column: span 2; margin-top: 10px;">
+          <button type="submit" class="btn" style="width: 100%; padding: 15px; font-size: 16px; background: #10b981;">💰 Confirm Payment</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom: 15px;">Pending Bills</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Total Bill</th>
+            <th>Paid</th>
+            <th>Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in bills %}
+          <tr>
+            <td><strong>{{ b.month }}</strong></td>
+            <td>₹{{ b.total }}</td>
+            <td style="color: #10b981;">₹{{ b.paid }}</td>
+            <td style="color: #ef4444; font-weight: bold;">₹{{ b.balance }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" style="text-align: center; color: #10b981;">No pending bills!</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
