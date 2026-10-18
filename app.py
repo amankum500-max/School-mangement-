@@ -369,6 +369,57 @@ def attendance():
     return render_template("attendance/attendance.html", 
                            students=students_list, classes=classes, 
                            att_date=att_date, class_name=class_name, existing_att=existing_att) 
+    import os
+import google.generativeai as genai
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+# ... baaki imports
+
+# Setup Gemini AI (Yeh app = Flask(__name__) ke niche hona chahiye)
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
+if GEMINI_KEY:
+    genai.configure(api_key=GEMINI_KEY)
+    ai_model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    ai_model = None
+    # ---------------- AI ASSISTANT ----------------
+@app.route("/ai-assistant")
+@login_required
+def ai_assistant():
+    return render_template("ai/ai_assistant.html")
+
+@app.route("/api/ai-chat", methods=["POST"])
+@login_required
+def api_ai_chat():
+    if not ai_model:
+        return jsonify({"reply": "⚠️ AI Configure nahi hai. Render me GEMINI_API_KEY daalein."})
+        
+    data = request.get_json() or {}
+    user_msg = data.get("message", "").strip()
+    if not user_msg:
+        return jsonify({"reply": "Kuch toh likho bhai!"})
+        
+    try:
+        # AI ko school ka live data dena zaroori hai taaki woh sahi jawab de
+        students_count = one("SELECT COUNT(*) c FROM students")["c"]
+        total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE balance > 0")["t"]
+        today_collection = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE pay_date = %s", (today(),))["t"]
+        
+        prompt = f"""
+        Aap ek School Management System ke AI Assistant hain.
+        Aapko Hinglish (Hindi + English) me short aur helpful jawab dena hai.
+        
+        Live School Data:
+        - Total Students: {students_count}
+        - Total Pending Fees: Rs {total_due}
+        - Today's Collection: Rs {today_collection}
+        
+        User ka Sawaal: {user_msg}
+        """
+        
+        response = ai_model.generate_content(prompt)
+        return jsonify({"reply": response.text})
+    except Exception as e:
+        return jsonify({"reply": f"❌ AI Error: {str(e)}"})
     
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
