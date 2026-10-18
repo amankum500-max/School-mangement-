@@ -709,6 +709,44 @@ def delete_parent(pid):
     run("DELETE FROM parent_users WHERE id=%s", (pid,))
     flash("🗑️ Parent account deleted", "success")
     return redirect(url_for("manage_parents"))
+    # ---------------- ANALYTICS & REPORTS ----------------
+@app.route("/analytics")
+@login_required
+def analytics():
+    try:
+        # 1. Monthly Collection Data (Last 6 Months)
+        monthly_data = db_all("""
+            SELECT to_char(pay_date, 'Mon YYYY') as month, SUM(amount) as total
+            FROM payments 
+            GROUP BY to_char(pay_date, 'Mon YYYY'), date_trunc('month', pay_date)
+            ORDER BY date_trunc('month', pay_date) ASC LIMIT 6
+        """)
+        
+        # 2. Class Distribution Data (Students per class)
+        class_dist = db_all("SELECT class_name, COUNT(*) as count FROM students GROUP BY class_name ORDER BY class_name")
+        
+        # 3. Top 5 Payers
+        top_payers = db_all("""
+            SELECT s.name, s.roll_no, SUM(p.amount) as total_paid
+            FROM payments p 
+            JOIN students s ON p.roll_no = s.roll_no
+            GROUP BY s.name, s.roll_no 
+            ORDER BY total_paid DESC LIMIT 5
+        """)
+        
+        # 4. Overall Totals
+        total_collection = one("SELECT COALESCE(SUM(amount),0) t FROM payments")["t"]
+        pending_dues = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE balance > 0")["t"]
+        
+    except Exception as e:
+        print("Analytics Error:", e)
+        monthly_data, class_dist, top_payers = [], [], []
+        total_collection, pending_dues = 0, 0
+
+    return render_template("management/analytics.html", 
+                           monthly_data=monthly_data, class_dist=class_dist, 
+                           top_payers=top_payers, total_collection=total_collection, 
+                           pending_dues=pending_dues)
 
 
 # ---------------- APP START ----------------
