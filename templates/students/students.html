@@ -1,0 +1,62 @@
+{% extends "shared/base.html" %}
+{% block title %}Students{% endblock %}
+{% block page_title %}Student Directory{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h3 style="color: var(--text);">All Students</h3>
+    <button class="btn" onclick="document.getElementById('addModal').style.display='flex'">➕ Add Student</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Roll No</th>
+        <th>Name</th>
+        <th>Class</th>
+        <th>Father Name</th>
+        <th>Contact</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in students %}
+      <tr>
+        <td><strong>{{ s.roll_no }}</strong></td>
+        <td>{{ s.name }}</td>
+        <td>{{ s.class_name or '-' }}</td>
+        <td>{{ s.father or '-' }}</td>
+        <td>{{ s.parent_contact or '-' }}</td>
+        <td>
+          <a href="/collect/{{ s.roll_no }}" class="btn" style="padding: 6px 12px; font-size: 12px;">💰 Collect Fee</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" style="text-align: center; color: #64748b;">No students found. Click "Add Student" to start.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Add Student Modal -->
+<div id="addModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+  <div class="card" style="width:100%; max-width:450px; margin:20px;">
+    <h3 style="margin-bottom: 20px;">Add New Student</h3>
+    <form method="POST" action="/student/add">
+      <input type="text" name="roll_no" placeholder="Roll Number *" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text);">
+      <input type="text" name="name" placeholder="Full Name *" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text);">
+      <input type="text" name="class_name" placeholder="Class (e.g. 10th)" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text);">
+      <input type="text" name="father" placeholder="Father's Name" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text);">
+      <input type="text" name="parent_contact" placeholder="Parent Contact Number" style="width:100%; padding:10px; margin-bottom:20px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text);">
+      
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button type="button" class="btn" style="background: #64748b;" onclick="document.getElementById('addModal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn">Save Student</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
