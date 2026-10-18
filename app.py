@@ -292,6 +292,83 @@ def receipt(roll_no, receipt_no):
         return redirect(url_for("fees"))
     
     return render_template("fees/receipt.html", student=student, payment=payment, now=datetime.now())
+   # ---------------- DASHBOARD (Updated) ----------------
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    try:
+        students_count = one("SELECT COUNT(*) c FROM students")["c"]
+        total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE balance > 0")["t"]
+        today_collection = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE pay_date = %s", (today(),))["t"]
+        
+        # Fee Status Data for Doughnut Chart
+        paid = one("SELECT COUNT(*) c FROM bills WHERE status='Paid'")["c"]
+        partial = one("SELECT COUNT(*) c FROM bills WHERE status='Partial'")["c"]
+        unpaid = one("SELECT COUNT(*) c FROM bills WHERE status='Unpaid' OR status IS NULL")["c"]
+        fee_status = [paid, partial, unpaid]
+
+        # Monthly Trend Data for Bar Chart (Last 6 Months)
+        trend = db_all("""
+            SELECT substr(pay_date, 1, 7) as month, SUM(amount) as total
+            FROM payments GROUP BY substr(pay_date, 1, 7)
+            ORDER BY month DESC LIMIT 6
+        """)
+        trend.reverse() # Chronological order me lane ke liye
+        trend_labels = [t['month'] for t in trend]
+        trend_data = [float(t['total']) for t in trend]
+
+    except Exception as e:
+        print("Dashboard Error:", e)
+        students_count, total_due, today_collection = 0, 0, 0
+        fee_status = [0, 0, 0]
+        trend_labels = []
+        trend_data = []
+
+    return render_template("dashboard/dashboard.html",
+        students=students_count, total_due=total_due, today_collection=today_collection,
+        fee_status=fee_status, trend_labels=trend_labels, trend_data=trend_data
+    )
+
+# ---------------- ATTENDANCE ----------------
+@app.route("/attendance", methods=["GET", "POST"])
+@login_required
+def attendance():
+    if request.method == "POST":
+        att_date = request.form.get("att_date")
+        class_name = request.form.get("class_name")
+        
+        # Purani attendance delete karo us din ki
+        run("""DELETE FROM attendance WHERE att_date=%s AND roll_no IN 
+               (SELECT roll_no FROM students WHERE class_name=%s)""", (att_date, class_name))
+        
+        present_count = 0
+        for key, value in request.form.items():
+            if key.startswith("status_"):
+                roll_no = key.replace("status_", "")
+                run("INSERT INTO attendance (roll_no, att_date, status) VALUES (%s, %s, %s)", 
+                    (roll_no, att_date, value))
+                if value == "Present": present_count += 1
+                
+        flash(f"✅ Attendance marked for {class_name}! Present: {present_count}", "success")
+        return redirect(url_for("attendance", date=att_date, class_name=class_name))
+
+    att_date = request.args.get("date", today())
+    class_name = request.args.get("class_name", "")
+    
+    students_list = []
+    existing_att = {}
+    
+    if class_name:
+        students_list = db_all("SELECT * FROM students WHERE class_name=%s ORDER BY roll_no", (class_name,))
+        # Existing attendance fetch karo
+        att_records = db_all("SELECT roll_no, status FROM attendance WHERE att_date=%s", (att_date,))
+        existing_att = {a['roll_no']: a['status'] for a in att_records}
+
+    classes = db_all("SELECT DISTINCT class_name FROM students WHERE class_name IS NOT NULL ORDER BY class_name")
+    
+    return render_template("attendance/attendance.html", 
+                           students=students_list, classes=classes, 
+                           att_date=att_date, class_name=class_name, existing_att=existing_att) 
     
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
