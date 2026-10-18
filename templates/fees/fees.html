@@ -1,0 +1,40 @@
+{% extends "shared/base.html" %}
+{% block title %}Fees{% endblock %}
+{% block page_title %}Fee Management{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h3 style="margin-bottom: 20px;">Fee Structures & Dues</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Roll No</th>
+        <th>Student Name</th>
+        <th>Class</th>
+        <th>Tuition Fee</th>
+        <th>Back Dues</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in fees %}
+      <tr>
+        <td><strong>{{ f.roll_no }}</strong></td>
+        <td>{{ f.name }}</td>
+        <td>{{ f.class_name or '-' }}</td>
+        <td>₹{{ f.tuition_fee or 0 }}</td>
+        <td style="color: #ef4444; font-weight: bold;">₹{{ f.back_dues or 0 }}</td>
+        <td>
+          <a href="/collect/{{ f.roll_no }}" class="btn" style="padding: 6px 12px; font-size: 12px;">Collect</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" style="text-align: center; color: #64748b;">No fee records found. Please add students first.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
