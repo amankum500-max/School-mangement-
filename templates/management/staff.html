@@ -1,0 +1,119 @@
+{% extends "shared/base.html" %}
+{% block title %}Staff Directory{% endblock %}
+{% block page_title %}Staff Management{% endblock %}
+
+{% block content %}
+<!-- KPI Card -->
+<div class="card" style="border-left: 5px solid #8b5cf6; display: flex; justify-content: space-between; align-items: center;">
+  <div>
+    <p style="color: #64748b; font-weight: 600; font-size: 14px; margin: 0;">Total Active Staff</p>
+    <h1 style="font-size: 32px; margin: 5px 0 0 0;">{{ staff|length }}</h1>
+  </div>
+  <div style="text-align: right;">
+    <p style="color: #64748b; font-weight: 600; font-size: 14px; margin: 0;">Monthly Salary Expense</p>
+    <h1 style="font-size: 28px; margin: 5px 0 0 0; color: #ef4444;">₹{{ '{:,.0f}'.format(total_salary) }}</h1>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h3 style="margin: 0;">All Employees</h3>
+    <button class="btn" onclick="document.getElementById('addStaffModal').style.display='flex'">➕ Add Staff</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Emp ID</th>
+        <th>Name</th>
+        <th>Designation</th>
+        <th>Subject</th>
+        <th>Contact</th>
+        <th>Salary</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in staff %}
+      <tr>
+        <td><strong>{{ s.emp_id }}</strong></td>
+        <td>{{ s.name }}</td>
+        <td>
+          <span style="background: #f1f5f9; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;">
+            {{ s.designation or '-' }}
+          </span>
+        </td>
+        <td>{{ s.subject or '-' }}</td>
+        <td>
+          {{ s.phone or '-' }}
+          {% if s.email %}<br><span style="font-size: 12px; color: #64748b;">{{ s.email }}</span>{% endif %}
+        </td>
+        <td style="font-weight: bold; color: #10b981;">₹{{ '{:,.0f}'.format(s.salary) }}</td>
+        <td>
+          <a href="/staff/delete/{{ s.id }}" onclick="return confirm('Remove this staff member?')" style="text-decoration: none; font-size: 18px;">🗑️</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" style="text-align: center; color: #64748b; padding: 30px;">No staff members found. Click "Add Staff" to start.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Add Staff Modal -->
+<div id="addStaffModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+  <div class="card" style="width: 100%; max-width: 550px; margin: 20px; max-height: 90vh; overflow-y: auto;">
+    <h3 style="margin-bottom: 20px;">Add New Staff Member</h3>
+    <form method="POST" action="/staff/add">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Employee ID *</label>
+          <input type="text" name="emp_id" placeholder="e.g. EMP001" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Full Name *</label>
+          <input type="text" name="name" placeholder="e.g. Rahul Sharma" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Designation</label>
+          <select name="designation" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+            <option value="Teacher">Teacher</option>
+            <option value="Principal">Principal</option>
+            <option value="Accountant">Accountant</option>
+            <option value="Clerk">Clerk</option>
+            <option value="Peon">Peon</option>
+            <option value="Driver">Driver</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Subject (If Teacher)</label>
+          <input type="text" name="subject" placeholder="e.g. Mathematics" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Phone Number</label>
+          <input type="text" name="phone" placeholder="10-digit number" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Email Address</label>
+          <input type="email" name="email" placeholder="staff@school.com" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Monthly Salary (₹)</label>
+          <input type="number" name="salary" placeholder="e.g. 25000" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Joining Date</label>
+          <input type="date" name="joining_date" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
+        <button type="button" class="btn" style="background: #64748b;" onclick="document.getElementById('addStaffModal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn" style="background: #8b5cf6;">Save Staff</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
