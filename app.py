@@ -498,6 +498,42 @@ def delete_transport(rid):
     except Exception as e:
         flash(f"❌ Error: {e}", "error")
     return redirect(url_for("transport"))
+    # ---------------- HOSTEL MANAGEMENT ----------------
+@app.route("/hostel")
+@login_required
+def hostel():
+    try:
+        rooms = db_all("SELECT * FROM hostel_rooms WHERE is_active = TRUE ORDER BY room_no")
+        total_capacity = sum(r['capacity'] for r in rooms)
+        total_occupied = sum(r['occupied'] for r in rooms)
+    except:
+        rooms = []
+        total_capacity = 0
+        total_occupied = 0
+    return render_template("facilities/hostel.html", rooms=rooms, total_capacity=total_capacity, total_occupied=total_occupied)
+
+@app.route("/hostel/add", methods=["POST"])
+@login_required
+def add_hostel_room():
+    d = request.form
+    try:
+        run("""INSERT INTO hostel_rooms (room_no, block, capacity, monthly_fee, warden_name) 
+               VALUES (%s, %s, %s, %s, %s)""",
+            (d["room_no"], d.get("block"), d.get("capacity") or 4, d.get("monthly_fee") or 0, d.get("warden_name")))
+        flash("✅ Hostel room added successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e} (Room number must be unique)", "error")
+    return redirect(url_for("hostel"))
+
+@app.route("/hostel/delete/<int:rid>")
+@login_required
+def delete_hostel_room(rid):
+    try:
+        run("UPDATE hostel_rooms SET is_active = FALSE WHERE id = %s", (rid,))
+        flash("🗑️ Room removed", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("hostel"))
 
 
 # ---------------- APP START ----------------
