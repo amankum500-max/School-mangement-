@@ -1,0 +1,44 @@
+{% extends "shared/base.html" %}
+{% block title %}Defaulters{% endblock %}
+{% block page_title %}Fee Defaulters{% endblock %}
+
+{% block content %}
+<div class="card" style="border-left: 5px solid #ef4444;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h3 style="color: #ef4444;">Total Pending Dues: ₹{{ total }}</h3>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Roll No</th>
+        <th>Student Name</th>
+        <th>Class</th>
+        <th>Month</th>
+        <th>Balance</th>
+        <th>Contact</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in defaulters %}
+      <tr>
+        <td><strong>{{ d.roll_no }}</strong></td>
+        <td>{{ d.name }}</td>
+        <td>{{ d.class_name }}-{{ d.section or '' }}</td>
+        <td>{{ d.month }}</td>
+        <td style="color: #ef4444; font-weight: bold;">₹{{ d.balance }}</td>
+        <td>{{ d.parent_contact or '-' }}</td>
+        <td>
+          <a href="/collect/{{ d.roll_no }}" class="btn" style="padding: 6px 12px; font-size: 12px; background: #10b981;">💰 Collect</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" style="text-align: center; color: #10b981; font-weight: bold;">🎉 No defaulters found! All fees are clear.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
