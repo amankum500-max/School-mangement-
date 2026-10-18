@@ -1,50 +1,149 @@
-{% extends "shared/base.html" %}
-{% block title %}Certificates{% endblock %}
-{% block page_title %}Certificate Generator{% endblock %}
-
-{% block content %}
-<div class="card" style="max-width: 600px; margin: 0 auto;">
-  <div style="text-align: center; margin-bottom: 30px;">
-    <div style="font-size: 50px; margin-bottom: 10px;">📜</div>
-    <h2 style="color: var(--text);">Generate Student Certificate</h2>
-    <p style="color: #64748b; font-size: 14px;">Select a student and certificate type to generate a printable document.</p>
-  </div>
-
-  <form method="GET" onsubmit="generateCert(event)" style="display: flex; flex-direction: column; gap: 20px;">
-    <div>
-      <label style="font-size: 14px; font-weight: 600;">Select Student</label>
-      <select id="studentSelect" required style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-top: 8px; font-size: 15px; background: var(--bg); color: var(--text);">
-        <option value="">-- Choose Student --</option>
-        {% for s in students %}
-        <option value="{{ s.roll_no }}">{{ s.roll_no }} - {{ s.name }} (Class {{ s.class_name or '-' }})</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div>
-      <label style="font-size: 14px; font-weight: 600;">Certificate Type</label>
-      <select id="certTypeSelect" required style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-top: 8px; font-size: 15px; background: var(--bg); color: var(--text);">
-        <option value="bonafide">Bonafide Certificate (For Bank/Passport)</option>
-        <option value="tc">Transfer Certificate (TC)</option>
-        <option value="character">Character Certificate</option>
-      </select>
-    </div>
-
-    <button type="submit" class="btn" style="padding: 15px; font-size: 16px; background: #8b5cf6; margin-top: 10px;">⚙️ Generate & Print</button>
-  </form>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-  function generateCert(e) {
-    e.preventDefault();
-    const roll = document.getElementById('studentSelect').value;
-    const type = document.getElementById('certTypeSelect').value;
-    if (!roll) return alert('Please select a student!');
-    
-    // Nayi tab me certificate kholega
-    window.open(`/certificate/generate/${roll}/${type}`, '_blank');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ cert_type|upper }} - {{ student.name }}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;600;700&display=swap');
+  
+  body { background: #f1f5f9; padding: 40px; font-family: 'Inter', sans-serif; display: flex; justify-content: center; }
+  
+  /* A4 Size Page */
+  .page { 
+    width: 210mm; 
+    min-height: 297mm; 
+    background: white; 
+    padding: 25mm; 
+    box-sizing: border-box; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+    position: relative;
+    border: 2px solid #d4af37; /* Golden Border */
+    outline: 6px solid #fff;
+    outline-offset: -12px;
   }
-</script>
-{% endblock %}
+
+  /* Watermark Logo in Background */
+  .watermark {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 300px; color: rgba(0,0,0,0.03); z-index: 0; pointer-events: none;
+    user-select: none;
+  }
+
+  .content { position: relative; z-index: 1; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #d4af37; padding-bottom: 20px; }
+  .header h1 { font-family: 'Playfair Display', serif; font-size: 36px; color: #1e3a8a; margin: 0 0 5px 0; letter-spacing: 1px; }
+  .header p { margin: 0; color: #64748b; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; font-weight: 600; }
+
+  /* Title */
+  .cert-title { text-align: center; margin: 40px 0; }
+  .cert-title h2 { 
+    font-family: 'Playfair Display', serif; font-size: 28px; color: #1e293b; 
+    text-transform: uppercase; letter-spacing: 3px; display: inline-block;
+    border-bottom: 1px solid #333; padding-bottom: 5px;
+  }
+
+  /* Body Text */
+  .body-text { font-family: 'Playfair Display', serif; font-size: 18px; line-height: 2; color: #1e293b; text-align: justify; }
+  
+  .fill-in { font-weight: 700; font-size: 20px; text-decoration: underline; color: #1e40af; padding: 0 5px; }
+
+  /* Signatures */
+  .signatures { display: flex; justify-content: space-between; margin-top: 80px; }
+  .sig-box { text-align: center; width: 200px; }
+  .sig-line { border-top: 1px solid #333; margin-bottom: 8px; }
+  .sig-text { font-size: 14px; font-weight: 600; color: #334155; }
+
+  /* Print Button (Hidden on Print) */
+  .print-btn { position: fixed; top: 20px; right: 20px; background: #6366f1; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(99,102,241,0.4); }
+  
+  @media print {
+    body { background: white; padding: 0; }
+    .page { box-shadow: none; margin: 0; border: 2px solid #d4af37; }
+    .print-btn { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<button class="print-btn" onclick="window.print()">🖨️ Print Certificate</button>
+
+<div class="page">
+  <div class="watermark">🏫</div>
+  
+  <div class="content">
+    <div class="header">
+      <h1>SCHOOL ERP ACADEMY</h1>
+      <p>123 Education Lane, Knowledge City, India</p>
+      <p style="font-size: 12px; margin-top: 5px;">Affiliated to CBSE | School Code: 12345</p>
+    </div>
+
+    <div class="cert-title">
+      {% if cert_type == 'tc' %}
+        <h2>Transfer Certificate</h2>
+      {% elif cert_type == 'bonafide' %}
+        <h2>Bonafide Certificate</h2>
+      {% else %}
+        <h2>Character Certificate</h2>
+      {% endif %}
+    </div>
+
+    <div class="body-text">
+      {% if cert_type == 'bonafide' %}
+        <p>
+          This is to certify that <span class="fill-in">{{ student.name }}</span>, 
+          Son/Daughter of <span class="fill-in">{{ student.father or 'Mr. ' + student.name.split()[-1] }}</span>, 
+          is a bonafide student of this school. He/She is currently studying in Class <span class="fill-in">{{ student.class_name or '-' }}</span> 
+          and his/her date of birth is <span class="fill-in">{{ student.dob or '-' }}</span> as per our school records.
+        </p>
+        <p style="margin-top: 20px;">
+          This certificate is issued upon request for official purposes (Bank Account / Passport / etc.).
+        </p>
+      
+      {% elif cert_type == 'tc' %}
+        <p>
+          This is to certify that <span class="fill-in">{{ student.name }}</span>, 
+          Son/Daughter of <span class="fill-in">{{ student.father or 'Mr. ' + student.name.split()[-1] }}</span>, 
+          was a student of this school. He/She was studying in Class <span class="fill-in">{{ student.class_name or '-' }}</span> 
+          and has successfully completed all academic requirements.
+        </p>
+        <p style="margin-top: 20px;">
+          His/Her conduct and character during the period of study were found to be <span class="fill-in">Good</span>. 
+          All school dues have been cleared. We wish him/her a bright future.
+        </p>
+      
+      {% else %}
+        <p>
+          This is to certify that <span class="fill-in">{{ student.name }}</span>, 
+          Son/Daughter of <span class="fill-in">{{ student.father or 'Mr. ' + student.name.split()[-1] }}</span>, 
+          is/was a student of this school studying in Class <span class="fill-in">{{ student.class_name or '-' }}</span>.
+        </p>
+        <p style="margin-top: 20px;">
+          During his/her stay in the school, his/her conduct and character were found to be <span class="fill-in">Excellent</span>. 
+          He/She bears a good moral character. We wish him/her all the best for future endeavors.
+        </p>
+      {% endif %}
+    </div>
+
+    <div style="margin-top: 40px; font-size: 16px; color: #334155;">
+      <strong>Date:</strong> {{ today_date }} <br>
+      <strong>Place:</strong> Knowledge City
+    </div>
+
+    <div class="signatures">
+      <div class="sig-box">
+        <div class="sig-line"></div>
+        <div class="sig-text">Class Teacher</div>
+      </div>
+      <div class="sig-box">
+        <div class="sig-line"></div>
+        <div class="sig-text">Principal Signature</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
