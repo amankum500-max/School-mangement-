@@ -61,7 +61,9 @@ def students():
         rows = db_all("SELECT * FROM students ORDER BY roll_no")
     except:
         rows = []
-      return render_template("STUDENTS (6)/students.html", students=rows, classes=[], q="", class_filter="", fee_filter="", page=1, total_pages=1)  
+    
+    # Yahan exactly 4 space hone chahiye
+    return render_template("STUDENTS (6)/students.html", students=rows, classes=[], q="", class_filter="", fee_filter="", page=1, total_pages=1)
 
 # ---------------- FEES ----------------
 @app.route("/fees")
@@ -76,7 +78,9 @@ def fees():
         """)
     except:
         rows = []
-        return render_template("FEES (8)/fees.html", fees=rows)
+        
+    # Yahan bhi exactly 4 space hone chahiye
+    return render_template("FEES (8)/fees.html", fees=rows)
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
