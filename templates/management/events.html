@@ -1,0 +1,94 @@
+{% extends "shared/base.html" %}
+{% block title %}Events{% endblock %}
+{% block page_title %}School Events & Calendar{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+  
+  <!-- Left: Upcoming Events List -->
+  <div>
+    <div class="card">
+      <h3 style="margin-bottom: 20px;">📅 Upcoming Events</h3>
+      
+      <div style="display: flex; flex-direction: column; gap: 15px;">
+        {% for e in upcoming %}
+        <div style="display: flex; gap: 20px; padding: 15px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); position: relative;">
+          
+          <!-- Date Block -->
+          <div style="background: var(--primary-grad); color: white; border-radius: 10px; width: 70px; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0;">
+            <span style="font-size: 24px; font-weight: 800; line-height: 1;">{{ e.event_date.strftime('%d') }}</span>
+            <span style="font-size: 12px; text-transform: uppercase; font-weight: 600;">{{ e.event_date.strftime('%b') }}</span>
+          </div>
+
+          <div style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <h4 style="margin: 0 0 5px 0; font-size: 16px; color: var(--text);">{{ e.event_name }}</h4>
+              <a href="/event/delete/{{ e.id }}" onclick="return confirm('Delete this event?')" style="text-decoration: none; font-size: 16px;">🗑️</a>
+            </div>
+            
+            <div style="display: flex; gap: 15px; font-size: 12px; color: #64748b; margin-bottom: 8px; font-weight: 600;">
+              <span>📍 {{ e.location or 'School Campus' }}</span>
+              <span style="background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 4px;">{{ e.event_type or 'General' }}</span>
+            </div>
+            
+            <p style="margin: 0; font-size: 13px; color: var(--text); line-height: 1.5;">{{ e.description }}</p>
+          </div>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 30px; color: #64748b;">
+          <p>No upcoming events scheduled.</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Past Events -->
+    {% if past %}
+    <div class="card" style="opacity: 0.8;">
+      <h3 style="margin-bottom: 15px; font-size: 16px;">⏳ Recent Past Events</h3>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        {% for e in past %}
+        <div style="display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid var(--border); font-size: 13px;">
+          <span style="font-weight: 600;">{{ e.event_name }}</span>
+          <span style="color: #64748b;">{{ e.event_date.strftime('%d %b %Y') }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Right: Add Event Form -->
+  <div>
+    <div class="card" style="position: sticky; top: 90px;">
+      <h3 style="margin-bottom: 20px;">➕ Schedule New Event</h3>
+      <form method="POST">
+        <label style="font-size: 13px; font-weight: 600;">Event Name *</label>
+        <input type="text" name="event_name" placeholder="e.g. Annual Sports Day" required style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text);">
+        
+        <label style="font-size: 13px; font-weight: 600;">Date *</label>
+        <input type="date" name="event_date" required style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text);">
+        
+        <label style="font-size: 13px; font-weight: 600;">Event Type</label>
+        <select name="event_type" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text);">
+          <option value="Cultural">Cultural / Function</option>
+          <option value="Sports">Sports</option>
+          <option value="Exam">Examination</option>
+          <option value="Holiday">Holiday</option>
+          <option value="Meeting">PTM / Meeting</option>
+          <option value="Other">Other</option>
+        </select>
+
+        <label style="font-size: 13px; font-weight: 600;">Location</label>
+        <input type="text" name="location" placeholder="e.g. Main Ground" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text);">
+
+        <label style="font-size: 13px; font-weight: 600;">Description</label>
+        <textarea name="description" rows="3" placeholder="Event details..." style="width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-family: inherit; resize: none;"></textarea>
+        
+        <button type="submit" class="btn" style="width: 100%; background: #8b5cf6;">📅 Schedule Event</button>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
