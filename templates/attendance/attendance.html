@@ -1,22 +1,30 @@
 {% extends "shared/base.html" %}
 {% block title %}Attendance{% endblock %}
-{% block page_title %}Mark Attendance{% endblock %}
+{% block page_title %}Student Attendance{% endblock %}
 
 {% block content %}
 <div class="card">
-  <form method="GET" action="/attendance" style="display: flex; gap: 15px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
-    <input type="date" name="date" value="{{ att_date }}" required style="padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text);">
-    <select name="class_name" required style="padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); min-width: 200px;">
-      <option value="">Select Class</option>
-      {% for c in classes %}
-      <option value="{{ c.class_name }}" {% if class_name == c.class_name %}selected{% endif %}>{{ c.class_name }}</option>
-      {% endfor %}
-    </select>
-    <button type="submit" class="btn">🔍 Load Students</button>
+  <!-- Filter Form -->
+  <form method="GET" style="display: flex; gap: 15px; align-items: flex-end; margin-bottom: 25px; flex-wrap: wrap;">
+    <div>
+      <label style="font-size: 13px; font-weight: 600; color: #64748b;">Date</label><br>
+      <input type="date" name="date" value="{{ att_date }}" required style="padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text);">
+    </div>
+    <div>
+      <label style="font-size: 13px; font-weight: 600; color: #64748b;">Class</label><br>
+      <select name="class_name" required style="padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); min-width: 150px;">
+        <option value="">Select Class</option>
+        {% for c in classes %}
+        <option value="{{ c.class_name }}" {% if class_name == c.class_name %}selected{% endif %}>{{ c.class_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn" style="background: #64748b;">🔍 Load Students</button>
   </form>
 
+  <!-- Attendance Form -->
   {% if students %}
-  <form method="POST" action="/attendance">
+  <form method="POST">
     <input type="hidden" name="att_date" value="{{ att_date }}">
     <input type="hidden" name="class_name" value="{{ class_name }}">
     
@@ -24,7 +32,7 @@
       <thead>
         <tr>
           <th>Roll No</th>
-          <th>Student Name</th>
+          <th>Name</th>
           <th>Status</th>
         </tr>
       </thead>
@@ -34,22 +42,23 @@
           <td><strong>{{ s.roll_no }}</strong></td>
           <td>{{ s.name }}</td>
           <td>
-            <select name="status_{{ s.roll_no }}" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-weight: bold;">
-              <option value="Present" {% if marked.get(s.roll_no) == 'Present' %}selected{% endif %}>✅ Present</option>
-              <option value="Absent" {% if marked.get(s.roll_no) == 'Absent' %}selected{% endif %}>❌ Absent</option>
-            </select>
+            <label style="margin-right: 15px; cursor: pointer;">
+              <input type="radio" name="status_{{ s.roll_no }}" value="Present" {% if existing_att.get(s.roll_no) == 'Present' or not existing_att %}checked{% endif %}> Present
+            </label>
+            <label style="cursor: pointer; color: #ef4444;">
+              <input type="radio" name="status_{{ s.roll_no }}" value="Absent" {% if existing_att.get(s.roll_no) == 'Absent' %}checked{% endif %}> Absent
+            </label>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
-    
-    <div style="margin-top: 20px;">
-      <button type="submit" class="btn" style="background: #10b981;">💾 Save Attendance</button>
+    <div style="margin-top: 25px;">
+      <button type="submit" class="btn" style="background: #10b981; width: 100%; padding: 15px; font-size: 16px;">💾 Save Attendance</button>
     </div>
   </form>
   {% elif class_name %}
-  <div style="text-align: center; color: #64748b; padding: 30px;">No students found for this class.</div>
+  <p style="text-align: center; color: #64748b; padding: 20px;">No students found in this class.</p>
   {% endif %}
 </div>
 {% endblock %}
