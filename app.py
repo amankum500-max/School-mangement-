@@ -229,10 +229,11 @@ def notices():
     notices_list = db_all("SELECT * FROM notices ORDER BY posted_date DESC, id DESC")
     return render_template("communication/notices.html", notices=notices_list)
     
-# ---# ---------------- COLLECT FEE ----------------
+# ---------------- COLLECT FEE ----------------
 @app.route("/collect/<roll_no>", methods=["GET", "POST"])
 @login_required
-def collect(roll_no):
+def collect_fee_by_roll(roll_no):
+    
     student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
     if not student:
         flash("Student not found", "error")
@@ -245,7 +246,7 @@ def collect(roll_no):
         
         if amount <= 0:
             flash("Amount must be greater than 0", "error")
-            return redirect(url_for("collect", roll_no=roll_no))
+            return redirect(url_for("collect_fee_by_roll", roll_no=roll_no))
 
         try:
             receipt_no = f"RCP{datetime.now().strftime('%Y%m%d%H%M%S')}"
