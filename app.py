@@ -172,6 +172,63 @@ def defaulters():
         rows = []
         total = 0
     return render_template("fees/defaulters.html", defaulters=rows, total=total) 
+    # ---------------- ATTENDANCE ----------------
+@app.route("/attendance", methods=["GET", "POST"])
+@login_required
+def attendance():
+    if request.method == "POST":
+        att_date = request.form["att_date"]
+        class_name = request.form["class_name"]
+        
+        # Delete old records for this date/class to prevent duplicates
+        run("""DELETE FROM attendance WHERE att_date=%s AND roll_no IN 
+               (SELECT roll_no FROM students WHERE class_name=%s)""", (att_date, class_name))
+        
+        present = absent = 0
+        for key, value in request.form.items():
+            if key.startswith("status_"):
+                roll_no = key.replace("status_", "")
+                run("INSERT INTO attendance (roll_no, att_date, status, class_name) VALUES (%s, %s, %s, %s)", 
+                    (roll_no, att_date, value, class_name))
+                if value == "Present": present += 1
+                else: absent += 1
+                
+        flash(f"✅ Attendance saved! Present: {present}, Absent: {absent}", "success")
+        return redirect(url_for("attendance", date=att_date, class_name=class_name))
+
+    att_date = request.args.get("date", today())
+    class_name = request.args.get("class_name", "")
+    
+    # Get all unique classes for dropdown
+    classes = db_all("SELECT DISTINCT class_name FROM students WHERE class_name IS NOT NULL ORDER BY class_name")
+    students = []
+    if class_name:
+        students = db_all("SELECT * FROM students WHERE class_name=%s ORDER BY roll_no", (class_name,))
+        
+    # Get already marked attendance
+    marked = {}
+    if class_name:
+        att_rows = db_all("SELECT roll_no, status FROM attendance WHERE att_date=%s AND class_name=%s", (att_date, class_name))
+        marked = {r["roll_no"]: r["status"] for r in att_rows}
+
+    return render_template("attendance/attendance.html", students=students, classes=classes, 
+                           att_date=att_date, class_name=class_name, marked=marked)
+
+# ---------------- NOTICES ----------------
+@app.route("/notices", methods=["GET", "POST"])
+@login_required
+def notices():
+    if request.method == "POST":
+        d = request.form
+        run("""INSERT INTO notices (title, content, category, posted_by, posted_date, priority) 
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (d["title"], d["content"], "General", session.get("name", "Admin"), today(), "Normal"))
+        flash("✅ Notice posted successfully!", "success")
+        return redirect(url_for("notices"))
+        
+    notices_list = db_all("SELECT * FROM notices ORDER BY posted_date DESC, id DESC")
+    return render_template("communication/notices.html", notices=notices_list)
+    
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
