@@ -534,6 +534,43 @@ def delete_hostel_room(rid):
     except Exception as e:
         flash(f"❌ Error: {e}", "error")
     return redirect(url_for("hostel"))
+    # ---------------- LIBRARY MANAGEMENT ----------------
+@app.route("/library")
+@login_required
+def library():
+    try:
+        books = db_all("SELECT * FROM library_books WHERE is_active = TRUE ORDER BY title")
+        total_books = sum(b['total_copies'] for b in books)
+        available_books = sum(b['available_copies'] for b in books)
+    except:
+        books = []
+        total_books = 0
+        available_books = 0
+    return render_template("facilities/library.html", books=books, total_books=total_books, available_books=available_books)
+
+@app.route("/library/add", methods=["POST"])
+@login_required
+def add_book():
+    d = request.form
+    try:
+        copies = int(d.get("total_copies") or 1)
+        run("""INSERT INTO library_books (book_id, title, author, category, total_copies, available_copies) 
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (d["book_id"], d["title"], d.get("author"), d.get("category"), copies, copies))
+        flash("✅ Book added to library successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e} (Book ID must be unique)", "error")
+    return redirect(url_for("library"))
+
+@app.route("/library/delete/<int:bid>")
+@login_required
+def delete_book(bid):
+    try:
+        run("UPDATE library_books SET is_active = FALSE WHERE id = %s", (bid,))
+        flash("🗑️ Book removed from library", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("library"))
 
 
 # ---------------- APP START ----------------
