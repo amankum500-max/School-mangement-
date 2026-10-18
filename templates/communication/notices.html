@@ -1,0 +1,57 @@
+{% extends "shared/base.html" %}
+{% block title %}Notice Board{% endblock %}
+{% block page_title %}School Notices{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
+  
+  <!-- Left: Post Notice Form -->
+  <div class="card" style="height: fit-content;">
+    <h3 style="margin-bottom: 15px;">📢 Post New Notice</h3>
+    <form method="POST">
+      <label style="font-size: 13px; font-weight: 600;">Title</label>
+      <input type="text" name="title" placeholder="e.g. Diwali Holiday" required style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text);">
+      
+      <label style="font-size: 13px; font-weight: 600;">Priority</label>
+      <select name="priority" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text);">
+        <option value="Normal">Normal</option>
+        <option value="Important">Important</option>
+        <option value="Urgent">Urgent</option>
+      </select>
+
+      <label style="font-size: 13px; font-weight: 600;">Content</label>
+      <textarea name="content" rows="5" placeholder="Write your notice here..." required style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-family: inherit; resize: none;"></textarea>
+      
+      <button type="submit" class="btn" style="width: 100%;">📢 Publish Notice</button>
+    </form>
+  </div>
+
+  <!-- Right: Notice List -->
+  <div>
+    {% for n in notices %}
+    <div class="card" style="border-left: 5px solid {% if n.priority == 'Urgent' %}#ef4444{% elif n.priority == 'Important' %}#f59e0b{% else %}#6366f1{% endif %}; margin-bottom: 15px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <h3 style="margin: 0 0 5px 0; color: var(--text);">{{ n.title }}</h3>
+          <p style="font-size: 12px; color: #64748b; margin: 0;">Posted on: {{ n.posted_date }}</p>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <span style="font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 5px; 
+            background: {% if n.priority == 'Urgent' %}#fee2e2{% elif n.priority == 'Important' %}#fef3c7{% else %}#e0e7ff{% endif %};
+            color: {% if n.priority == 'Urgent' %}#991b1b{% elif n.priority == 'Important' %}#92400e{% else %}#3730a3{% endif %};">
+            {{ n.priority }}
+          </span>
+          <a href="/notice/delete/{{ n.id }}" onclick="return confirm('Delete this notice?')" style="text-decoration: none; font-size: 18px;">🗑️</a>
+        </div>
+      </div>
+      <p style="margin-top: 15px; font-size: 14px; line-height: 1.6; color: var(--text);">{{ n.content }}</p>
+    </div>
+    {% else %}
+    <div class="card" style="text-align: center; padding: 40px;">
+      <p style="font-size: 16px; color: #64748b;">No notices posted yet.</p>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
