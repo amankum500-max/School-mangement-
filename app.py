@@ -44,7 +44,8 @@ def dashboard():
         today_collection = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE pay_date = %s", (today(),))["t"]
     except:
         students_count, total_due, today_collection = 0, 0, 0
-
+# Dashboard me notices dikhane ke liye
+recent_notices = db_all("SELECT * FROM notices WHERE is_active = TRUE ORDER BY id DESC LIMIT 3")
     return render_template("dashboard/dashboard.html",
         students=students_count, total_due=total_due,
         today_collection=today_collection
