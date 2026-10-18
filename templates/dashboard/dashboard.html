@@ -7,7 +7,7 @@
 
 <style>
   /* ====================================================
-     HYPER-ADVANCED 3D HUD DASHBOARD (RESPONSIVE & CONTROLS)
+     HYPER-ADVANCED 3D HUD DASHBOARD (NEWS & MAP WEATHER)
   ==================================================== */
   * { box-sizing: border-box; }
   
@@ -39,11 +39,7 @@
   .hud-card.is-minimized { padding-bottom: 20px; }
   
   /* Maximize State */
-  .hud-card.is-maximized {
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    z-index: 99999; border-radius: 0; border: none; background: #050510;
-    padding: 30px; margin: 0;
-  }
+  .hud-card.is-maximized { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 99999; border-radius: 0; border: none; background: #050510; padding: 30px; margin: 0; }
   .hud-card.is-maximized .card-content { height: calc(100vh - 80px); overflow-y: auto; }
 
   /* --- CONTENT STYLES --- */
@@ -58,12 +54,10 @@
   .hud-grid-layout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
   .col-1 { grid-column: span 1; } .col-2 { grid-column: span 2; } .col-3 { grid-column: span 3; } .col-4 { grid-column: span 4; }
   
-  /* Tablet */
   @media (max-width: 1024px) { 
     .hud-grid-layout { grid-template-columns: repeat(2, 1fr); } 
     .col-2, .col-3, .col-4 { grid-column: span 2; } 
   }
-  /* Mobile */
   @media (max-width: 768px) { 
     .hud-grid-layout { grid-template-columns: 1fr; } 
     .col-1, .col-2, .col-3, .col-4 { grid-column: span 1; } 
@@ -83,13 +77,12 @@
   .hud-clock { font-size: 24px; font-weight: 900; color: #00f3ff; text-shadow: 0 0 15px rgba(0, 243, 255, 0.6); background: rgba(0, 243, 255, 0.1); padding: 5px 20px; border: 1px solid rgba(0, 243, 255, 0.4); border-radius: 8px; line-height: 1; margin-bottom: 5px; }
   .hud-date { font-size: 12px; font-weight: 800; color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); letter-spacing: 1px; }
 
-  /* Weather & Map */
-  .weather-hud { display: flex; align-items: center; justify-content: space-between; height: 100%; flex-wrap: wrap; }
-  .weather-temp { font-size: 36px; font-weight: 900; font-family: 'Courier New', monospace; color: #fff; }
-  .weather-cond { font-size: 12px; color: #00f3ff; font-weight: 800; text-transform: uppercase; }
-  .weather-icon { font-size: 40px; animation: float 3s ease-in-out infinite; }
-  @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+  /* --- NEWS TICKER --- */
+  .news-ticker { overflow: hidden; white-space: nowrap; width: 100%; margin-top: 10px; background: rgba(0,0,0,0.4); padding: 8px; border-radius: 6px; border: 1px solid rgba(255, 215, 0, 0.3); }
+  .news-ticker-text { display: inline-block; animation: ticker 15s linear infinite; font-family: 'Courier New', monospace; font-size: 14px; font-weight: 700; color: #ffd700; }
+  @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
+  /* --- MAP & WEATHER OVERLAY --- */
   .map-container { position: relative; width: 100%; height: 160px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(0,243,255,0.3); }
   .map-iframe { width: 100%; height: 100%; border: none; filter: invert(100%) hue-rotate(180deg) brightness(0.8) contrast(1.2); opacity: 0.8; }
   .map-overlay { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(rgba(0,243,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,243,255,0.1) 1px, transparent 1px); background-size: 20px 20px; }
@@ -97,6 +90,10 @@
   @keyframes mapScan { 0% { top: 0; } 100% { top: 100%; } }
   .map-target { position: absolute; top: 50%; left: 50%; width: 30px; height: 30px; transform: translate(-50%, -50%); border: 1px solid #ff0055; border-radius: 50%; animation: targetPulse 2s infinite; }
   @keyframes targetPulse { 0% { transform: translate(-50%, -50%) scale(0.8); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; } }
+  
+  .weather-overlay { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); border: 1px solid #00f3ff; border-radius: 8px; padding: 6px 12px; display: flex; align-items: center; gap: 8px; z-index: 10; }
+  .weather-overlay .temp { font-size: 18px; font-weight: 900; color: #fff; font-family: 'Courier New', monospace; }
+  .weather-overlay .icon { font-size: 20px; }
 
   /* Live Feed & Msg Box */
   .feed-container, .msg-container { max-height: 200px; overflow-y: auto; padding-right: 5px; }
@@ -150,7 +147,7 @@
   </div>
 </div>
 
-<!-- KPI CARDS -->
+<!-- KPI CARDS (Replaced Weather with News) -->
 <div class="hud-grid-layout">
   <div class="hud-card col-1 tilt-card">
     <div class="win-controls"><div class="win-dot win-close" onclick="closeCard(this)"></div><div class="win-dot win-min" onclick="minimizeCard(this)"></div><div class="win-dot win-max" onclick="maximizeCard(this)"></div></div>
@@ -176,13 +173,15 @@
     </div>
   </div>
 
+  <!-- NEWS TICKER (Replaced Weather) -->
   <div class="hud-card col-1 tilt-card">
     <div class="win-controls"><div class="win-dot win-close" onclick="closeCard(this)"></div><div class="win-dot win-min" onclick="minimizeCard(this)"></div><div class="win-dot win-max" onclick="maximizeCard(this)"></div></div>
     <div class="card-content">
-      <div class="hud-label">WEATHER SYSTEM</div>
-      <div class="weather-hud">
-        <div><div class="weather-temp">32°C</div><div class="weather-cond">Clear Sky</div></div>
-        <div class="weather-icon">🌤️</div>
+      <div class="hud-label text-gold">📰 CURRENT NEWS</div>
+      <div class="news-ticker">
+        <div class="news-ticker-text">
+          🚨 Annual Day on 25th Oct! &nbsp;&nbsp;|&nbsp;&nbsp; 📚 Mid-term exams starting next week. &nbsp;&nbsp;|&nbsp;&nbsp; 🏆 Rahul won 1st prize in Science Fair. &nbsp;&nbsp;|&nbsp;&nbsp; 🏫 New library books arrived.
+        </div>
       </div>
     </div>
   </div>
@@ -209,6 +208,7 @@
     </div>
   </div>
 
+  <!-- MAP WITH WEATHER OVERLAY -->
   <div class="hud-card col-1">
     <div class="win-controls"><div class="win-dot win-close" onclick="closeCard(this)"></div><div class="win-dot win-min" onclick="minimizeCard(this)"></div><div class="win-dot win-max" onclick="maximizeCard(this)"></div></div>
     <div class="card-content" style="height: 100%;">
@@ -216,6 +216,12 @@
       <div class="map-container">
         <iframe class="map-iframe" src="https://www.openstreetmap.org/export/embed.html?bbox=77.20,28.50,77.25,28.55&amp;layer=mapnik" frameborder="0"></iframe>
         <div class="map-overlay"></div><div class="map-scan-line"></div><div class="map-target"></div>
+        
+        <!-- Weather details inside Map -->
+        <div class="weather-overlay">
+          <div class="temp">32°C</div>
+          <div class="icon">🌤️</div>
+        </div>
       </div>
     </div>
   </div>
@@ -286,79 +292,36 @@
 
 {% block scripts %}
 <script>
-  // ==========================================
-  // 1. WINDOW CONTROLS (MIN, MAX, CLOSE)
-  // ==========================================
-  function closeCard(el) {
-    const card = el.closest('.hud-card');
-    card.style.display = 'none';
-    // Agar VanillaTilt laga hai toh usko destroy karna hoga taaki layout break na ho
-    if (card.vanillaTilt) card.vanillaTilt.destroy();
+  // WINDOW CONTROLS
+  function closeCard(el) { const card = el.closest('.hud-card'); card.style.display = 'none'; if (card.vanillaTilt) card.vanillaTilt.destroy(); }
+  function minimizeCard(el) { el.closest('.hud-card').classList.toggle('is-minimized'); }
+  function maximizeCard(el) { 
+    const card = el.closest('.hud-card'); card.classList.toggle('is-maximized'); 
+    setTimeout(() => { if(typeof Chart !== 'undefined') { Chart.helpers.each(Chart.instances, function(instance) { instance.resize(); }); } }, 300); 
   }
 
-  function minimizeCard(el) {
-    const card = el.closest('.hud-card');
-    card.classList.toggle('is-minimized');
-  }
-
-  function maximizeCard(el) {
-    const card = el.closest('.hud-card');
-    card.classList.toggle('is-maximized');
-    
-    // Chart resize trigger (Agar chart maximize hua hai)
-    setTimeout(() => {
-      if(typeof Chart !== 'undefined') {
-        Chart.helpers.each(Chart.instances, function(instance) {
-          instance.resize();
-        });
-      }
-    }, 300);
-  }
-
-  // ==========================================
-  // 2. FULLSCREEN MODE
-  // ==========================================
+  // FULLSCREEN
   function toggleFullScreen() {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.log(`Error attempting to enable full-screen mode: ${err.message}`);
-      });
-      document.getElementById('fsBtn').innerHTML = '<span>🗗 EXIT FULLSCREEN</span>';
+      document.documentElement.requestFullscreen().catch(err => { console.log(err.message); });
+      document.getElementById('fsBtn').innerHTML = '<span>🗗 EXIT</span>';
     } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-        document.getElementById('fsBtn').innerHTML = '<span>⛶ FULLSCREEN</span>';
-      }
+      if (document.exitFullscreen) { document.exitFullscreen(); document.getElementById('fsBtn').innerHTML = '<span>⛶ FULLSCREEN</span>'; }
     }
   }
 
-  // ==========================================
-  // 3. SEARCH PALETTE
-  // ==========================================
-  const allFeatures = [
-    { name: 'Dashboard', url: '/dashboard' }, { name: 'Students', url: '/students' },
-    { name: 'Fees', url: '/fees' }, { name: 'Attendance', url: '/attendance' },
-    { name: 'AI Assistant', url: '/ai-assistant' }
-  ];
-  let activeIndex = 0, filtered = [...allFeatures];
+  // SEARCH
+  const allFeatures = [{ name: 'Dashboard', url: '/dashboard' }, { name: 'Students', url: '/students' }, { name: 'Fees', url: '/fees' }, { name: 'AI', url: '/ai-assistant' }];
   const overlay = document.getElementById('cmdOverlay'), input = document.getElementById('cmdInput'), results = document.getElementById('cmdResults');
-
   function openCmd() { overlay.classList.add('show'); input.value = ''; filterCmd(); setTimeout(() => input.focus(), 100); }
   function closeCmd() { overlay.classList.remove('show'); }
   function filterCmd() {
     const q = input.value.toLowerCase();
-    filtered = allFeatures.filter(f => f.name.toLowerCase().includes(q));
-    activeIndex = 0;
-    results.innerHTML = filtered.map((f, i) => `<a href="${f.url}" class="cmd-item ${i === activeIndex ? 'active' : ''}">${f.name}</a>`).join('');
+    results.innerHTML = allFeatures.filter(f => f.name.toLowerCase().includes(q)).map(f => `<a href="${f.url}" class="cmd-item">${f.name}</a>`).join('');
   }
-  document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openCmd(); }
-    if (e.key === 'Escape') closeCmd();
-  });
+  document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openCmd(); } if (e.key === 'Escape') closeCmd(); });
 
-  // ==========================================
-  // 4. CLOCK, COUNTERS, AI, CHARTS
-  // ==========================================
+  // INIT
   VanillaTilt.init(document.querySelectorAll(".tilt-card"), { max: 10, speed: 400, glare: true, "max-glare": 0.3, scale: 1.02 });
   
   function updateClock() {
