@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Receipt - {{ payment.receipt_no }}</title>
+<style>
+  body { font-family: 'Inter', sans-serif; background: #f1f5f9; padding: 40px; }
+  .receipt-box { max-width: 700px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-top: 8px solid #6366f1; }
+  .header { text-align: center; border-bottom: 2px dashed #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+  .header h1 { margin: 0; color: #1e293b; font-size: 28px; }
+  .header p { margin: 5px 0; color: #64748b; font-size: 14px; }
+  .row { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 15px; }
+  .label { color: #64748b; font-weight: 600; }
+  .value { font-weight: 800; color: #0f172a; }
+  .amount-box { text-align: center; margin: 30px 0; padding: 20px; background: #f0fdf4; border: 2px solid #bbf7d0; border-radius: 10px; }
+  .amount-box h2 { margin: 0; color: #166534; font-size: 36px; }
+  .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px dashed #e2e8f0; font-size: 12px; color: #94a3b8; }
+  .print-btn { display: block; width: 200px; margin: 20px auto; padding: 12px; text-align: center; background: #6366f1; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; cursor: pointer; border: none; font-size: 16px; }
+  @media print {
+    body { background: white; padding: 0; }
+    .receipt-box { box-shadow: none; border: 1px solid #ccc; }
+    .print-btn { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<button class="print-btn" onclick="window.print()">🖨️ Print Receipt</button>
+
+<div class="receipt-box">
+  <div class="header">
+    <h1>🏫 School ERP</h1>
+    <p>Official Fee Receipt</p>
+    <p>Date: {{ now.strftime('%d %b %Y, %I:%M %p') }}</p>
+  </div>
+
+  <div class="row">
+    <span class="label">Receipt No:</span>
+    <span class="value">{{ payment.receipt_no }}</span>
+  </div>
+  <div class="row">
+    <span class="label">Student Name:</span>
+    <span class="value">{{ student.name }}</span>
+  </div>
+  <div class="row">
+    <span class="label">Roll Number:</span>
+    <span class="value">{{ student.roll_no }}</span>
+  </div>
+  <div class="row">
+    <span class="label">Class:</span>
+    <span class="value">{{ student.class_name or '-' }}</span>
+  </div>
+  <div class="row">
+    <span class="label">Payment Mode:</span>
+    <span class="value">{{ payment.mode }}</span>
+  </div>
+
+  <div class="amount-box">
+    <p class="label" style="margin-bottom: 10px;">Amount Received</p>
+    <h2>₹{{ '{:,.2f}'.format(payment.amount) }}</h2>
+  </div>
+
+  <div class="row">
+    <span class="label">Remark:</span>
+    <span class="value" style="font-weight: 500; font-size: 14px;">{{ payment.remark or '-' }}</span>
+  </div>
+
+  <div class="footer">
+    <p>This is a computer-generated receipt. No signature required.</p>
+    <p>Thank you for your payment!</p>
+  </div>
+</div>
+
+</body>
+</html>
