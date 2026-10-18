@@ -6,68 +6,190 @@
 <title>{% block title %}School ERP{% endblock %}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
+  /* ====================================================
+     MASTER DESIGN SYSTEM (Base Layout) - FIXED CSS
+  ==================================================== */
   :root {
-    --primary: #6366f1; --primary-grad: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --border: #e2e8f0; --sidebar-bg: #0f172a;
+    --primary: #6366f1;
+    --primary-grad: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #0f172a;
+    --border: #e2e8f0;
+    --sidebar-bg: #0a0e1a;
+    --sidebar-hover: #1e293b;
   }
-  body.dark { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --border: #334155; --sidebar-bg: #060a14; }
+  
+  body.dark { 
+    --bg: #0f172a; 
+    --card: #1e293b; 
+    --text: #f1f5f9; 
+    --border: #334155; 
+  }
+  
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
   body { background: var(--bg); color: var(--text); display: flex; min-height: 100vh; transition: 0.3s; }
   
-  .sidebar { width: 260px; background: var(--sidebar-bg); color: white; display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; left: 0; z-index: 100; }
-  .sidebar-logo { padding: 25px 20px; font-size: 20px; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.1); }
-  .sidebar-nav { padding: 20px 10px; flex: 1; overflow-y: auto; }
-  .sidebar-nav a { display: flex; align-items: center; gap: 12px; color: #94a3b8; text-decoration: none; padding: 12px 15px; border-radius: 8px; margin-bottom: 5px; font-weight: 600; font-size: 14px; transition: 0.2s; }
-  .sidebar-nav a:hover, .sidebar-nav a.active { background: var(--primary-grad); color: white; }
+  /* --- SIDEBAR (Bada Size) --- */
+  .sidebar { 
+    width: 280px; 
+    background: var(--sidebar-bg); 
+    color: white; 
+    display: flex; 
+    flex-direction: column; 
+    position: fixed; 
+    top: 0; bottom: 0; left: 0; 
+    z-index: 100; 
+    overflow-y: auto;
+  }
   
-  .main-content { flex: 1; margin-left: 260px; display: flex; flex-direction: column; }
-  .topbar { height: 70px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 30px; }
-  .topbar h2 { font-size: 18px; font-weight: 700; }
-  .user-profile { display: flex; align-items: center; gap: 10px; font-weight: 600; }
-  .avatar { width: 38px; height: 38px; background: var(--primary-grad); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; }
-  .page-content { padding: 30px; max-width: 1400px; margin: 0 auto; width: 100%; }
+  .sidebar-logo { 
+    padding: 25px 20px; 
+    font-size: 22px; 
+    font-weight: 800; 
+    border-bottom: 1px solid rgba(255,255,255,0.1); 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+  }
   
-  .card { background: var(--card); border-radius: 14px; padding: 25px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 20px; }
-  .btn { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; color: white; background: var(--primary-grad); text-decoration: none; display: inline-block; }
-  table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-  th { text-align: left; padding: 12px; background: var(--bg); font-size: 12px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
-  td { padding: 15px 12px; border-bottom: 1px solid var(--border); }
+  .sidebar-nav { padding: 20px 15px; flex: 1; }
+  
+  .sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 16px 18px;
+    border-radius: 12px;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 700;
+    transition: all 0.2s;
+    margin-bottom: 6px;
+  }
+  
+  .sidebar-link:hover { 
+    background: var(--sidebar-hover); 
+    color: white; 
+    transform: translateX(5px); 
+  }
+  
+  .sidebar-link.active { 
+    background: var(--primary-grad); 
+    color: white; 
+    box-shadow: 0 6px 16px rgba(99,102,241,0.35); 
+  }
+  
+  .sidebar-link .ico { font-size: 22px; width: 24px; text-align: center; }
+
+  /* --- MAIN CONTENT AREA --- */
+  .main-content { flex: 1; margin-left: 280px; display: flex; flex-direction: column; min-height: 100vh; }
+  
+  /* --- TOPBAR (Bade Buttons) --- */
+  .topbar {
+    height: 85px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 0 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    transition: 0.3s;
+  }
+  
+  .topbar h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: var(--text); }
+  .topbar-actions { display: flex; align-items: center; gap: 15px; }
+  
+  .topbar-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+  
+  .topbar-btn:hover { background: var(--border); }
+  
+  .topbar-user { 
+    padding: 8px 16px; 
+    border-radius: 24px; 
+    background: var(--bg); 
+    border: 1px solid var(--border); 
+    font-size: 15px; 
+    font-weight: 700; 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+  }
+  
+  .topbar-user .avatar { 
+    width: 40px; 
+    height: 40px; 
+    border-radius: 50%; 
+    background: var(--primary-grad); 
+    color: white; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-size: 16px; 
+  }
+
+  /* --- PAGE CONTENT --- */
+  .page-content { padding: 30px; max-width: 1500px; margin: 0 auto; width: 100%; }
+
+  /* Responsive Design */
+  @media (max-width: 900px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main-content { margin-left: 0; }
+    .page-content { padding: 15px; }
+    .topbar h2 { font-size: 20px; }
+    #menuBtn { display: block !important; }
+  }
 </style>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <aside class="sidebar">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">🏫 School ERP</div>
     <nav class="sidebar-nav">
-      <a href="/dashboard" class="{% if '/dashboard' in request.path %}active{% endif %}">📊 Dashboard</a>
-      <a href="/ai-assistant" class="{% if '/ai-assistant' in request.path %}active{% endif %}">🤖 AI Assistant</a>
-      <a href="/attendance" class="{% if '/attendance' in request.path %}active{% endif %}">📅 Attendance</a>
-      <a href="/students" class="{% if '/students' in request.path %}active{% endif %}">🎓 Students</a>
-      <a href="/result" class="{% if '/result' in request.path or '/report-card' in request.path %}active{% endif %}">📝 Exams & Marks</a>
-      <a href="/fees" class="{% if '/fees' in request.path %}active{% endif %}">💵 Fees</a>
-      <a href="/staff" class="{% if '/staff' in request.path %}active{% endif %}">👨‍🏫 Staff Directory</a>
-      <a href="/events" class="{% if '/events' in request.path %}active{% endif %}">📅 Events Calendar</a>
-      <a href="/certificates" class="{% if '/certificate' in request.path %}active{% endif %}">📜 Certificates</a>
-      <a href="/analytics" class="{% if '/analytics' in request.path %}active{% endif %}">📈 Analytics & Reports</a>
-      <a href="/manage-parents" class="{% if '/manage-parents' in request.path %}active{% endif %}">👨‍👩‍👧 Parent Accounts</a>
-      <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; margin-bottom: 10px; font-size: 11px; color: #64748b; font-weight: bold; text-transform: uppercase;">Facilities</div>
-<a href="/transport" class="{% if '/transport' in request.path %}active{% endif %}">🚌 Transport</a>
-      <a href="/hostel" class="{% if '/hostel' in request.path %}active{% endif %}">🏠 Hostel</a>
-      <a href="/library" class="{% if '/library' in request.path %}active{% endif %}">📚 Library</a>
-      <a href="/notices" class="{% if '/notices' in request.path %}active{% endif %}">📢 Notice Board</a>
-      <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; margin-bottom: 10px; font-size: 11px; color: #64748b; font-weight: bold; text-transform: uppercase;">System</div>
-<a href="/settings" class="{% if '/settings' in request.path %}active{% endif %}">⚙️ School Settings</a>
-<a href="/backup" class="{% if '/backup' in request.path %}active{% endif %}">💾 Backup Data</a>
-      <a href="/logout" style="color: #ef4444; margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">🚪 Logout</a>
+      <a href="/dashboard" class="sidebar-link {% if '/dashboard' in request.path %}active{% endif %}"><span class="ico">📊</span> Dashboard</a>
+      <a href="/students" class="sidebar-link {% if '/students' in request.path %}active{% endif %}"><span class="ico">🎓</span> Students</a>
+      <a href="/fees" class="sidebar-link {% if '/fees' in request.path %}active{% endif %}"><span class="ico">💵</span> Fees</a>
+      <a href="/attendance" class="sidebar-link {% if '/attendance' in request.path %}active{% endif %}"><span class="ico">📅</span> Attendance</a>
+      <a href="/staff" class="sidebar-link {% if '/staff' in request.path %}active{% endif %}"><span class="ico">👨‍🏫</span> Staff</a>
+      <a href="/notices" class="sidebar-link {% if '/notices' in request.path %}active{% endif %}"><span class="ico">📢</span> Notices</a>
+      <a href="/ai-assistant" class="sidebar-link {% if '/ai-assistant' in request.path %}active{% endif %}"><span class="ico">🤖</span> AI Assistant</a>
+      
+      <a href="/logout" class="sidebar-link" style="color: #ef4444; margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;"><span class="ico">🚪</span> Logout</a>
     </nav>
   </aside>
 
+  <!-- MAIN CONTENT -->
   <main class="main-content">
     <header class="topbar">
-      <h2>{% block page_title %}Dashboard{% endblock %}</h2>
-      <div style="display: flex; gap: 15px; align-items: center;">
-        <button onclick="document.body.classList.toggle('dark')" style="background: none; border: none; font-size: 20px; cursor: pointer;">🌙</button>
-        <div class="user-profile">
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <button class="topbar-btn" onclick="document.getElementById('sidebar').classList.toggle('open')" style="display: none;" id="menuBtn">☰</button>
+        <h2>{% block page_title %}Dashboard{% endblock %}</h2>
+      </div>
+      
+      <div class="topbar-actions">
+        <button class="topbar-btn" onclick="document.body.classList.toggle('dark')">🌙</button>
+        <div class="topbar-user">
           <span>{{ session.name or 'Admin' }}</span>
           <div class="avatar">{{ (session.name or 'A')[0]|upper }}</div>
         </div>
@@ -77,11 +199,25 @@
     <div class="page-content">
       {% with messages = get_flashed_messages() %}
         {% if messages %}{% for msg in messages %}
-            <div style="padding: 15px; margin-bottom: 20px; background: #fee2e2; color: #991b1b; border-radius: 8px;">{{ msg }}</div>
+            <div style="padding: 15px; margin-bottom: 20px; background: #fee2e2; color: #991b1b; border-radius: 8px; font-weight: 600;">{{ msg }}</div>
         {% endfor %}{% endif %}
       {% endwith %}
+
       {% block content %}{% endblock %}
     </div>
   </main>
+
+  <script>
+    // Mobile menu toggle logic
+    function checkMobile() {
+      if (window.innerWidth <= 900) {
+        document.getElementById('menuBtn').style.display = 'block';
+      } else {
+        document.getElementById('menuBtn').style.display = 'none';
+      }
+    }
+    window.addEventListener('resize', checkMobile);
+    checkMobile();
+  </script>
 </body>
 </html>
