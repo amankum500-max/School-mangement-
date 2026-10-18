@@ -290,7 +290,8 @@ def receipt(roll_no, receipt_no):
         flash("Receipt not found", "error")
         return redirect(url_for("fees"))
     
-    return render_template("fees/receipt.html", student=student, payment=payment, now=datetime.now())------------- RUN ----------------
+    return render_template("fees/receipt.html", student=student, payment=payment, now=datetime.now())
+    
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
