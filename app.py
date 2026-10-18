@@ -571,6 +571,40 @@ def delete_book(bid):
     except Exception as e:
         flash(f"❌ Error: {e}", "error")
     return redirect(url_for("library"))
+    # ---------------- EVENTS MANAGEMENT ----------------
+@app.route("/events", methods=["GET", "POST"])
+@login_required
+def events():
+    if request.method == "POST":
+        d = request.form
+        try:
+            run("""INSERT INTO events (event_name, event_date, event_type, location, description) 
+                   VALUES (%s, %s, %s, %s, %s)""",
+                (d["event_name"], d["event_date"], d.get("event_type"), d.get("location"), d.get("description")))
+            flash("✅ Event scheduled successfully!", "success")
+        except Exception as e:
+            flash(f"❌ Error: {e}", "error")
+        return redirect(url_for("events"))
+
+    try:
+        # Upcoming aur past events alag karke fetch karo
+        upcoming_events = db_all("SELECT * FROM events WHERE is_active = TRUE AND event_date >= %s ORDER BY event_date ASC", (today(),))
+        past_events = db_all("SELECT * FROM events WHERE is_active = TRUE AND event_date < %s ORDER BY event_date DESC LIMIT 10", (today(),))
+    except:
+        upcoming_events = []
+        past_events = []
+        
+    return render_template("management/events.html", upcoming=upcoming_events, past=past_events)
+
+@app.route("/event/delete/<int:eid>")
+@login_required
+def delete_event(eid):
+    try:
+        run("UPDATE events SET is_active = FALSE WHERE id = %s", (eid,))
+        flash("🗑️ Event removed", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("events"))
 
 
 # ---------------- APP START ----------------
