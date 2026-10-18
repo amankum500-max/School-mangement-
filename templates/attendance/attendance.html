@@ -1,0 +1,55 @@
+{% extends "shared/base.html" %}
+{% block title %}Attendance{% endblock %}
+{% block page_title %}Mark Attendance{% endblock %}
+
+{% block content %}
+<div class="card">
+  <form method="GET" action="/attendance" style="display: flex; gap: 15px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+    <input type="date" name="date" value="{{ att_date }}" required style="padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text);">
+    <select name="class_name" required style="padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); min-width: 200px;">
+      <option value="">Select Class</option>
+      {% for c in classes %}
+      <option value="{{ c.class_name }}" {% if class_name == c.class_name %}selected{% endif %}>{{ c.class_name }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn">🔍 Load Students</button>
+  </form>
+
+  {% if students %}
+  <form method="POST" action="/attendance">
+    <input type="hidden" name="att_date" value="{{ att_date }}">
+    <input type="hidden" name="class_name" value="{{ class_name }}">
+    
+    <table>
+      <thead>
+        <tr>
+          <th>Roll No</th>
+          <th>Student Name</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in students %}
+        <tr>
+          <td><strong>{{ s.roll_no }}</strong></td>
+          <td>{{ s.name }}</td>
+          <td>
+            <select name="status_{{ s.roll_no }}" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-weight: bold;">
+              <option value="Present" {% if marked.get(s.roll_no) == 'Present' %}selected{% endif %}>✅ Present</option>
+              <option value="Absent" {% if marked.get(s.roll_no) == 'Absent' %}selected{% endif %}>❌ Absent</option>
+            </select>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    
+    <div style="margin-top: 20px;">
+      <button type="submit" class="btn" style="background: #10b981;">💾 Save Attendance</button>
+    </div>
+  </form>
+  {% elif class_name %}
+  <div style="text-align: center; color: #64748b; padding: 30px;">No students found for this class.</div>
+  {% endif %}
+</div>
+{% endblock %}
