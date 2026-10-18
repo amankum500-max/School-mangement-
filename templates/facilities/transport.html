@@ -1,0 +1,95 @@
+{% extends "shared/base.html" %}
+{% block title %}Transport{% endblock %}
+{% block page_title %}Transport Management{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h3 style="margin: 0;">🚌 Bus Routes Directory</h3>
+    <button class="btn" onclick="document.getElementById('addTransportModal').style.display='flex'">➕ Add New Route</button>
+  </div>
+
+  <!-- Cards Grid for Routes -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+    {% for r in routes %}
+    <div style="border: 1px solid var(--border); border-radius: 12px; padding: 20px; background: var(--bg); position: relative;">
+      
+      <!-- Delete Button -->
+      <a href="/transport/delete/{{ r.id }}" onclick="return confirm('Remove this route?')" style="position: absolute; top: 15px; right: 15px; text-decoration: none; font-size: 18px;">🗑️</a>
+      
+      <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+        <div style="width: 50px; height: 50px; background: #fef3c7; color: #d97706; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+          🚌
+        </div>
+        <div>
+          <h4 style="margin: 0; font-size: 18px; color: var(--text);">Route {{ r.route_number }}</h4>
+          <p style="margin: 2px 0 0 0; font-size: 13px; color: #64748b; font-weight: 600;">{{ r.route_name }}</p>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; color: var(--text);">
+        <div>
+          <span style="color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: bold;">Vehicle No</span><br>
+          <strong>{{ r.vehicle_no or '-' }}</strong>
+        </div>
+        <div>
+          <span style="color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: bold;">Capacity</span><br>
+          <strong>{{ r.capacity }} Seats</strong>
+        </div>
+        <div style="grid-column: span 2; margin-top: 5px;">
+          <span style="color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: bold;">Driver Details</span><br>
+          <strong>{{ r.driver_name or '-' }}</strong> 
+          {% if r.driver_phone %}<a href="tel:{{ r.driver_phone }}" style="color: #6366f1; text-decoration: none; margin-left: 5px;">📞 {{ r.driver_phone }}</a>{% endif %}
+        </div>
+      </div>
+
+    </div>
+    {% else %}
+    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #64748b;">
+      <div style="font-size: 50px; margin-bottom: 10px;">🚌</div>
+      <h3>No transport routes added yet.</h3>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Add Transport Modal -->
+<div id="addTransportModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+  <div class="card" style="width: 100%; max-width: 500px; margin: 20px;">
+    <h3 style="margin-bottom: 20px;">Add Transport Route</h3>
+    <form method="POST" action="/transport/add">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Route Number *</label>
+          <input type="text" name="route_number" placeholder="e.g. R-01" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Route Name *</label>
+          <input type="text" name="route_name" placeholder="e.g. City Center" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Vehicle Number</label>
+          <input type="text" name="vehicle_no" placeholder="e.g. UP-14-AB-1234" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Capacity</label>
+          <input type="number" name="capacity" value="40" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Driver Name</label>
+          <input type="text" name="driver_name" placeholder="e.g. Ramesh Singh" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Driver Phone</label>
+          <input type="text" name="driver_phone" placeholder="10-digit number" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
+        <button type="button" class="btn" style="background: #64748b;" onclick="document.getElementById('addTransportModal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn" style="background: #f59e0b;">Save Route</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
