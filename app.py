@@ -466,6 +466,38 @@ def delete_staff(sid):
     except Exception as e:
         flash(f"❌ Error: {e}", "error")
     return redirect(url_for("staff"))
+    # ---------------- TRANSPORT MANAGEMENT ----------------
+@app.route("/transport")
+@login_required
+def transport():
+    try:
+        routes = db_all("SELECT * FROM transport_routes WHERE is_active = TRUE ORDER BY route_number")
+    except:
+        routes = []
+    return render_template("facilities/transport.html", routes=routes)
+
+@app.route("/transport/add", methods=["POST"])
+@login_required
+def add_transport():
+    d = request.form
+    try:
+        run("""INSERT INTO transport_routes (route_number, route_name, driver_name, driver_phone, vehicle_no, capacity) 
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (d["route_number"], d["route_name"], d.get("driver_name"), d.get("driver_phone"), d.get("vehicle_no"), d.get("capacity") or 40))
+        flash("✅ Transport route added successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e} (Route number must be unique)", "error")
+    return redirect(url_for("transport"))
+
+@app.route("/transport/delete/<int:rid>")
+@login_required
+def delete_transport(rid):
+    try:
+        run("UPDATE transport_routes SET is_active = FALSE WHERE id = %s", (rid,))
+        flash("🗑️ Route removed", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("transport"))
 
 
 # ---------------- APP START ----------------
