@@ -1,6 +1,6 @@
 {% extends "shared/base.html" %}
-{% block title %}Holographic Command Center{% endblock %}
-{% block page_title %}Holographic HUD{% endblock %}
+{% block title %}Command Center{% endblock %}
+{% block page_title %}Command Center{% endblock %}
 
 {% block content %}
 <!-- 3D Tilt Library -->
@@ -8,7 +8,7 @@
 
 <style>
   /* ====================================================
-     HOLOGRAPHIC CYBERPUNK HUD (TOP LEVEL 3D FUTURE)
+     HYPER-ADVANCED 3D HUD DASHBOARD
   ==================================================== */
   
   /* Animated 3D Grid Background */
@@ -19,19 +19,19 @@
   .hud-grid {
     position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
     background-image: 
-      linear-gradient(rgba(0, 243, 255, 0.2) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 243, 255, 0.2) 1px, transparent 1px);
-    background-size: 50px 50px;
+      linear-gradient(rgba(0, 243, 255, 0.15) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 243, 255, 0.15) 1px, transparent 1px);
+    background-size: 60px 60px;
     transform: rotateX(60deg) translateZ(-100px);
-    animation: gridMove 5s linear infinite;
-    mask-image: radial-gradient(circle at center, black 20%, transparent 80%);
-    -webkit-mask-image: radial-gradient(circle at center, black 20%, transparent 80%);
+    animation: gridMove 6s linear infinite;
+    mask-image: radial-gradient(circle at center, black 10%, transparent 70%);
+    -webkit-mask-image: radial-gradient(circle at center, black 10%, transparent 70%);
   }
-  @keyframes gridMove { 0% { background-position: 0 0; } 100% { background-position: 0 50px; } }
+  @keyframes gridMove { 0% { background-position: 0 0; } 100% { background-position: 0 60px; } }
 
   /* Holographic Card Style */
   .hud-card {
-    background: rgba(10, 15, 30, 0.6);
+    background: rgba(10, 15, 30, 0.7);
     backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(0, 243, 255, 0.3);
     border-radius: 16px; padding: 24px;
@@ -47,16 +47,15 @@
   /* Holographic Shine Effect */
   .hud-card::after {
     content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-    background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
+    background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0) 100%);
     transform: rotate(45deg); transition: 0.5s; pointer-events: none;
   }
   .hud-card:hover::after { left: 100%; }
 
-  /* Neon Text & Colors */
+  /* Neon Text Colors */
   .text-cyan { color: #00f3ff; text-shadow: 0 0 10px rgba(0, 243, 255, 0.5); }
   .text-pink { color: #ff0055; text-shadow: 0 0 10px rgba(255, 0, 85, 0.5); }
   .text-lime { color: #39ff14; text-shadow: 0 0 10px rgba(57, 255, 20, 0.5); }
-  .text-gold { color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
 
   .hud-label { font-size: 12px; font-weight: 800; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px; }
   .hud-value { font-size: 38px; font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: -1px; line-height: 1; }
@@ -65,61 +64,32 @@
   .hud-grid-layout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
   @media (max-width: 1200px) { .hud-grid-layout { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 768px) { .hud-grid-layout { grid-template-columns: 1fr; } }
-
   .col-1 { grid-column: span 1; } .col-2 { grid-column: span 2; } .col-3 { grid-column: span 3; } .col-4 { grid-column: span 4; }
   @media (max-width: 1200px) { .col-2, .col-3, .col-4 { grid-column: span 2; } }
   @media (max-width: 768px) { .col-1, .col-2, .col-3, .col-4 { grid-column: span 1; } }
 
-  /* Top Header HUD with Search */
+  /* Top Header */
   .hud-header {
     display: flex; justify-content: space-between; align-items: center;
     border-bottom: 2px solid rgba(0, 243, 255, 0.3); padding-bottom: 20px; margin-bottom: 25px;
     flex-wrap: wrap; gap: 20px;
   }
-  .hud-title { font-size: 24px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 3px; margin: 0; }
+  .hud-title { font-size: 24px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 3px; margin: 0; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
   
-  /* --- Global Neon Search Bar --- */
-  .hud-search-wrap { flex: 1; max-width: 500px; position: relative; }
-  .hud-search-input {
-    width: 100%; padding: 12px 20px 12px 45px; border-radius: 8px;
-    background: rgba(0, 243, 255, 0.05); border: 1px solid rgba(0, 243, 255, 0.3);
-    color: #00f3ff; font-family: 'Courier New', monospace; font-size: 14px;
-    box-shadow: inset 0 0 10px rgba(0, 243, 255, 0.1); transition: 0.3s;
+  /* Glowing Search Button */
+  .search-trigger-btn {
+    background: rgba(0, 243, 255, 0.1); border: 1px solid rgba(0, 243, 255, 0.4);
+    color: #00f3ff; padding: 12px 25px; border-radius: 8px; font-family: 'Courier New', monospace;
+    font-weight: 800; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 15px;
+    transition: 0.3s; box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
   }
-  .hud-search-input:focus {
-    outline: none; border-color: #00f3ff; box-shadow: 0 0 15px rgba(0, 243, 255, 0.3), inset 0 0 15px rgba(0, 243, 255, 0.2);
-  }
-  .hud-search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #00f3ff; font-size: 16px; }
-  
-  /* Search Dropdown */
-  .hud-search-dropdown {
-    position: absolute; top: 110%; left: 0; width: 100%;
-    background: rgba(5, 5, 16, 0.95); border: 1px solid #00f3ff;
-    border-radius: 8px; max-height: 300px; overflow-y: auto;
-    display: none; z-index: 1000; box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
-    backdrop-filter: blur(10px);
-  }
-  .hud-search-dropdown::-webkit-scrollbar { width: 6px; }
-  .hud-search-dropdown::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 3px; }
-  
-  .hud-search-item {
-    padding: 12px 20px; display: flex; align-items: center; gap: 15px;
-    color: rgba(255,255,255,0.8); text-decoration: none; font-family: 'Courier New', monospace;
-    border-bottom: 1px solid rgba(0, 243, 255, 0.1); transition: 0.2s; font-size: 14px;
-  }
-  .hud-search-item:hover { background: rgba(0, 243, 255, 0.15); color: #00f3ff; padding-left: 25px; }
+  .search-trigger-btn:hover { background: rgba(0, 243, 255, 0.2); box-shadow: 0 0 25px rgba(0, 243, 255, 0.5); transform: translateY(-2px); }
 
   /* HUD Clock */
   .hud-clock {
     font-family: 'Courier New', monospace; font-size: 24px; font-weight: 900;
     color: #00f3ff; text-shadow: 0 0 15px rgba(0, 243, 255, 0.6);
     background: rgba(0, 243, 255, 0.1); padding: 10px 20px; border: 1px solid rgba(0, 243, 255, 0.4); border-radius: 8px;
-    position: relative; overflow: hidden;
-  }
-  .hud-clock::before {
-    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.2) 2px, rgba(0,0,0,0.2) 4px);
-    pointer-events: none;
   }
 
   /* Radar Animation */
@@ -127,8 +97,8 @@
   .radar-circle { position: absolute; border: 1px solid rgba(0, 243, 255, 0.2); border-radius: 50%; }
   .radar-sweep {
     position: absolute; width: 50%; height: 50%; top: 50%; left: 50%; transform-origin: top left;
-    background: conic-gradient(from 0deg, transparent 70%, rgba(0, 243, 255, 0.5) 100%);
-    animation: sweep 4s linear infinite;
+    background: conic-gradient(from 0deg, transparent 70%, rgba(0, 243, 255, 0.6) 100%);
+    animation: sweep 3s linear infinite;
   }
   @keyframes sweep { 100% { transform: rotate(360deg); } }
 
@@ -139,23 +109,83 @@
     box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.1);
   }
   .term-prompt { color: #39ff14; margin-bottom: 10px; display: block; }
+
+  /* ====================================================
+     FULL SCREEN 3D COMMAND PALETTE (SEARCH)
+  ==================================================== */
+  .cmd-overlay {
+    position: fixed; inset: 0; background: rgba(5, 5, 16, 0.85);
+    backdrop-filter: blur(15px); z-index: 9999;
+    display: none; align-items: flex-start; justify-content: center; padding-top: 10vh;
+    perspective: 1000px; /* 3D effect */
+  }
+  .cmd-overlay.show { display: flex; animation: fadeIn 0.2s; }
+  @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+
+  .cmd-box {
+    width: 100%; max-width: 700px;
+    background: rgba(10, 15, 30, 0.9);
+    border: 2px solid #00f3ff; border-radius: 20px;
+    box-shadow: 0 0 50px rgba(0, 243, 255, 0.2), inset 0 0 30px rgba(0, 243, 255, 0.1);
+    transform: rotateX(10deg); /* 3D Tilt */
+    transition: transform 0.3s;
+    overflow: hidden; display: flex; flex-direction: column;
+    position: relative;
+  }
+  .cmd-box::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+    background: linear-gradient(90deg, transparent, #00f3ff, transparent);
+    animation: scan 2s linear infinite;
+  }
+  @keyframes scan { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+  .cmd-input-wrap { display: flex; align-items: center; padding: 20px 25px; border-bottom: 1px solid rgba(0, 243, 255, 0.2); }
+  .cmd-input-wrap span { font-size: 24px; color: #00f3ff; margin-right: 15px; }
+  .cmd-input {
+    flex: 1; background: transparent; border: none; color: #fff;
+    font-family: 'Courier New', monospace; font-size: 22px; font-weight: 700; outline: none;
+  }
+  .cmd-input::placeholder { color: rgba(255,255,255,0.3); }
+  .cmd-esc { font-size: 12px; color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+
+  .cmd-results { max-height: 450px; overflow-y: auto; padding: 10px; }
+  .cmd-results::-webkit-scrollbar { width: 6px; }
+  .cmd-results::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 3px; }
+
+  .cmd-item {
+    display: flex; align-items: center; gap: 15px; padding: 15px 20px;
+    border-radius: 12px; color: rgba(255,255,255,0.8); text-decoration: none;
+    font-family: 'Courier New', monospace; font-size: 16px; font-weight: 600;
+    transition: 0.2s; border: 1px solid transparent; cursor: pointer;
+  }
+  .cmd-item:hover, .cmd-item.active {
+    background: rgba(0, 243, 255, 0.15); border-color: rgba(0, 243, 255, 0.4); color: #00f3ff; transform: translateX(5px);
+  }
+  .cmd-item .icon { font-size: 22px; width: 30px; text-align: center; }
+  .cmd-item .category { margin-left: auto; font-size: 11px; text-transform: uppercase; color: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 10px; }
+
+  /* Glitch Effect for Title */
+  .glitch { position: relative; }
+  .glitch::before, .glitch::after { content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #050510; }
+  .glitch::before { left: 2px; text-shadow: -2px 0 #ff0055; clip: rect(24px, 550px, 90px, 0); animation: glitch-anim 3s infinite linear alternate-reverse; }
+  .glitch::after { left: -2px; text-shadow: -2px 0 #00f3ff; clip: rect(85px, 550px, 140px, 0); animation: glitch-anim 2.5s infinite linear alternate-reverse; }
+  @keyframes glitch-anim { 0% { clip: rect(10px, 9999px, 50px, 0); } 20% { clip: rect(80px, 9999px, 20px, 0); } 40% { clip: rect(40px, 9999px, 70px, 0); } 60% { clip: rect(90px, 9999px, 10px, 0); } 80% { clip: rect(30px, 9999px, 60px, 0); } 100% { clip: rect(70px, 9999px, 90px, 0); } }
 </style>
 
 <div class="hud-bg"><div class="hud-grid"></div></div>
 
-<!-- HUD HEADER WITH SEARCH BAR -->
+<!-- HUD HEADER -->
 <div class="hud-header">
   <div>
-    <h1 class="hud-title">SYSTEM: ONLINE</h1>
+    <h1 class="hud-title glitch" data-text="SYSTEM: ONLINE">SYSTEM: ONLINE</h1>
     <div style="color: rgba(255,255,255,0.5); font-size: 12px; font-weight: 700; margin-top: 5px;">WELCOME, {{ session.name|upper or 'ADMIN' }}</div>
   </div>
 
-  <!-- NEW GLOBAL SEARCH BAR -->
-  <div class="hud-search-wrap">
-    <span class="hud-search-icon">🔍</span>
-    <input type="text" class="hud-search-input" id="globalSearch" placeholder="Search features (e.g. Fees, AI, Students)..." onkeyup="searchFeatures()" autocomplete="off">
-    <div class="hud-search-dropdown" id="searchResults"></div>
-  </div>
+  <!-- The 3D Search Trigger Button -->
+  <button class="search-trigger-btn" onclick="openCmd()">
+    <span>🔍 INITIALIZE SEARCH</span>
+    <span style="font-size: 12px; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">Ctrl + K</span>
+  </button>
 
   <div class="hud-clock">
     <span id="hud-time">00:00:00</span>
@@ -164,26 +194,18 @@
 
 <!-- TOP KPI CARDS -->
 <div class="hud-grid-layout">
-  
   <div class="hud-card col-1 tilt-card">
     <div class="hud-label">TOTAL STUDENTS</div>
     <div class="hud-value text-cyan counter" data-target="{{ students or 0 }}">0</div>
-    <div style="margin-top: 15px; height: 2px; background: linear-gradient(90deg, #00f3ff, transparent);"></div>
   </div>
-
   <div class="hud-card col-1 tilt-card">
     <div class="hud-label">TODAY'S COLLECTION</div>
     <div class="hud-value text-lime">₹<span class="counter" data-target="{{ today_collection or 0 }}">0</span></div>
-    <div style="margin-top: 15px; height: 2px; background: linear-gradient(90deg, #39ff14, transparent);"></div>
   </div>
-
   <div class="hud-card col-1 tilt-card">
     <div class="hud-label">PENDING DUES</div>
     <div class="hud-value text-pink">₹<span class="counter" data-target="{{ total_due or 0 }}">0</span></div>
-    <div style="margin-top: 15px; height: 2px; background: linear-gradient(90deg, #ff0055, transparent);"></div>
   </div>
-
-  <!-- Radar Widget -->
   <div class="hud-card col-1 tilt-card" style="display: flex; flex-direction: column;">
     <div class="hud-label">LIVE RADAR</div>
     <div class="radar-container">
@@ -191,43 +213,31 @@
       <div class="radar-circle" style="width: 80px; height: 80px;"></div>
       <div class="radar-circle" style="width: 120px; height: 120px;"></div>
       <div class="radar-sweep"></div>
-      <div style="width: 6px; height: 6px; background: #ff0055; border-radius: 50%; position: absolute; top: 30%; right: 30%; box-shadow: 0 0 10px #ff0055;"></div>
-      <div style="width: 6px; height: 6px; background: #39ff14; border-radius: 50%; position: absolute; bottom: 40%; left: 20%; box-shadow: 0 0 10px #39ff14;"></div>
     </div>
   </div>
-
 </div>
 
 <!-- MAIN CONTENT ROW -->
 <div class="hud-grid-layout">
-  
-  <!-- Main Chart -->
   <div class="hud-card col-2">
     <div class="hud-label" style="margin-bottom: 15px;">📈 REVENUE FLOW ANALYSIS</div>
-    <div style="height: 280px;">
-      <canvas id="mainChart"></canvas>
-    </div>
+    <div style="height: 280px;"><canvas id="mainChart"></canvas></div>
   </div>
 
-  <!-- AI Terminal -->
   <div class="hud-card col-2">
     <div class="hud-label" style="margin-bottom: 15px;">🤖 AI COPILOT TERMINAL</div>
     <div class="hud-terminal">
       <span class="term-prompt">root@school-erp:~# ./analyze_data.sh</span>
       <div>[OK] Connecting to Database...<br>
-      [OK] Fetching live metrics...<br>
-      [OK] Processing financial data...<br><br>
+      [OK] Fetching live metrics...<br><br>
       <span style="color: #fff;">> Analysis Complete:</span><br>
       <span id="ai-typing"></span><span style="animation: blink 1s infinite;">_</span></div>
     </div>
   </div>
-
 </div>
 
 <!-- BOTTOM ROW -->
 <div class="hud-grid-layout">
-  
-  <!-- Notices -->
   <div class="hud-card col-2">
     <div class="hud-label" style="margin-bottom: 15px;">📢 INCOMING TRANSMISSIONS</div>
     <div>
@@ -242,17 +252,29 @@
     </div>
   </div>
 
-  <!-- Quick Commands -->
   <div class="hud-card col-2">
     <div class="hud-label" style="margin-bottom: 15px;">⚡ QUICK COMMANDS</div>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-      <a href="/students" style="text-decoration: none; background: rgba(0,243,255,0.1); border: 1px solid rgba(0,243,255,0.3); color: #00f3ff; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='rgba(0,243,255,0.2)'" onmouseout="this.style.background='rgba(0,243,255,0.1)'">EXEC: ADD STUDENT</a>
-      <a href="/fees" style="text-decoration: none; background: rgba(57,255,20,0.1); border: 1px solid rgba(57,255,20,0.3); color: #39ff14; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='rgba(57,255,20,0.2)'" onmouseout="this.style.background='rgba(57,255,20,0.1)'">EXEC: COLLECT FEE</a>
-      <a href="/attendance" style="text-decoration: none; background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3); color: #ffd700; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='rgba(255,215,0,0.2)'" onmouseout="this.style.background='rgba(255,215,0,0.1)'">EXEC: ATTENDANCE</a>
-      <a href="/ai-assistant" style="text-decoration: none; background: rgba(255,0,85,0.1); border: 1px solid rgba(255,0,85,0.3); color: #ff0055; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='rgba(255,0,85,0.2)'" onmouseout="this.style.background='rgba(255,0,85,0.1)'">EXEC: AI ASSIST</a>
+      <a href="/students" style="text-decoration: none; background: rgba(0,243,255,0.1); border: 1px solid rgba(0,243,255,0.3); color: #00f3ff; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 13px;">EXEC: ADD STUDENT</a>
+      <a href="/fees" style="text-decoration: none; background: rgba(57,255,20,0.1); border: 1px solid rgba(57,255,20,0.3); color: #39ff14; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 13px;">EXEC: COLLECT FEE</a>
+      <a href="/attendance" style="text-decoration: none; background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3); color: #ffd700; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 13px;">EXEC: ATTENDANCE</a>
+      <a href="/ai-assistant" style="text-decoration: none; background: rgba(255,0,85,0.1); border: 1px solid rgba(255,0,85,0.3); color: #ff0055; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 13px;">EXEC: AI ASSIST</a>
     </div>
   </div>
+</div>
 
+<!-- ================= 3D HOLOGRAPHIC COMMAND PALETTE ================= -->
+<div class="cmd-overlay" id="cmdOverlay" onclick="if(event.target===this) closeCmd()">
+  <div class="cmd-box">
+    <div class="cmd-input-wrap">
+      <span>⌘</span>
+      <input type="text" class="cmd-input" id="cmdInput" placeholder="Type to track any feature..." autocomplete="off" oninput="filterCmd()" onkeydown="handleCmdKeys(event)">
+      <span class="cmd-esc">ESC</span>
+    </div>
+    <div class="cmd-results" id="cmdResults">
+      <!-- Results will be injected here via JS -->
+    </div>
+  </div>
 </div>
 
 <style>
@@ -264,85 +286,132 @@
 {% block scripts %}
 <script>
   // ==========================================
-  // 1. GLOBAL SEARCH FEATURE LOGIC
+  // 1. MASSIVE FEATURE DATABASE (TRACKING EVERYTHING)
   // ==========================================
-  // Yahan saare pages/features ki list hai. Aap aage jo naye pages add karoge, unhe yahan add kar sakte ho.
   const allFeatures = [
-    { icon: '📊', name: 'Dashboard', url: '/dashboard' },
-    { icon: '🎓', name: 'Students Directory', url: '/students' },
-    { icon: '💵', name: 'Fees Management', url: '/fees' },
-    { icon: '💰', name: 'Collect Fee', url: '/fees' }, 
-    { icon: '🧾', name: 'Monthly Bills', url: '/bills' },
-    { icon: '🚨', name: 'Defaulters List', url: '/defaulters' },
-    { icon: '📅', name: 'Attendance', url: '/attendance' },
-    { icon: '📝', name: 'Exams & Marks', url: '/result' },
-    { icon: '👨‍🏫', name: 'Staff Directory', url: '/staff' },
-    { icon: '📢', name: 'Notice Board', url: '/notices' },
-    { icon: '🏠', name: 'Hostel Management', url: '/hostel' },
-    { icon: '🚌', name: 'Transport', url: '/transport' },
-    { icon: '📚', name: 'Library', url: '/library' },
-    { icon: '📅', name: 'Events Calendar', url: '/events' },
-    { icon: '📜', name: 'Certificates', url: '/certificates' },
-    { icon: '👨‍👩‍👧', name: 'Parent Accounts', url: '/manage-parents' },
-    { icon: '📈', name: 'Analytics & Reports', url: '/analytics' },
-    { icon: '🤖', name: 'AI Assistant', url: '/ai-assistant' },
-    { icon: '⚙️', name: 'School Settings', url: '/settings' },
-    { icon: '💾', name: 'Backup Data', url: '/backup' }
+    // Main
+    { icon: '📊', name: 'Dashboard Overview', url: '/dashboard', cat: 'Main' },
+    { icon: '📈', name: 'Analytics & Reports', url: '/analytics', cat: 'Main' },
+    
+    // Students
+    { icon: '🎓', name: 'Students Directory', url: '/students', cat: 'Students' },
+    { icon: '👨‍👩‍👧', name: 'Parent Accounts', url: '/manage-parents', cat: 'Students' },
+    { icon: '📅', name: 'Attendance Record', url: '/attendance', cat: 'Students' },
+    
+    // Fees
+    { icon: '💵', name: 'Fee Structure', url: '/fees', cat: 'Finance' },
+    { icon: '🧾', name: 'Monthly Bills', url: '/bills', cat: 'Finance' },
+    { icon: '🚨', name: 'Fee Defaulters', url: '/defaulters', cat: 'Finance' },
+    
+    // Academics
+    { icon: '📝', name: 'Exams & Marks Entry', url: '/result', cat: 'Academic' },
+    { icon: '📜', name: 'Certificates (TC/Bonafide)', url: '/certificates', cat: 'Academic' },
+    
+    // Management
+    { icon: '👨‍🏫', name: 'Staff Directory', url: '/staff', cat: 'Management' },
+    { icon: '📅', name: 'School Events', url: '/events', cat: 'Management' },
+    
+    // Facilities
+    { icon: '🏠', name: 'Hostel Rooms', url: '/hostel', cat: 'Facilities' },
+    { icon: '🚌', name: 'Transport Routes', url: '/transport', cat: 'Facilities' },
+    { icon: '📚', name: 'Library Books', url: '/library', cat: 'Facilities' },
+    
+    // System & AI
+    { icon: '📢', name: 'Notice Board', url: '/notices', cat: 'System' },
+    { icon: '🤖', name: 'AI Assistant', url: '/ai-assistant', cat: 'AI' },
+    { icon: '⚙️', name: 'School Settings', url: '/settings', cat: 'System' },
+    { icon: '💾', name: 'Backup & Export', url: '/backup', cat: 'System' },
+    { icon: '🚪', name: 'Logout System', url: '/logout', cat: 'System' }
   ];
 
-  function searchFeatures() {
-    const query = document.getElementById('globalSearch').value.toLowerCase();
-    const dropdown = document.getElementById('searchResults');
-    
-    if (!query) {
-      dropdown.style.display = 'none';
+  let activeIndex = 0;
+  let filteredFeatures = [...allFeatures];
+
+  // ==========================================
+  // 2. COMMAND PALETTE LOGIC
+  // ==========================================
+  const overlay = document.getElementById('cmdOverlay');
+  const input = document.getElementById('cmdInput');
+  const resultsContainer = document.getElementById('cmdResults');
+
+  function openCmd() {
+    overlay.classList.add('show');
+    input.value = '';
+    filterCmd();
+    setTimeout(() => input.focus(), 100);
+  }
+
+  function closeCmd() {
+    overlay.classList.remove('show');
+  }
+
+  function filterCmd() {
+    const query = input.value.toLowerCase();
+    filteredFeatures = allFeatures.filter(f => 
+      f.name.toLowerCase().includes(query) || f.cat.toLowerCase().includes(query)
+    );
+    activeIndex = 0;
+    renderResults();
+  }
+
+  function renderResults() {
+    if (filteredFeatures.length === 0) {
+      resultsContainer.innerHTML = '<div style="padding: 30px; text-align: center; color: rgba(255,255,255,0.5); font-family: monospace;">> NO MATCHING DIRECTIVES FOUND...</div>';
       return;
     }
 
-    // Filter results
-    const filtered = allFeatures.filter(f => f.name.toLowerCase().includes(query) || f.url.includes(query));
+    resultsContainer.innerHTML = filteredFeatures.map((f, i) => `
+      <a href="${f.url}" class="cmd-item ${i === activeIndex ? 'active' : ''}">
+        <span class="icon">${f.icon}</span>
+        <span>${f.name}</span>
+        <span class="category">${f.cat}</span>
+      </a>
+    `).join('');
     
-    if (filtered.length === 0) {
-      dropdown.innerHTML = '<div style="padding: 15px; color: rgba(255,255,255,0.5); text-align: center; font-family: monospace;">No features found.</div>';
-    } else {
-      dropdown.innerHTML = filtered.map(f => `
-        <a href="${f.url}" class="hud-search-item">
-          <span style="font-size: 18px;">${f.icon}</span>
-          <span>${f.name}</span>
-        </a>
-      `).join('');
-    }
-    dropdown.style.display = 'block';
+    // Scroll to active item
+    const activeEl = resultsContainer.querySelector('.active');
+    if(activeEl) activeEl.scrollIntoView({ block: 'nearest' });
   }
 
-  // Close dropdown when clicking outside
-  document.addEventListener('click', function(event) {
-    const searchWrap = document.querySelector('.hud-search-wrap');
-    const dropdown = document.getElementById('searchResults');
-    if (searchWrap && !searchWrap.contains(event.target)) {
-      dropdown.style.display = 'none';
+  // Handle Arrow Keys & Enter
+  function handleCmdKeys(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIndex = (activeIndex + 1) % filteredFeatures.length;
+      renderResults();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIndex = (activeIndex - 1 + filteredFeatures.length) % filteredFeatures.length;
+      renderResults();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filteredFeatures[activeIndex]) {
+        window.location.href = filteredFeatures[activeIndex].url;
+      }
     }
+  }
+
+  // Global Keyboard Shortcuts
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      openCmd();
+    }
+    if (e.key === 'Escape') closeCmd();
   });
 
   // ==========================================
-  // 2. INITIALIZE 3D TILT
+  // 3. 3D TILT & CLOCK & COUNTERS
   // ==========================================
   VanillaTilt.init(document.querySelectorAll(".tilt-card"), {
     max: 15, speed: 400, glare: true, "max-glare": 0.5, scale: 1.05
   });
 
-  // ==========================================
-  // 3. HUD Clock
-  // ==========================================
   function updateClock() {
-    const now = new Date();
-    document.getElementById('hud-time').innerText = now.toLocaleTimeString('en-GB');
+    document.getElementById('hud-time').innerText = new Date().toLocaleTimeString('en-GB');
   }
   setInterval(updateClock, 1000); updateClock();
 
-  // ==========================================
-  // 4. Number Counter
-  // ==========================================
   document.querySelectorAll('.counter').forEach(counter => {
     const target = +counter.getAttribute('data-target');
     let current = 0;
@@ -355,7 +424,7 @@
   });
 
   // ==========================================
-  // 5. AI Terminal Typewriter
+  // 4. AI TYPEWRITER
   // ==========================================
   const aiText = "Collection is 15% UP. Pending dues are HIGH. Recommendation: Initialize WhatsApp Reminder Protocol for defaulters immediately.";
   let i = 0;
@@ -368,7 +437,7 @@
   setTimeout(typeAI, 1200);
 
   // ==========================================
-  // 6. Neon Chart
+  // 5. NEON CHART
   // ==========================================
   Chart.defaults.font.family = "'Courier New', monospace";
   Chart.defaults.color = 'rgba(255,255,255,0.5)';
