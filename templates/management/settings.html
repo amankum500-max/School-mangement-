@@ -1,0 +1,46 @@
+{% extends "shared/base.html" %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}School Settings & Branding{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+  <h3 style="margin-bottom: 20px;">⚙️ School Information</h3>
+  
+  <form method="POST">
+    <div style="display: grid; gap: 15px;">
+      <div>
+        <label style="font-size: 13px; font-weight: 600;">School Name *</label>
+        <input type="text" name="school_name" value="{{ school_settings.school_name }}" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+      </div>
+      
+      <div>
+        <label style="font-size: 13px; font-weight: 600;">Address</label>
+        <textarea name="address" rows="2" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px; font-family: inherit;">{{ school_settings.address or '' }}</textarea>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Phone</label>
+          <input type="text" name="phone" value="{{ school_settings.phone or '' }}" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 600;">Email</label>
+          <input type="email" name="email" value="{{ school_settings.email or '' }}" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+        </div>
+      </div>
+
+      <div>
+        <label style="font-size: 13px; font-weight: 600;">Principal Name</label>
+        <input type="text" name="principal_name" value="{{ school_settings.principal_name or '' }}" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+      </div>
+
+      <div>
+        <label style="font-size: 13px; font-weight: 600;">Logo URL (Optional)</label>
+        <input type="text" name="logo_url" value="{{ school_settings.logo_url or '' }}" placeholder="https://..." style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
+      </div>
+    </div>
+
+    <button type="submit" class="btn" style="width: 100%; margin-top: 25px; background: #10b981;">💾 Save Settings</button>
+  </form>
+</div>
+{% endblock %}
