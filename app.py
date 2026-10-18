@@ -429,6 +429,43 @@ def delete_notice(nid):
     run("UPDATE notices SET is_active = FALSE WHERE id = %s", (nid,))
     flash("🗑️ Notice removed", "success")
     return redirect(url_for("notices"))
+    # ---------------- STAFF MANAGEMENT ----------------
+@app.route("/staff")
+@login_required
+def staff():
+    try:
+        rows = db_all("SELECT * FROM staff WHERE is_active = TRUE ORDER BY name")
+        # Total monthly salary expense
+        total_salary = sum(float(s['salary'] or 0) for s in rows)
+    except:
+        rows = []
+        total_salary = 0
+    return render_template("management/staff.html", staff=rows, total_salary=total_salary)
+
+@app.route("/staff/add", methods=["POST"])
+@login_required
+def add_staff():
+    d = request.form
+    try:
+        run("""INSERT INTO staff (emp_id, name, designation, subject, phone, email, salary, joining_date) 
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (d["emp_id"], d["name"], d.get("designation"), d.get("subject"), 
+             d.get("phone"), d.get("email"), d.get("salary") or 0, d.get("joining_date")))
+        flash("✅ Staff member added successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e} (Make sure Employee ID is unique)", "error")
+    return redirect(url_for("staff"))
+
+@app.route("/staff/delete/<int:sid>")
+@login_required
+def delete_staff(sid):
+    try:
+        # Soft delete (record rehne do, bas deactivate kar do)
+        run("UPDATE staff SET is_active = FALSE WHERE id = %s", (sid,))
+        flash("🗑️ Staff member removed", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("staff"))
 
 
 # ---------------- APP START ----------------
