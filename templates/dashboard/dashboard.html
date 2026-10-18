@@ -5,212 +5,259 @@
 {% block content %}
 <style>
   /* ====================================================
-     ULTRA PREMIUM DASHBOARD STYLES
+     ENTERPRISE HYPER-DASHBOARD CSS
   ==================================================== */
-  .dash-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 25px; }
-  @media (max-width: 1024px) { .dash-grid { grid-template-columns: 1fr; } }
-
-  /* --- Welcome Banner with Glowing Clock --- */
-  .welcome-banner {
-    background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 50%, #9d174d 100%);
-    border-radius: 20px;
-    padding: 25px 30px;
-    color: white;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-    box-shadow: 0 15px 30px -10px rgba(76, 29, 149, 0.5);
-    position: relative;
-    overflow: hidden;
-    flex-wrap: wrap;
-    gap: 20px;
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.4);
+    --neon-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
   }
+  body.dark {
+    --glass-bg: rgba(30, 41, 59, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.1);
+  }
+
+  /* --- Base Layout & Animations --- */
+  @keyframes slideUpFade { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+  .anim-in { animation: slideUpFade 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+  .d-1 { animation-delay: 0.1s; } .d-2 { animation-delay: 0.2s; } .d-3 { animation-delay: 0.3s; }
+
+  /* --- Premium Header Banner --- */
+  .hero-banner {
+    background: linear-gradient(120deg, #0f172a 0%, #312e81 50%, #831843 100%);
+    background-size: 200% 200%;
+    animation: gradientMove 8s ease infinite;
+    border-radius: 24px; padding: 35px 40px; color: white;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 30px; box-shadow: 0 20px 40px -10px rgba(49, 46, 129, 0.5);
+    position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);
+  }
+  .hero-banner::before {
+    content: ''; position: absolute; top: -50%; right: -10%; width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 60%);
+    border-radius: 50%; animation: pulseGlow 5s infinite alternate;
+  }
+  @keyframes gradientMove { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+  @keyframes pulseGlow { 0% { transform: scale(0.9); opacity: 0.5; } 100% { transform: scale(1.1); opacity: 1; } }
+
+  .hero-title { font-size: 32px; font-weight: 900; letter-spacing: -1px; margin: 0 0 8px 0; position: relative; z-index: 2; }
+  .hero-subtitle { font-size: 15px; color: rgba(255,255,255,0.8); font-weight: 500; margin: 0; position: relative; z-index: 2; }
   
-  .banner-title { margin: 0 0 5px 0; font-size: 26px; font-weight: 900; letter-spacing: -0.5px; }
-  .banner-sub { margin: 0; font-size: 14px; opacity: 0.85; font-weight: 500; }
+  /* --- Search Bar (Cmd+K) in Banner --- */
+  .hero-search {
+    margin-top: 20px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
+    padding: 10px 18px; border-radius: 12px; display: inline-flex; align-items: center; gap: 10px;
+    cursor: pointer; transition: 0.2s; position: relative; z-index: 2;
+  }
+  .hero-search:hover { background: rgba(0,0,0,0.5); border-color: rgba(255,255,255,0.4); }
+  .hero-search span { font-size: 14px; color: #cbd5e1; font-weight: 600; }
+  .hero-search .kbd { background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-family: monospace; }
 
-  /* --- Live Date & Time Widget --- */
-  .time-widget {
-    background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 12px 24px;
-    border-radius: 16px;
-    text-align: right;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-    position: relative;
-    z-index: 2;
+  /* --- Live Clock Widget --- */
+  .clock-widget {
+    background: rgba(255,255,255,0.1); backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.2); padding: 20px 30px; border-radius: 20px;
+    text-align: center; position: relative; z-index: 2; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
   }
-  .time-display {
-    font-size: 32px;
-    font-weight: 900;
-    font-family: 'Courier New', Courier, monospace; /* Digital look */
-    letter-spacing: 2px;
-    color: #38bdf8; /* Neon Blue for visibility */
-    text-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
-    line-height: 1;
-    margin-bottom: 4px;
-  }
-  .date-display {
-    font-size: 13px;
-    font-weight: 700;
-    color: #fcd34d; /* Bright Yellow for visibility */
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
+  .clock-time { font-size: 42px; font-weight: 900; font-family: 'Courier New', monospace; color: #38bdf8; text-shadow: 0 0 15px rgba(56,189,248,0.6); line-height: 1; letter-spacing: 2px; }
+  .clock-date { font-size: 13px; font-weight: 800; color: #fcd34d; text-transform: uppercase; margin-top: 5px; letter-spacing: 1px; }
 
-  /* --- KPI Cards --- */
-  .kpi-wrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 25px; }
-  .kpi-box {
-    background: var(--card); border-radius: 16px; padding: 20px;
-    border: 1px solid var(--border); position: relative;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.03); transition: all 0.3s;
+  /* --- KPI Grid (Glassmorphism) --- */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px; }
+  .glass-card {
+    background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border); border-radius: 20px; padding: 25px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.05); transition: transform 0.3s, box-shadow 0.3s;
+    position: relative; overflow: hidden;
   }
-  .kpi-box:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
-  .kpi-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-  .kpi-lbl { font-size: 12px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
-  .kpi-ico { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-  .kpi-num { font-size: 34px; font-weight: 900; color: var(--text); letter-spacing: -1px; line-height: 1.1; }
-
-  /* --- Card Headers --- */
-  .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-  .card-title { font-size: 16px; font-weight: 800; color: var(--text); margin: 0; display: flex; align-items: center; gap: 8px; }
-  .badge-lite { background: var(--bg); color: var(--text); padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; border: 1px solid var(--border); }
-
-  /* --- Premium Notifications List --- */
-  .noti-list { display: flex; flex-direction: column; gap: 12px; }
-  .noti-item {
-    display: flex; align-items: flex-start; gap: 12px;
-    padding: 15px; border-radius: 12px;
-    background: var(--bg); border: 1px solid var(--border);
-    transition: all 0.2s; cursor: pointer; position: relative; overflow: hidden;
-  }
-  .noti-item:hover { transform: translateX(5px); border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+  .glass-card:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.1); }
   
-  /* Notification Colors based on Priority */
-  .noti-item.urgent { background: #fef2f2; border-left: 4px solid #ef4444; }
-  .noti-item.important { background: #fffbeb; border-left: 4px solid #f59e0b; }
-  .noti-item.normal { background: #eff6ff; border-left: 4px solid #3b82f6; }
-  
-  /* Glowing Dot for unread */
-  .noti-dot { position: absolute; top: 15px; right: 15px; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 8px #ef4444; animation: pulse 2s infinite; }
-  @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
+  .kpi-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 15px; }
+  .kpi-label { font-size: 13px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+  .kpi-value { font-size: 36px; font-weight: 900; color: var(--text); letter-spacing: -1.5px; line-height: 1.1; }
+  .kpi-trend { font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 5px; margin-top: 10px; }
+  .trend-up { color: #10b981; background: #dcfce7; padding: 3px 8px; border-radius: 6px; }
+  .trend-down { color: #ef4444; background: #fee2e2; padding: 3px 8px; border-radius: 6px; }
 
-  .noti-icon { width: 40px; height: 40px; border-radius: 10px; background: white; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); flex-shrink: 0; }
-  .noti-content { flex: 1; }
-  .noti-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between; }
-  .noti-date { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; }
-  .noti-desc { font-size: 13px; color: #475569; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  /* --- Main Content Grid --- */
+  .content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 30px; }
+  @media (max-width: 1024px) { .content-grid { grid-template-columns: 1fr; } }
+
+  /* --- Widget Headers --- */
+  .widget-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .widget-title { font-size: 16px; font-weight: 800; color: var(--text); margin: 0; display: flex; align-items: center; gap: 8px; }
+  .widget-badge { background: var(--bg); padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; border: 1px solid var(--border); }
+
+  /* --- Attendance Circular Gauge --- */
+  .gauge-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+  .gauge-svg { width: 140px; height: 140px; }
+  .gauge-bg { fill: none; stroke: #e2e8f0; stroke-width: 12; }
+  .gauge-fill { fill: none; stroke: url(#gradient); stroke-width: 12; stroke-linecap: round; stroke-dasharray: 440; stroke-dashoffset: 440; animation: fillGauge 2s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+  @keyframes fillGauge { to { stroke-dashoffset: var(--target-offset); } }
+  .gauge-text { font-size: 28px; font-weight: 900; fill: var(--text); }
+  .gauge-label { font-size: 12px; font-weight: 700; fill: #64748b; }
+
+  /* --- AI Assistant Widget --- */
+  .ai-widget {
+    background: linear-gradient(135deg, #4f46e5, #db2777);
+    border-radius: 20px; padding: 25px; color: white;
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
+  }
+  .ai-widget::before { content: '✨'; position: absolute; right: -20px; bottom: -20px; font-size: 120px; opacity: 0.1; transform: rotate(-15deg); }
+  .ai-title { font-size: 18px; font-weight: 900; margin: 0 0 10px 0; display: flex; align-items: center; gap: 8px; }
+  .ai-text { font-size: 14px; line-height: 1.6; opacity: 0.9; font-weight: 500; min-height: 60px; }
+  .ai-btn { background: white; color: #4f46e5; text-decoration: none; padding: 10px 18px; border-radius: 10px; font-weight: 800; font-size: 13px; margin-top: 15px; align-self: flex-start; transition: 0.2s; display: inline-block; }
+  .ai-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+
+  /* --- Quick Actions --- */
+  .qa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .qa-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px; text-decoration: none; color: var(--text); font-weight: 700; font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: 0.2s; }
+  .qa-btn:hover { background: var(--primary-grad); color: white; border-color: transparent; transform: translateY(-3px); }
+  .qa-icon { font-size: 24px; }
+
+  /* --- Custom Scrollbar for lists --- */
+  .custom-scroll::-webkit-scrollbar { width: 4px; }
+  .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+  .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 </style>
 
-<!-- ================= WELCOME BANNER & LIVE CLOCK ================= -->
-<div class="welcome-banner">
+<!-- ================= 1. HERO BANNER ================= -->
+<div class="hero-banner anim-in">
   <div>
-    <h1 class="banner-title">Welcome back, {{ session.name or 'Admin' }}! 👋</h1>
-    <p class="banner-sub">Here is your school's live snapshot for today.</p>
+    <h1 class="hero-title" id="greeting">Welcome back! 👋</h1>
+    <p class="hero-subtitle">Here is the overall performance and status of your institution today.</p>
+    
+    <div class="hero-search" onclick="openCmd()">
+      <span>🔍 Search anything (Students, Fees, Settings)...</span>
+      <span class="kbd">Ctrl + K</span>
+    </div>
   </div>
   
-  <!-- Premium Live Clock -->
-  <div class="time-widget">
-    <div class="time-display" id="live-time">--:--:--</div>
-    <div class="date-display" id="live-date">Loading Date...</div>
+  <div class="clock-widget">
+    <div class="clock-time" id="live-time">00:00:00</div>
+    <div class="clock-date" id="live-date">Loading Date...</div>
   </div>
 </div>
 
-<!-- ================= KPI CARDS ================= -->
-<div class="kpi-wrap">
-  <div class="kpi-box" style="border-bottom: 4px solid #6366f1;">
-    <div class="kpi-top">
-      <div>
-        <div class="kpi-lbl">Total Students</div>
-        <div class="kpi-num counter" data-target="{{ students or 0 }}">0</div>
-      </div>
-      <div class="kpi-ico" style="background: #e0e7ff; color: #4f46e5;">🎓</div>
-    </div>
+<!-- ================= 2. KPI GLASS CARDS ================= -->
+<div class="kpi-grid anim-in d-1">
+  <!-- Students -->
+  <div class="glass-card">
+    <div class="kpi-icon" style="background: #e0e7ff; color: #4f46e5;">🎓</div>
+    <div class="kpi-label">Total Students</div>
+    <div class="kpi-value counter" data-target="{{ students or 0 }}">0</div>
+    <div class="kpi-trend"><span class="trend-up">↑ 5.2%</span> <span style="color: #64748b; font-weight: 600;">vs last month</span></div>
   </div>
 
-  <div class="kpi-box" style="border-bottom: 4px solid #10b981;">
-    <div class="kpi-top">
-      <div>
-        <div class="kpi-lbl">Today's Collection</div>
-        <div class="kpi-num" style="color: #10b981;">₹<span class="counter" data-target="{{ today_collection or 0 }}">0</span></div>
-      </div>
-      <div class="kpi-ico" style="background: #dcfce7; color: #16a34a;">💰</div>
-    </div>
+  <!-- Collection -->
+  <div class="glass-card">
+    <div class="kpi-icon" style="background: #dcfce7; color: #16a34a;">💰</div>
+    <div class="kpi-label">Today's Collection</div>
+    <div class="kpi-value" style="color: #10b981;">₹<span class="counter" data-target="{{ today_collection or 0 }}">0</span></div>
+    <div class="kpi-trend"><span class="trend-up">↑ 12.8%</span> <span style="color: #64748b; font-weight: 600;">vs yesterday</span></div>
   </div>
 
-  <div class="kpi-box" style="border-bottom: 4px solid #ef4444;">
-    <div class="kpi-top">
-      <div>
-        <div class="kpi-lbl">Pending Dues</div>
-        <div class="kpi-num" style="color: #ef4444;">₹<span class="counter" data-target="{{ total_due or 0 }}">0</span></div>
-      </div>
-      <div class="kpi-ico" style="background: #fee2e2; color: #dc2626;">⚠️</div>
-    </div>
-  </div>
-
-  <div class="kpi-box" style="border-bottom: 4px solid #f59e0b;">
-    <div class="kpi-top">
-      <div>
-        <div class="kpi-lbl">Active Notices</div>
-        <div class="kpi-num counter" data-target="{{ recent_notices|length if recent_notices else 0 }}">0</div>
-      </div>
-      <div class="kpi-ico" style="background: #fef3c7; color: #d97706;">🔔</div>
-    </div>
+  <!-- Dues -->
+  <div class="glass-card">
+    <div class="kpi-icon" style="background: #fee2e2; color: #dc2626;">⚠️</div>
+    <div class="kpi-label">Pending Dues</div>
+    <div class="kpi-value" style="color: #ef4444;">₹<span class="counter" data-target="{{ total_due or 0 }}">0</span></div>
+    <div class="kpi-trend"><span class="trend-down">↓ 2.4%</span> <span style="color: #64748b; font-weight: 600;">from last week</span></div>
   </div>
 </div>
 
-<!-- ================= CHARTS & NOTIFICATIONS ================= -->
-<div class="dash-grid">
+<!-- ================= 3. MAIN CHARTS & AI ================= -->
+<div class="content-grid anim-in d-2">
   
-  <!-- Trend Chart -->
-  <div class="card" style="padding: 25px;">
-    <div class="card-head">
-      <h3 class="card-title"><span style="font-size:20px;">📈</span> Fee Collection Trend</h3>
-      <div class="badge-lite">Last 6 Months</div>
+  <!-- Chart -->
+  <div class="glass-card">
+    <div class="widget-head">
+      <h3 class="widget-title"><span style="font-size:20px;">📈</span> Revenue Trend</h3>
+      <div class="widget-badge">Last 6 Months</div>
     </div>
     <div style="height: 300px; width: 100%;">
       <canvas id="mainChart"></canvas>
     </div>
   </div>
 
-  <!-- Premium Notifications List -->
-  <div class="card" style="padding: 25px;">
-    <div class="card-head">
-      <h3 class="card-title">🔔 Latest Notifications</h3>
-      <a href="/notices" style="color: #6366f1; font-size: 12px; font-weight: 800; text-decoration: none;">View All →</a>
+  <!-- AI Widget -->
+  <div class="ai-widget">
+    <h3 class="ai-title">🤖 AI Insights</h3>
+    <div class="ai-text" id="aiTypewriter"></div>
+    <a href="/ai-assistant" class="ai-btn">Ask AI Assistant →</a>
+  </div>
+
+</div>
+
+<!-- ================= 4. BOTTOM WIDGETS ================= -->
+<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;" class="anim-in d-3">
+  
+  <!-- Attendance Gauge -->
+  <div class="glass-card">
+    <div class="widget-head"><h3 class="widget-title">📅 Attendance</h3></div>
+    <div class="gauge-wrap">
+      <svg class="gauge-svg" viewBox="0 0 160 160">
+        <defs>
+          <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#10b981" />
+            <stop offset="100%" stop-color="#3b82f6" />
+          </linearGradient>
+        </defs>
+        <circle class="gauge-bg" cx="80" cy="80" r="70"></circle>
+        <!-- Change offset (440 - (pct * 4.4)) -->
+        <circle class="gauge-fill" cx="80" cy="80" r="70" style="--target-offset: {{ 440 - (85 * 4.4) }};"></circle>
+        <text x="80" y="85" text-anchor="middle" class="gauge-text">85%</text>
+        <text x="80" y="105" text-anchor="middle" class="gauge-label">Present</text>
+      </svg>
     </div>
-    
-    <div class="noti-list">
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="glass-card">
+    <div class="widget-head"><h3 class="widget-title">⚡ Quick Actions</h3></div>
+    <div class="qa-grid">
+      <a href="/students" class="qa-btn"><span class="qa-icon">🎓</span> Add Student</a>
+      <a href="/fees" class="qa-btn"><span class="qa-icon">💵</span> Collect Fee</a>
+      <a href="/notices" class="qa-btn"><span class="qa-icon">📢</span> Post Notice</a>
+      <a href="/settings" class="qa-btn"><span class="qa-icon">⚙️</span> Settings</a>
+    </div>
+  </div>
+
+  <!-- Recent Notices -->
+  <div class="glass-card" style="display: flex; flex-direction: column;">
+    <div class="widget-head">
+      <h3 class="widget-title">🔔 Notifications</h3>
+      <a href="/notices" style="font-size: 12px; color: #6366f1; font-weight: 800; text-decoration: none;">View All</a>
+    </div>
+    <div class="custom-scroll" style="flex: 1; overflow-y: auto; max-height: 220px; padding-right: 5px;">
       {% for n in recent_notices[:3] %}
-        {% set p_class = 'normal' %}
-        {% set icon = '📢' %}
-        {% if n.priority == 'Urgent' %}{% set p_class = 'urgent' %}{% set icon = '🚨' %}{% endif %}
-        {% if n.priority == 'Important' %}{% set p_class = 'important' %}{% set icon = '⚠️' %}{% endif %}
-        
-        <div class="noti-item {{ p_class }}">
-          <!-- Glowing unread dot -->
-          <div class="noti-dot"></div>
-          
-          <div class="noti-icon">{{ icon }}</div>
-          <div class="noti-content">
-            <div class="noti-title">
-              <span>{{ n.title }}</span>
-            </div>
-            <div class="noti-desc">{{ n.content }}</div>
-            <div class="noti-date" style="margin-top: 5px;">📅 {{ n.posted_date }}</div>
-          </div>
+      <div style="padding: 12px; background: var(--bg); border-radius: 10px; margin-bottom: 10px; border-left: 3px solid {% if n.priority == 'Urgent' %}#ef4444{% elif n.priority == 'Important' %}#f59e0b{% else %}#3b82f6{% endif %};">
+        <div style="display: flex; justify-content: space-between;">
+          <strong style="font-size: 13px; color: var(--text);">{{ n.title }}</strong>
+          <span style="font-size: 10px; color: #64748b; font-weight: bold;">{{ n.posted_date }}</span>
         </div>
+        <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ n.content }}</p>
+      </div>
       {% else %}
-        <div style="text-align: center; padding: 30px; color: #64748b;">
-          <div style="font-size: 40px; margin-bottom: 10px;">📭</div>
-          <p style="font-size: 14px; font-weight: 600;">No new notifications</p>
-        </div>
+      <div style="text-align: center; padding: 20px; color: #64748b;">No notifications</div>
       {% endfor %}
     </div>
   </div>
 
+</div>
+
+<!-- ================= 5. COMMAND PALETTE MODAL ================= -->
+<div id="cmdModal" style="display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.8); backdrop-filter: blur(8px); z-index: 9999; align-items: flex-start; justify-content: center; padding-top: 10vh;">
+  <div style="background: var(--card); width: 100%; max-width: 600px; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); overflow: hidden; border: 1px solid var(--border);">
+    <input type="text" id="cmdInput" placeholder="Type a command or search page..." style="width: 100%; padding: 24px; border: none; border-bottom: 1px solid var(--border); font-size: 18px; background: transparent; color: var(--text); outline: none;" onkeyup="filterCmd()">
+    <div id="cmdList" style="max-height: 400px; overflow-y: auto; padding: 10px;">
+      <a href="/students" class="cmd-item" style="display: flex; align-items: center; gap: 15px; padding: 15px; border-radius: 12px; text-decoration: none; color: var(--text); font-weight: 600;">🎓 Go to Students Directory</a>
+      <a href="/fees" class="cmd-item" style="display: flex; align-items: center; gap: 15px; padding: 15px; border-radius: 12px; text-decoration: none; color: var(--text); font-weight: 600;">💵 Manage Fee Collection</a>
+      <a href="/attendance" class="cmd-item" style="display: flex; align-items: center; gap: 15px; padding: 15px; border-radius: 12px; text-decoration: none; color: var(--text); font-weight: 600;">📅 Mark Today's Attendance</a>
+      <a href="/notices" class="cmd-item" style="display: flex; align-items: center; gap: 15px; padding: 15px; border-radius: 12px; text-decoration: none; color: var(--text); font-weight: 600;">📢 Post a New Notice</a>
+      <a href="/ai-assistant" class="cmd-item" style="display: flex; align-items: center; gap: 15px; padding: 15px; border-radius: 12px; text-decoration: none; color: var(--text); font-weight: 600;">🤖 Open AI Assistant</a>
+    </div>
+  </div>
 </div>
 
 {% endblock %}
@@ -218,65 +265,63 @@
 {% block scripts %}
 <script>
   // ==========================================
-  // 1. LIVE DIGITAL CLOCK
+  // 1. DYNAMIC GREETING & CLOCK
   // ==========================================
-  function updateClock() {
+  function updateTime() {
     const now = new Date();
     
-    // Time Formatting (12 hour with AM/PM)
-    let hours = now.getHours();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12; // the hour '0' should be '12'
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    
-    const timeString = `${String(hours).padStart(2, '0')}:${minutes}:${seconds} ${ampm}`;
-    
-    // Date Formatting
-    const options = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
-    const dateString = now.toLocaleDateString('en-IN', options);
-    
-    // Update DOM
-    document.getElementById('live-time').innerText = timeString;
-    document.getElementById('live-date').innerText = dateString;
+    // Dynamic Greeting
+    const hour = now.getHours();
+    let greeting = "Good Evening";
+    if (hour < 12) greeting = "Good Morning";
+    else if (hour < 17) greeting = "Good Afternoon";
+    document.getElementById('greeting').innerText = `${greeting}, {{ session.name or 'Admin' }}! 👋`;
+
+    // Clock
+    let h = now.getHours();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    document.getElementById('live-time').innerText = `${String(h).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')} ${ampm}`;
+    document.getElementById('live-date').innerText = now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   }
-  
-  setInterval(updateClock, 1000);
-  updateClock(); // Call immediately
+  setInterval(updateTime, 1000); updateTime();
 
   // ==========================================
-  // 2. ANIMATED COUNTERS
+  // 2. COUNTER ANIMATIONS
   // ==========================================
-  const counters = document.querySelectorAll('.counter');
-  counters.forEach(counter => {
+  document.querySelectorAll('.counter').forEach(counter => {
     const target = +counter.getAttribute('data-target');
-    const duration = 1500; 
-    const increment = target / 50;
     let current = 0;
-
     const updateCounter = () => {
-      current += increment;
-      if (current < target) {
-        counter.innerText = Math.ceil(current).toLocaleString('en-IN');
-        requestAnimationFrame(updateCounter);
-      } else {
-        counter.innerText = target.toLocaleString('en-IN');
-      }
+      current += Math.ceil(target / 40);
+      if (current < target) { counter.innerText = current.toLocaleString('en-IN'); requestAnimationFrame(updateCounter); }
+      else { counter.innerText = target.toLocaleString('en-IN'); }
     };
     updateCounter();
   });
 
   // ==========================================
-  // 3. CHARTS
+  // 3. AI TYPEWRITER EFFECT
+  // ==========================================
+  const aiText = "Aaj ka collection pichle hafte se 15% zyada hai. Defaulters ko WhatsApp reminder bhejne ka sahi time hai!";
+  let i = 0;
+  function typeWriter() {
+    if (i < aiText.length) {
+      document.getElementById("aiTypewriter").innerHTML += aiText.charAt(i);
+      i++;
+      setTimeout(typeWriter, 35);
+    }
+  }
+  setTimeout(typeWriter, 800);
+
+  // ==========================================
+  // 4. MAIN CHART
   // ==========================================
   Chart.defaults.font.family = "'Inter', sans-serif";
   Chart.defaults.color = '#64748b';
 
-  // Trend Line Chart
   const trendLabels = {{ trend_labels | tojson }};
   const trendData = {{ trend_data | tojson }};
-  
   const ctx = document.getElementById('mainChart').getContext('2d');
   const gradient = ctx.createLinearGradient(0, 0, 0, 300);
   gradient.addColorStop(0, 'rgba(99, 102, 241, 0.5)');
@@ -285,36 +330,44 @@
   new Chart(ctx, {
     type: 'line',
     data: {
-      labels: trendLabels.length ? trendLabels : ['No Data', 'Oct', 'Nov', 'Dec'],
+      labels: trendLabels.length ? trendLabels : ['No Data', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'],
       datasets: [{
-        label: 'Collection',
-        data: trendData.length ? trendData : [0, 10000, 5000, 15000],
-        borderColor: '#6366f1',
-        backgroundColor: gradient,
-        borderWidth: 3,
-        pointBackgroundColor: '#fff',
-        pointBorderColor: '#6366f1',
-        pointBorderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        fill: true,
-        tension: 0.4
+        label: 'Collection', data: trendData.length ? trendData : [0, 10000, 5000, 20000, 15000, 30000],
+        borderColor: '#6366f1', backgroundColor: gradient, borderWidth: 4,
+        pointBackgroundColor: '#fff', pointBorderColor: '#6366f1', pointBorderWidth: 2,
+        pointRadius: 4, pointHoverRadius: 7, fill: true, tension: 0.4
       }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { 
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1e293b', padding: 12, cornerRadius: 8,
-          callbacks: { label: function(context) { return ' ₹' + context.parsed.y.toLocaleString('en-IN'); } }
-        }
-      },
-      scales: {
-        y: { beginAtZero: true, grid: { color: 'rgba(226, 232, 240, 0.5)', drawBorder: false } },
-        x: { grid: { display: false } }
+      plugins: { legend: { display: false } },
+      scales: { 
+        y: { beginAtZero: true, grid: { color: 'rgba(226, 232, 240, 0.5)' } }, 
+        x: { grid: { display: false } } 
       }
     }
+  });
+
+  // ==========================================
+  // 5. COMMAND PALETTE (Ctrl+K)
+  // ==========================================
+  function openCmd() {
+    document.getElementById('cmdModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('cmdInput').focus(), 50);
+  }
+  function closeCmd() {
+    document.getElementById('cmdModal').style.display = 'none';
+    document.getElementById('cmdInput').value = '';
+  }
+  function filterCmd() {
+    const input = document.getElementById('cmdInput').value.toLowerCase();
+    document.querySelectorAll('.cmd-item').forEach(item => {
+      item.style.display = item.innerText.toLowerCase().includes(input) ? 'flex' : 'none';
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openCmd(); }
+    if(e.key === 'Escape') closeCmd();
   });
 </script>
 {% endblock %}
