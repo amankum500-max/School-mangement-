@@ -59,7 +59,48 @@ def students():
     except:
         rows = []
     return render_template("students/students.html", students=rows)
+# ---------------- ADD STUDENT ----------------
+@app.route("/student/add", methods=["POST"])
+@login_required
+def add_student():
+    d = request.form
+    try:
+        run("""INSERT INTO students (roll_no, name, class_name, father, parent_contact) 
+               VALUES (%s, %s, %s, %s, %s)""",
+            (d["roll_no"], d["name"], d.get("class_name", ""), d.get("father", ""), d.get("parent_contact", "")))
+        flash("✅ Student added successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("students"))
 
+# ---------------- COLLECT FEE (Basic) ----------------
+@app.route("/collect/<roll_no>", methods=["GET", "POST"])
+@login_required
+def collect(roll_no):
+    if request.method == "POST":
+        amount = float(request.form.get("amount") or 0)
+        try:
+            # Payment insert
+            run("""INSERT INTO payments (receipt_no, roll_no, amount, mode, pay_date, remark)
+                   VALUES (%s, %s, %s, 'Cash', %s, 'Fee Payment')""",
+                (f"RCP{datetime.now().strftime('%Y%m%d%H%M%S')}", roll_no, amount, today()))
+            
+            # Agar bills me balance hai, toh usko update karo (basic logic)
+            bills = db_all("SELECT id, balance FROM bills WHERE roll_no=%s AND balance>0 ORDER BY id", (roll_no,))
+            rem = amount
+            for b in bills:
+                if rem <= 0: break
+                deduct = min(rem, float(b['balance']))
+                run("UPDATE bills SET paid = paid + %s, balance = balance - %s WHERE id=%s", (deduct, deduct, b['id']))
+                rem -= deduct
+                
+            flash(f"✅ ₹{amount} collected successfully!", "success")
+            return redirect(url_for("fees"))
+        except Exception as e:
+            flash(f"❌ Error: {e}", "error")
+            
+    return redirect(url_for("fees"))
+    
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
