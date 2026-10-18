@@ -229,7 +229,68 @@ def notices():
     notices_list = db_all("SELECT * FROM notices ORDER BY posted_date DESC, id DESC")
     return render_template("communication/notices.html", notices=notices_list)
     
-# ---------------- RUN ----------------
+# ---# ---------------- COLLECT FEE ----------------
+@app.route("/collect/<roll_no>", methods=["GET", "POST"])
+@login_required
+def collect(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("Student not found", "error")
+        return redirect(url_for("students"))
+
+    if request.method == "POST":
+        amount = float(request.form.get("amount") or 0)
+        mode = request.form.get("mode", "Cash")
+        remark = request.form.get("remark", "")
+        
+        if amount <= 0:
+            flash("Amount must be greater than 0", "error")
+            return redirect(url_for("collect", roll_no=roll_no))
+
+        try:
+            receipt_no = f"RCP{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            
+            # 1. Insert payment record
+            run("""INSERT INTO payments (receipt_no, roll_no, amount, mode, pay_date, remark)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (receipt_no, roll_no, amount, mode, today(), remark))
+            
+            # 2. Distribute amount to pending bills (oldest first)
+            bills = db_all("SELECT id, balance, paid, total FROM bills WHERE roll_no=%s AND balance>0 ORDER BY month ASC", (roll_no,))
+            rem = amount
+            for b in bills:
+                if rem <= 0: break
+                deduct = min(rem, float(b['balance']))
+                new_paid = float(b['paid']) + deduct
+                new_bal = float(b['total']) - new_paid
+                status = "Paid" if new_bal <= 0 else "Partial"
+                
+                run("UPDATE bills SET paid=%s, balance=%s, status=%s WHERE id=%s",
+                    (new_paid, new_bal, status, b['id']))
+                rem -= deduct
+                
+            flash(f"✅ ₹{amount} collected successfully!", "success")
+            return redirect(url_for("receipt", roll_no=roll_no, receipt_no=receipt_no))
+        except Exception as e:
+            flash(f"❌ Error: {e}", "error")
+            
+    # GET request: show pending bills
+    bills = db_all("SELECT * FROM bills WHERE roll_no=%s AND balance>0 ORDER BY month ASC", (roll_no,))
+    total_due = sum(float(b['balance']) for b in bills)
+    
+    return render_template("fees/collect.html", student=student, bills=bills, total_due=total_due)
+
+# ---------------- RECEIPT ----------------
+@app.route("/receipt/<roll_no>/<receipt_no>")
+@login_required
+def receipt(roll_no, receipt_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    payment = one("SELECT * FROM payments WHERE receipt_no=%s", (receipt_no,))
+    if not student or not payment:
+        flash("Receipt not found", "error")
+        return redirect(url_for("fees"))
+    
+    return render_template("fees/receipt.html", student=student, payment=payment, now=datetime.now())------------- RUN ----------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
