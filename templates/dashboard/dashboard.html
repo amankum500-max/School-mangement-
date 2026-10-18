@@ -39,7 +39,27 @@
   </div>
 
 </div>
-
+<!-- Recent Notices -->
+<div class="card" style="margin-top: 20px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+    <h3 style="margin: 0;">📢 Recent Notices</h3>
+    <a href="/notices" class="btn" style="padding: 5px 10px; font-size: 12px;">View All</a>
+  </div>
+  
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    {% for n in recent_notices %}
+    <div style="padding: 12px; background: var(--bg); border-radius: 8px; border-left: 4px solid {% if n.priority == 'Urgent' %}#ef4444{% elif n.priority == 'Important' %}#f59e0b{% else %}#6366f1{% endif %};">
+      <div style="display: flex; justify-content: space-between;">
+        <strong style="font-size: 14px;">{{ n.title }}</strong>
+        <span style="font-size: 11px; color: #64748b;">{{ n.posted_date }}</span>
+      </div>
+      <p style="margin: 5px 0 0 0; font-size: 13px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ n.content }}</p>
+    </div>
+    {% else %}
+    <p style="color: #64748b; font-size: 14px;">No recent notices.</p>
+    {% endfor %}
+  </div>
+</div>
 <!-- Quick Actions -->
 <div class="card">
   <h3 style="margin-bottom: 15px;">⚡ Quick Actions</h3>
