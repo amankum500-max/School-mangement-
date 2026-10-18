@@ -1,1 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login - School ERP</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    background-size: 200% 200%;
+    animation: gradShift 15s ease infinite;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  @keyframes gradShift { 0%,100%{background-position:0% 50%;} 50%{background-position:100% 50%;} }
+  .login-card {
+    background: white; border-radius: 24px; padding: 44px 40px; max-width: 420px; width: 100%;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.3); animation: cardIn 0.6s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes cardIn { from{opacity:0;transform:translateY(40px) scale(0.95);} to{opacity:1;transform:translateY(0) scale(1);} }
+  .login-icon {
+    width: 76px; height: 76px; border-radius: 22px; background: linear-gradient(135deg,#667eea,#764ba2);
+    color: white; font-size: 38px; display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px; box-shadow: 0 15px 35px rgba(102,126,234,0.4);
+  }
+  h1 { text-align: center; font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.6px; }
+  .sub { text-align: center; color: #64748b; font-size: 13.5px; margin: 8px 0 28px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 11.5px; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 7px; }
+  .field input { width: 100%; padding: 14px 16px; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 15px; outline: none; transition: all 0.25s; }
+  .field input:focus { border-color: #667eea; box-shadow: 0 0 0 4px rgba(102,126,234,0.12); }
+  .login-btn { width: 100%; padding: 15px; border: none; border-radius: 12px; background: linear-gradient(135deg,#667eea,#764ba2); color: white; font-size: 15px; font-weight: 800; cursor: pointer; transition: all 0.3s; margin-top: 8px; }
+  .login-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 35px rgba(102,126,234,0.5); }
+  .flash { padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; margin-bottom: 16px; text-align: center; background: #fee2e2; color: #991b1b; }
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="login-icon">🏫</div>
+  <h1>School ERP</h1>
+  <p class="sub">Sign in to continue</p>
 
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}<div class="flash">{{ messages[0] }}</div>{% endif %}
+  {% endwith %}
+
+  <form method="POST">
+    <div class="field">
+      <label>Username</label>
+      <input name="username" required autofocus placeholder="admin">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input name="password" type="password" required placeholder="admin123">
+    </div>
+    <button type="submit" class="login-btn">🔐 Sign In</button>
+  </form>
+</div>
+</body>
+</html>
