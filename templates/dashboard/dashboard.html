@@ -1,6 +1,6 @@
 {% extends "shared/base.html" %}
-{% block title %}Command Center{% endblock %}
-{% block page_title %}AI Command Center{% endblock %}
+{% block title %}Holographic Command Center{% endblock %}
+{% block page_title %}Holographic HUD{% endblock %}
 
 {% block content %}
 <!-- 3D Tilt Library -->
@@ -8,277 +8,234 @@
 
 <style>
   /* ====================================================
-     HYPER-ADVANCED CYBER-COMMAND CENTER CSS
+     HOLOGRAPHIC CYBERPUNK HUD (TOP LEVEL 3D FUTURE)
   ==================================================== */
   
-  /* Animated Mesh Background */
-  .dash-bg {
+  /* Animated 3D Grid Background */
+  .hud-bg {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;
-    background: 
-      radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.08), transparent 25%),
-      radial-gradient(circle at 85% 30%, rgba(236, 72, 153, 0.08), transparent 25%),
-      radial-gradient(circle at 50% 80%, rgba(16, 185, 129, 0.08), transparent 25%);
-    background-color: var(--bg);
-    animation: bgPulse 10s infinite alternate;
+    background-color: #050510; overflow: hidden; perspective: 500px;
   }
-  @keyframes bgPulse { 0% { opacity: 0.7; } 100% { opacity: 1; } }
+  .hud-grid {
+    position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background-image: 
+      linear-gradient(rgba(0, 243, 255, 0.2) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 243, 255, 0.2) 1px, transparent 1px);
+    background-size: 50px 50px;
+    transform: rotateX(60deg) translateZ(-100px);
+    animation: gridMove 5s linear infinite;
+    mask-image: radial-gradient(circle at center, black 20%, transparent 80%);
+    -webkit-mask-image: radial-gradient(circle at center, black 20%, transparent 80%);
+  }
+  @keyframes gridMove { 0% { background-position: 0 0; } 100% { background-position: 0 50px; } }
 
-  /* Base Card with Glass Effect */
-  .cyber-card {
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.8);
-    border-radius: 20px; padding: 22px;
-    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.07);
+  /* Holographic Card Style */
+  .hud-card {
+    background: rgba(10, 15, 30, 0.6);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 243, 255, 0.3);
+    border-radius: 16px; padding: 24px;
     position: relative; overflow: hidden;
-    transition: border-color 0.3s;
-    transform-style: preserve-3d; /* For 3D tilt */
+    box-shadow: 0 0 20px rgba(0, 243, 255, 0.1), inset 0 0 20px rgba(0, 243, 255, 0.05);
+    transform-style: preserve-3d; transition: border-color 0.3s, box-shadow 0.3s;
   }
-  body.dark .cyber-card {
-    background: rgba(30, 41, 59, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  .hud-card:hover {
+    border-color: rgba(0, 243, 255, 0.8);
+    box-shadow: 0 0 30px rgba(0, 243, 255, 0.3), inset 0 0 20px rgba(0, 243, 255, 0.1);
   }
-  
-  /* Glowing Border Effect on Hover */
-  .cyber-card::before {
-    content: ''; position: absolute; inset: 0; border-radius: 20px; padding: 2px;
-    background: linear-gradient(45deg, #6366f1, #ec4899, #10b981, #6366f1);
-    background-size: 300% 300%;
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor; mask-composite: exclude;
-    opacity: 0; transition: opacity 0.4s; animation: gradientBorder 4s linear infinite;
-  }
-  .cyber-card:hover::before { opacity: 1; }
-  @keyframes gradientBorder { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
 
-  /* Hero Section */
-  .hero-sec { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 20px; }
-  .hero-title { font-size: 32px; font-weight: 900; letter-spacing: -1px; background: linear-gradient(90deg, #4f46e5, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0; }
-  .hero-sub { color: #64748b; font-weight: 600; margin: 5px 0 0 0; font-size: 14px; }
-  
-  /* Neon Clock */
-  .neon-clock {
-    font-family: 'Courier New', monospace; font-size: 24px; font-weight: 900;
-    color: #10b981; background: rgba(16, 185, 129, 0.1);
-    padding: 12px 20px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.3);
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.2); text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
-    display: flex; align-items: center; gap: 10px;
+  /* Holographic Shine Effect */
+  .hud-card::after {
+    content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
+    transform: rotate(45deg); transition: 0.5s; pointer-events: none;
   }
-  .pulse-dot { width: 10px; height: 10px; background: #10b981; border-radius: 50%; animation: pulse 1.5s infinite; }
-  @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+  .hud-card:hover::after { left: 100%; }
 
-  /* Grid Layout */
-  .grid-layout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-  @media (max-width: 1200px) { .grid-layout { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 768px) { .grid-layout { grid-template-columns: 1fr; } .hero-sec { flex-direction: column; align-items: flex-start; } }
-  
-  .col-span-1 { grid-column: span 1; }
-  .col-span-2 { grid-column: span 2; }
-  .col-span-3 { grid-column: span 3; }
-  .col-span-4 { grid-column: span 4; }
-  @media (max-width: 1200px) { .col-span-2, .col-span-3, .col-span-4 { grid-column: span 2; } }
-  @media (max-width: 768px) { .col-span-1, .col-span-2, .col-span-3, .col-span-4 { grid-column: span 1; } }
+  /* Neon Text & Colors */
+  .text-cyan { color: #00f3ff; text-shadow: 0 0 10px rgba(0, 243, 255, 0.5); }
+  .text-pink { color: #ff0055; text-shadow: 0 0 10px rgba(255, 0, 85, 0.5); }
+  .text-lime { color: #39ff14; text-shadow: 0 0 10px rgba(57, 255, 20, 0.5); }
+  .text-gold { color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
 
-  /* KPI Styles */
-  .kpi-wrap { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; }
-  .kpi-icon-box { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
-  .kpi-val { font-size: 32px; font-weight: 900; letter-spacing: -1px; line-height: 1; }
-  .kpi-lbl { font-size: 12px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
-  
-  /* Custom Scrollbar */
-  .scroll-feed::-webkit-scrollbar { width: 5px; }
-  .scroll-feed::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+  .hud-label { font-size: 12px; font-weight: 800; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px; }
+  .hud-value { font-size: 38px; font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: -1px; line-height: 1; }
 
-  /* AI Console */
-  .ai-console {
-    background: linear-gradient(135deg, #0f172a, #1e1b4b); color: #e2e8f0;
-    border-radius: 20px; padding: 20px; border: 1px solid rgba(99, 102, 241, 0.3);
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.5); position: relative; overflow: hidden;
+  /* Layout Grid */
+  .hud-grid-layout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
+  @media (max-width: 1200px) { .hud-grid-layout { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 768px) { .hud-grid-layout { grid-template-columns: 1fr; } }
+
+  .col-1 { grid-column: span 1; } .col-2 { grid-column: span 2; } .col-3 { grid-column: span 3; } .col-4 { grid-column: span 4; }
+  @media (max-width: 1200px) { .col-2, .col-3, .col-4 { grid-column: span 2; } }
+  @media (max-width: 768px) { .col-1, .col-2, .col-3, .col-4 { grid-column: span 1; } }
+
+  /* Top Header HUD */
+  .hud-header {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 2px solid rgba(0, 243, 255, 0.3); padding-bottom: 20px; margin-bottom: 25px;
   }
-  .ai-console::after {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, #38bdf8, transparent);
-    animation: scanLine 3s linear infinite;
-  }
-  @keyframes scanLine { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
-  .ai-text { font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; color: #38bdf8; }
-  .ai-prompt { color: #10b981; margin-bottom: 5px; display: block; font-weight: bold; }
+  .hud-title { font-size: 28px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 3px; margin: 0; }
   
-  /* Quick Actions */
-  .qa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .qa-item {
-    background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-    text-decoration: none; color: var(--text); font-weight: 700; font-size: 13px; transition: 0.2s;
+  /* HUD Clock */
+  .hud-clock {
+    font-family: 'Courier New', monospace; font-size: 28px; font-weight: 900;
+    color: #00f3ff; text-shadow: 0 0 15px rgba(0, 243, 255, 0.6);
+    background: rgba(0, 243, 255, 0.1); padding: 10px 20px; border: 1px solid rgba(0, 243, 255, 0.4); border-radius: 8px;
+    position: relative; overflow: hidden;
   }
-  .qa-item:hover { background: var(--primary); color: white; transform: translateY(-3px); box-shadow: 0 10px 20px rgba(99,102,241,0.3); }
-  
-  /* Activity Feed */
-  .feed-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--border); }
-  .feed-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; box-shadow: 0 0 8px currentColor; }
+  .hud-clock::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.2) 2px, rgba(0,0,0,0.2) 4px);
+    pointer-events: none;
+  }
+
+  /* Radar Animation */
+  .radar-container { position: relative; width: 100%; height: 100%; min-height: 200px; display: flex; align-items: center; justify-content: center; }
+  .radar-circle { position: absolute; border: 1px solid rgba(0, 243, 255, 0.2); border-radius: 50%; }
+  .radar-sweep {
+    position: absolute; width: 50%; height: 50%; top: 50%; left: 50%; transform-origin: top left;
+    background: conic-gradient(from 0deg, transparent 70%, rgba(0, 243, 255, 0.5) 100%);
+    animation: sweep 4s linear infinite;
+  }
+  @keyframes sweep { 100% { transform: rotate(360deg); } }
+
+  /* AI Terminal */
+  .hud-terminal {
+    background: rgba(0,0,0,0.8); border: 1px solid #00f3ff; padding: 20px; border-radius: 8px;
+    font-family: 'Courier New', monospace; color: #00f3ff; font-size: 13px; line-height: 1.6;
+    box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.1);
+  }
+  .term-prompt { color: #39ff14; margin-bottom: 10px; display: block; }
 </style>
 
-<div class="dash-bg"></div>
+<div class="hud-bg"><div class="hud-grid"></div></div>
 
-<!-- ================= 1. HERO HEADER ================= -->
-<div class="hero-sec">
+<!-- HUD HEADER -->
+<div class="hud-header">
   <div>
-    <h1 class="hero-title">System Online. Welcome, {{ session.name or 'Admin' }}.</h1>
-    <p class="hero-sub">All school operations are running smoothly. Here is your real-time data.</p>
+    <h1 class="hud-title">SYSTEM: ONLINE</h1>
+    <div style="color: rgba(255,255,255,0.5); font-size: 14px; font-weight: 700; margin-top: 5px;">WELCOME BACK, {{ session.name|upper or 'ADMIN' }}</div>
   </div>
-  <div class="neon-clock">
-    <div class="pulse-dot"></div>
-    <span id="live-time">--:--:--</span>
-    <span style="font-size: 14px; opacity: 0.7; margin-left: 10px;" id="live-date"></span>
+  <div class="hud-clock">
+    <span id="hud-time">00:00:00</span>
   </div>
 </div>
 
-<!-- ================= 2. KPI CARDS (With 3D Tilt) ================= -->
-<div class="grid-layout" style="margin-bottom: 20px;">
+<!-- TOP KPI CARDS -->
+<div class="hud-grid-layout">
   
-  <!-- Total Students -->
-  <div class="cyber-card col-span-1 tilt-card">
-    <div class="kpi-wrap">
-      <div class="kpi-icon-box" style="background: rgba(99,102,241,0.1); color: #6366f1; box-shadow: 0 0 15px rgba(99,102,241,0.2);">🎓</div>
-      <div>
-        <div class="kpi-val counter" data-target="{{ students or 0 }}">0</div>
-        <div class="kpi-lbl">Total Students</div>
-      </div>
-    </div>
-    <div style="height: 40px; width: 100%; margin-top: 10px;"><canvas id="spark1"></canvas></div>
+  <div class="hud-card col-1 tilt-card">
+    <div class="hud-label">TOTAL STUDENTS</div>
+    <div class="hud-value text-cyan counter" data-target="{{ students or 0 }}">0</div>
+    <div style="margin-top: 15px; height: 2px; background: linear-gradient(90deg, #00f3ff, transparent);"></div>
   </div>
 
-  <!-- Today's Collection -->
-  <div class="cyber-card col-span-1 tilt-card">
-    <div class="kpi-wrap">
-      <div class="kpi-icon-box" style="background: rgba(16,185,129,0.1); color: #10b981; box-shadow: 0 0 15px rgba(16,185,129,0.2);">💰</div>
-      <div>
-        <div class="kpi-val" style="color: #10b981;">₹<span class="counter" data-target="{{ today_collection or 0 }}">0</span></div>
-        <div class="kpi-lbl">Today's Collection</div>
-      </div>
-    </div>
-    <div style="height: 40px; width: 100%; margin-top: 10px;"><canvas id="spark2"></canvas></div>
+  <div class="hud-card col-1 tilt-card">
+    <div class="hud-label">TODAY'S COLLECTION</div>
+    <div class="hud-value text-lime">₹<span class="counter" data-target="{{ today_collection or 0 }}">0</span></div>
+    <div style="margin-top: 15px; height: 2px; background: linear-gradient(90deg, #39ff14, transparent);"></div>
   </div>
 
-  <!-- Pending Dues -->
-  <div class="cyber-card col-span-1 tilt-card">
-    <div class="kpi-wrap">
-      <div class="kpi-icon-box" style="background: rgba(239,68,68,0.1); color: #ef4444; box-shadow: 0 0 15px rgba(239,68,68,0.2);">⚠️</div>
-      <div>
-        <div class="kpi-val" style="color: #ef4444;">₹<span class="counter" data-target="{{ total_due or 0 }}">0</span></div>
-        <div class="kpi-lbl">Pending Dues</div>
-      </div>
-    </div>
-    <div style="height: 40px; width: 100%; margin-top: 10px;"><canvas id="spark3"></canvas></div>
+  <div class="hud-card col-1 tilt-card">
+    <div class="hud-label">PENDING DUES</div>
+    <div class="hud-value text-pink">₹<span class="counter" data-target="{{ total_due or 0 }}">0</span></div>
+    <div style="margin-top: 15px; height: 2px; background: linear-gradient(90deg, #ff0055, transparent);"></div>
   </div>
 
-  <!-- Quick Actions -->
-  <div class="cyber-card col-span-1 tilt-card">
-    <div class="kpi-lbl" style="margin-bottom: 10px;">⚡ Quick Actions</div>
-    <div class="qa-grid">
-      <a href="/students" class="qa-item">🎓 Student</a>
-      <a href="/fees" class="qa-item">💵 Collect</a>
-      <a href="/notices" class="qa-item">📢 Notice</a>
-      <a href="/ai-assistant" class="qa-item" style="background: var(--primary); color: white;">🤖 AI</a>
+  <!-- Radar Widget -->
+  <div class="hud-card col-1 tilt-card" style="display: flex; flex-direction: column;">
+    <div class="hud-label">LIVE RADAR</div>
+    <div class="radar-container">
+      <div class="radar-circle" style="width: 40px; height: 40px;"></div>
+      <div class="radar-circle" style="width: 80px; height: 80px;"></div>
+      <div class="radar-circle" style="width: 120px; height: 120px;"></div>
+      <div class="radar-sweep"></div>
+      <div style="width: 6px; height: 6px; background: #ff0055; border-radius: 50%; position: absolute; top: 30%; right: 30%; box-shadow: 0 0 10px #ff0055;"></div>
+      <div style="width: 6px; height: 6px; background: #39ff14; border-radius: 50%; position: absolute; bottom: 40%; left: 20%; box-shadow: 0 0 10px #39ff14;"></div>
     </div>
   </div>
+
 </div>
 
-<!-- ================= 3. MAIN CONTENT GRID ================= -->
-<div class="grid-layout">
+<!-- MAIN CONTENT ROW -->
+<div class="hud-grid-layout">
   
-  <!-- Chart (Span 2) -->
-  <div class="cyber-card col-span-2">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h3 style="margin:0; font-size: 16px; font-weight: 800;">📈 Revenue Analytics</h3>
-      <div style="background: rgba(99,102,241,0.1); color: #6366f1; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 800;">Last 6 Months</div>
-    </div>
-    <div style="height: 280px;"><canvas id="mainChart"></canvas></div>
-  </div>
-
-  <!-- AI Console (Span 2) -->
-  <div class="ai-console col-span-2">
-    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-      <div style="width: 10px; height: 10px; background: #38bdf8; border-radius: 50%; animation: pulse 1s infinite;"></div>
-      <h3 style="margin:0; font-size: 14px; font-weight: 800; color: #fff;">AI COPILOT ACTIVE</h3>
-    </div>
-    <div class="ai-text">
-      <span class="ai-prompt">> System.check_health()</span><br>
-      [OK] Database connected. Syncing live metrics...<br><br>
-      <span class="ai-prompt">> Analyze current collection...</span><br>
-      <span id="typewriter-text"></span>
+  <!-- Main Chart -->
+  <div class="hud-card col-2">
+    <div class="hud-label" style="margin-bottom: 15px;">📈 REVENUE FLOW ANALYSIS</div>
+    <div style="height: 280px;">
+      <canvas id="mainChart"></canvas>
     </div>
   </div>
 
-  <!-- Activity Feed (Span 1) -->
-  <div class="cyber-card col-span-1">
-    <h3 style="margin:0 0 15px 0; font-size: 15px; font-weight: 800;">🛰️ Live Activity Radar</h3>
-    <div class="scroll-feed" style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
-      <div class="feed-item">
-        <div class="feed-dot" style="background: #10b981; color: #10b981;"></div>
-        <div><div style="font-size: 13px; font-weight: 700;">Fee collected from Roll 101</div><div style="font-size: 11px; color: #64748b;">Just now</div></div>
-      </div>
-      <div class="feed-item">
-        <div class="feed-dot" style="background: #6366f1; color: #6366f1;"></div>
-        <div><div style="font-size: 13px; font-weight: 700;">New student added to Class 10</div><div style="font-size: 11px; color: #64748b;">5 mins ago</div></div>
-      </div>
-      <div class="feed-item">
-        <div class="feed-dot" style="background: #f59e0b; color: #f59e0b;"></div>
-        <div><div style="font-size: 13px; font-weight: 700;">Attendance marked for Class 9-B</div><div style="font-size: 11px; color: #64748b;">20 mins ago</div></div>
-      </div>
-      <div class="feed-item" style="border: none;">
-        <div class="feed-dot" style="background: #ec4899; color: #ec4899;"></div>
-        <div><div style="font-size: 13px; font-weight: 700;">Exam schedule updated</div><div style="font-size: 11px; color: #64748b;">1 hour ago</div></div>
-      </div>
+  <!-- AI Terminal -->
+  <div class="hud-card col-2">
+    <div class="hud-label" style="margin-bottom: 15px;">🤖 AI COPILOT TERMINAL</div>
+    <div class="hud-terminal">
+      <span class="term-prompt">root@school-erp:~# ./analyze_data.sh</span>
+      <div>[OK] Connecting to PostgreSQL Database...<br>
+      [OK] Fetching live metrics...<br>
+      [OK] Processing financial data...<br><br>
+      <span style="color: #fff;">> Analysis Complete:</span><br>
+      <span id="ai-typing"></span><span style="animation: blink 1s infinite;">_</span></div>
     </div>
   </div>
 
-  <!-- Recent Notices (Span 1) -->
-  <div class="cyber-card col-span-1">
-    <h3 style="margin:0 0 15px 0; font-size: 15px; font-weight: 800;">📢 Latest Directives</h3>
-    <div class="scroll-feed" style="max-height: 250px; overflow-y: auto;">
-      {% for n in recent_notices[:3] %}
-      <div style="padding: 12px; background: var(--bg); border-radius: 10px; margin-bottom: 10px; border-left: 3px solid {% if n.priority == 'Urgent' %}#ef4444{% else %}#6366f1{% endif %};">
-        <div style="font-size: 13px; font-weight: 800; color: var(--text);">{{ n.title }}</div>
-        <div style="font-size: 11px; color: #64748b; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;">{{ n.content }}</div>
+</div>
+
+<!-- BOTTOM ROW -->
+<div class="hud-grid-layout">
+  
+  <!-- Notices -->
+  <div class="hud-card col-2">
+    <div class="hud-label" style="margin-bottom: 15px;">📢 INCOMING TRANSMISSIONS</div>
+    <div>
+      {% for n in recent_notices[:2] %}
+      <div style="border-left: 2px solid {% if n.priority == 'Urgent' %}#ff0055{% else %}#00f3ff{% endif %}; padding-left: 15px; margin-bottom: 15px;">
+        <div style="font-size: 14px; font-weight: 800; color: #fff; text-transform: uppercase;">{{ n.title }}</div>
+        <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 4px;">{{ n.content }}</div>
       </div>
       {% else %}
-      <p style="color: #64748b; font-size: 13px; text-align: center;">No directives found.</p>
+      <div style="color: rgba(255,255,255,0.5);">No transmissions received.</div>
       {% endfor %}
     </div>
   </div>
 
+  <!-- Quick Commands -->
+  <div class="hud-card col-2">
+    <div class="hud-label" style="margin-bottom: 15px;">⚡ QUICK COMMANDS</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      <a href="/students" style="text-decoration: none; background: rgba(0,243,255,0.1); border: 1px solid rgba(0,243,255,0.3); color: #00f3ff; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='rgba(0,243,255,0.2)'" onmouseout="this.style.background='rgba(0,243,255,0.1)'">EXEC: ADD STUDENT</a>
+      <a href="/fees" style="text-decoration: none; background: rgba(57,255,20,0.1); border: 1px solid rgba(57,255,20,0.3); color: #39ff14; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='rgba(57,255,20,0.2)'" onmouseout="this.style.background='rgba(57,255,20,0.1)'">EXEC: COLLECT FEE</a>
+      <a href="/attendance" style="text-decoration: none; background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3); color: #ffd700; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='rgba(255,215,0,0.2)'" onmouseout="this.style.background='rgba(255,215,0,0.1)'">EXEC: ATTENDANCE</a>
+      <a href="/ai-assistant" style="text-decoration: none; background: rgba(255,0,85,0.1); border: 1px solid rgba(255,0,85,0.3); color: #ff0055; text-align: center; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='rgba(255,0,85,0.2)'" onmouseout="this.style.background='rgba(255,0,85,0.1)'">EXEC: AI ASSIST</a>
+    </div>
+  </div>
+
 </div>
+
+<style>
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+</style>
 
 {% endblock %}
 
 {% block scripts %}
 <script>
-  // ==========================================
-  // 1. INITIALIZE 3D TILT EFFECT
-  // ==========================================
+  // 1. Initialize 3D Tilt
   VanillaTilt.init(document.querySelectorAll(".tilt-card"), {
-    max: 10,          // Max rotation
-    speed: 400,       // Transition speed
-    glare: true,      // Enable glare effect
-    "max-glare": 0.2, // Glare opacity
-    scale: 1.02       // Slight scale up on hover
+    max: 15, speed: 400, glare: true, "max-glare": 0.5, scale: 1.05
   });
 
-  // ==========================================
-  // 2. LIVE CLOCK
-  // ==========================================
-  function updateTime() {
+  // 2. HUD Clock
+  function updateClock() {
     const now = new Date();
-    document.getElementById('live-time').innerText = now.toLocaleTimeString('en-US', { hour12: true });
-    document.getElementById('live-date').innerText = now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+    document.getElementById('hud-time').innerText = now.toLocaleTimeString('en-GB'); // 24hr format
   }
-  setInterval(updateTime, 1000); updateTime();
+  setInterval(updateClock, 1000); updateClock();
 
-  // ==========================================
-  // 3. COUNTER ANIMATION
-  // ==========================================
+  // 3. Number Counter
   document.querySelectorAll('.counter').forEach(counter => {
     const target = +counter.getAttribute('data-target');
     let current = 0;
@@ -290,63 +247,53 @@
     update();
   });
 
-  // ==========================================
-  // 4. AI TYPEWRITER EFFECT
-  // ==========================================
-  const aiText = "Current collection is ₹{{ today_collection or 0 }}, which is 15% higher than yesterday. Pending dues are ₹{{ total_due or 0 }}. Recommendation: Trigger WhatsApp reminders to defaulters to improve cashflow.";
+  // 4. AI Terminal Typewriter
+  const aiText = "Collection is 15% UP. Pending dues are HIGH. Recommendation: Initialize WhatsApp Reminder Protocol for defaulters immediately.";
   let i = 0;
   function typeAI() {
     if (i < aiText.length) {
-      document.getElementById("typewriter-text").innerHTML += aiText.charAt(i);
-      i++;
-      setTimeout(typeAI, 20);
+      document.getElementById("ai-typing").innerHTML += aiText.charAt(i);
+      i++; setTimeout(typeAI, 25);
     }
   }
-  setTimeout(typeAI, 1000);
+  setTimeout(typeAI, 1200);
 
-  // ==========================================
-  // 5. CHARTS (Main + Sparklines)
-  // ==========================================
-  Chart.defaults.font.family = "'Inter', sans-serif";
-  Chart.defaults.color = '#64748b';
+  // 5. Neon Chart
+  Chart.defaults.font.family = "'Courier New', monospace";
+  Chart.defaults.color = 'rgba(255,255,255,0.5)';
 
-  // Main Chart
   const ctx = document.getElementById('mainChart').getContext('2d');
   const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-  gradient.addColorStop(0, 'rgba(99, 102, 241, 0.6)');
-  gradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
+  gradient.addColorStop(0, 'rgba(0, 243, 255, 0.4)');
+  gradient.addColorStop(1, 'rgba(0, 243, 255, 0.0)');
 
   new Chart(ctx, {
     type: 'line',
     data: {
-      labels: ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
+      labels: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN'],
       datasets: [{
-        label: 'Revenue', data: [15000, 25000, 20000, 35000, 30000, 45000],
-        borderColor: '#6366f1', backgroundColor: gradient, borderWidth: 3,
-        pointBackgroundColor: '#fff', pointBorderColor: '#6366f1', pointBorderWidth: 2,
-        pointRadius: 4, pointHoverRadius: 8, fill: true, tension: 0.4
+        label: 'Collection',
+        data: [10000, 25000, 15000, 35000, 20000, 45000],
+        borderColor: '#00f3ff',
+        backgroundColor: gradient,
+        borderWidth: 2,
+        pointBackgroundColor: '#050510',
+        pointBorderColor: '#00f3ff',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 8,
+        fill: true, tension: 0.4,
+        shadowColor: '#00f3ff', shadowBlur: 10 // Glow effect
       }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: { 
-        y: { beginAtZero: true, grid: { color: 'rgba(226, 232, 240, 0.5)', drawBorder: false } }, 
-        x: { grid: { display: false } } 
+        y: { beginAtZero: true, grid: { color: 'rgba(0, 243, 255, 0.1)' }, ticks: { font: { family: 'Courier New' } } }, 
+        x: { grid: { display: false }, ticks: { font: { family: 'Courier New' } } } 
       }
     }
   });
-
-  // Mini Sparklines Function
-  function createSpark(id, color) {
-    new Chart(document.getElementById(id).getContext('2d'), {
-      type: 'line',
-      data: { labels: [1,2,3,4,5,6], datasets: [{ data: [10, 25, 15, 30, 20, 40], borderColor: color, borderWidth: 2, tension: 0.4, pointRadius: 0 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false } } }
-    });
-  }
-  createSpark('spark1', '#6366f1');
-  createSpark('spark2', '#10b981');
-  createSpark('spark3', '#ef4444');
 </script>
 {% endblock %}
