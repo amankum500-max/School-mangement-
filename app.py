@@ -27,8 +27,7 @@ def login():
             session["name"] = "System Admin"
             return redirect(url_for("dashboard"))
         flash("Invalid credentials!", "error")
-    return render_template("login.html")
-
+    return render_template("SHARED/AUTH (4)/login.html")
 @app.route("/logout")
 def logout():
     session.clear()
@@ -45,7 +44,7 @@ def dashboard():
     except:
         students_count, total_due, today_collection = 0, 0, 0
 
-    return render_template("dashboard.html",
+    return render_template("SHARED/dashboard.html",
         students=students_count, total_due=total_due,
         today_collection=today_collection, lifetime_profit=0,
         fee_status={"paid":0, "partial":0, "unpaid":0}, top_defaulters=[],
@@ -62,7 +61,7 @@ def students():
         rows = db_all("SELECT * FROM students ORDER BY roll_no")
     except:
         rows = []
-    return render_template("students.html", students=rows, classes=[], q="", class_filter="", fee_filter="", page=1, total_pages=1)
+      return render_template("STUDENTS (6)/students.html", students=rows, classes=[], q="", class_filter="", fee_filter="", page=1, total_pages=1)  
 
 # ---------------- FEES ----------------
 @app.route("/fees")
@@ -77,7 +76,7 @@ def fees():
         """)
     except:
         rows = []
-    return render_template("fees.html", fees=rows)
+        return render_template("FEES (8)/fees.html", fees=rows)
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
