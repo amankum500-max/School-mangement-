@@ -1,0 +1,129 @@
+{% extends "shared/base.html" %}
+{% block title %}Analytics{% endblock %}
+{% block page_title %}School Analytics & Reports{% endblock %}
+
+{% block content %}
+<!-- KPI Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+  <div class="card" style="border-left: 5px solid #10b981; margin-bottom: 0;">
+    <p style="color: #64748b; font-weight: 600; font-size: 14px; margin: 0;">Total Lifetime Collection</p>
+    <h1 style="font-size: 32px; margin: 5px 0 0 0; color: #10b981;">₹{{ '{:,.0f}'.format(total_collection) }}</h1>
+  </div>
+  <div class="card" style="border-left: 5px solid #ef4444; margin-bottom: 0;">
+    <p style="color: #64748b; font-weight: 600; font-size: 14px; margin: 0;">Total Pending Dues</p>
+    <h1 style="font-size: 32px; margin: 5px 0 0 0; color: #ef4444;">₹{{ '{:,.0f}'.format(pending_dues) }}</h1>
+  </div>
+</div>
+
+<!-- Charts Grid -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 30px;">
+  
+  <!-- Bar Chart: Monthly Collection -->
+  <div class="card" style="margin-bottom: 0;">
+    <h3 style="margin-bottom: 20px; font-size: 16px;">📊 Fee Collection Trend (Last 6 Months)</h3>
+    <div style="height: 300px;">
+      <canvas id="monthlyChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Doughnut Chart: Class Strength -->
+  <div class="card" style="margin-bottom: 0;">
+    <h3 style="margin-bottom: 20px; font-size: 16px;">🏫 Student Distribution by Class</h3>
+    <div style="height: 300px; display: flex; justify-content: center;">
+      <canvas id="classChart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- Top Payers Table -->
+<div class="card">
+  <h3 style="margin-bottom: 20px; font-size: 16px;">🏆 Top 5 Fee Payers (All Time)</h3>
+  <table>
+    <thead>
+      <tr>
+        <th width="80">Rank</th>
+        <th>Roll No</th>
+        <th>Student Name</th>
+        <th>Total Paid</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in top_payers %}
+      <tr>
+        <td>
+          <span style="display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; color: white;
+            background: {% if loop.index == 1 %}#fbbf24{% elif loop.index == 2 %}#94a3b8{% elif loop.index == 3 %}#d97706{% else %}#6366f1{% endif %};">
+            {{ loop.index }}
+          </span>
+        </td>
+        <td><strong>{{ p.roll_no }}</strong></td>
+        <td>{{ p.name }}</td>
+        <td style="color: #10b981; font-weight: bold; font-size: 15px;">₹{{ '{:,.0f}'.format(p.total_paid) }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="4" style="text-align: center; color: #64748b;">No payment data available yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // --- Monthly Collection Bar Chart ---
+  const monthlyLabels = {{ monthly_data | map(attribute='month') | list | tojson }};
+  const monthlyTotals = {{ monthly_data | map(attribute='total') | list | tojson }};
+
+  new Chart(document.getElementById('monthlyChart'), {
+    type: 'bar',
+    data: {
+      labels: monthlyLabels.length ? monthlyLabels : ['No Data'],
+      datasets: [{
+        label: 'Collection (₹)',
+        data: monthlyTotals.length ? monthlyTotals : [0],
+        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+        borderColor: '#10b981',
+        borderWidth: 1,
+        borderRadius: 6,
+        barThickness: 40
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  // --- Class Distribution Doughnut Chart ---
+  const classLabels = {{ class_dist | map(attribute='class_name') | list | tojson }};
+  const classCounts = {{ class_dist | map(attribute='count') | list | tojson }};
+
+  new Chart(document.getElementById('classChart'), {
+    type: 'doughnut',
+    data: {
+      labels: classLabels.length ? classLabels : ['No Data'],
+      datasets: [{
+        data: classCounts.length ? classCounts : [0],
+        backgroundColor: [
+          '#6366f1', '#ec4899', '#10b981', '#f59e0b', '#06b6d4', '#8b5cf6'
+        ],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: { 
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: {size: 11} } } 
+      }
+    }
+  });
+</script>
+{% endblock %}
