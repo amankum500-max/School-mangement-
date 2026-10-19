@@ -3,6 +3,7 @@ from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import google.generativeai as genai
+import requests  # Live Weather ke liye zaroori hai
 
 # Local Database Functions
 from database import init_db, run, all as db_all, one, current_month, today
@@ -17,7 +18,6 @@ if GEMINI_KEY:
     ai_model = genai.GenerativeModel('gemini-1.5-flash')
 else:
     ai_model = None
-
 
 # ---------------- AUTH DECORATOR & ROUTES ----------------
 def login_required(f):
@@ -47,47 +47,62 @@ def logout():
     return redirect(url_for("login"))
 
 
-# ---------------- DASHBOARD ----------------
+# ---------------- DASHBOARD & LIVE APIs ----------------
 @app.route("/dashboard")
 @login_required
 def dashboard():
+    return render_template("dashboard/dashboard.html")
+
+# 🔥 Naya API: Dashboard Live Data (Payment Feed, Dues, Fee Dist)
+@app.route("/api/dashboard-live")
+@login_required
+def api_dashboard_live():
     try:
-        students_count = one("SELECT COUNT(*) c FROM students")["c"]
         total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE balance > 0")["t"]
-        today_collection = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE pay_date = %s", (today(),))["t"]
         
-        # Fee Status Data for Doughnut Chart
+        # Live Payment Feed (Last 5 payments)
+        recent_payments = db_all("""
+            SELECT s.name, p.amount, p.pay_date 
+            FROM payments p JOIN students s ON p.roll_no = s.roll_no 
+            ORDER BY p.id DESC LIMIT 5
+        """)
+        payment_feed = [{"name": r["name"], "amount": float(r["amount"]), "date": str(r["pay_date"])} for r in recent_payments]
+
+        # Fee Status (Paid, Partial, Unpaid)
         paid = one("SELECT COUNT(*) c FROM bills WHERE status='Paid'")["c"]
         partial = one("SELECT COUNT(*) c FROM bills WHERE status='Partial'")["c"]
         unpaid = one("SELECT COUNT(*) c FROM bills WHERE status='Unpaid' OR status IS NULL")["c"]
-        fee_status = [paid, partial, unpaid]
 
-        # Monthly Trend Data for Bar Chart (Last 6 Months)
-        trend = db_all("""
-            SELECT substr(pay_date, 1, 7) as month, SUM(amount) as total
-            FROM payments GROUP BY substr(pay_date, 1, 7)
-            ORDER BY month DESC LIMIT 6
-        """)
-        trend.reverse()  # Chronological order
-        trend_labels = [t['month'] for t in trend]
-        trend_data = [float(t['total']) for t in trend]
-
+        return jsonify({
+            "status": "success",
+            "total_due": float(total_due),
+            "payment_feed": payment_feed,
+            "fee_status": [paid, partial, unpaid]
+        })
     except Exception as e:
-        print("Dashboard Error:", e)
-        students_count, total_due, today_collection = 0, 0, 0
-        fee_status = [0, 0, 0]
-        trend_labels = []
-        trend_data = []
+        return jsonify({"status": "error", "message": str(e)})
 
-    return render_template(
-        "dashboard/dashboard.html",
-        students=students_count,
-        total_due=total_due,
-        today_collection=today_collection,
-        fee_status=fee_status,
-        trend_labels=trend_labels,
-        trend_data=trend_data
-    )
+# 🔥 Naya API: Live Weather
+@app.route("/api/weather")
+@login_required
+def api_weather():
+    # Yahan OpenWeather API laga sakte hain, abhi ke liye dummy data de rahe hain
+    return jsonify({"temp": "32°C", "condition": "Clear Sky", "icon": "☀️"})
+
+# 🔥 Naya API: WhatsApp & Email (Dummy for now)
+@app.route("/api/send-whatsapp", methods=["POST"])
+@login_required
+def send_whatsapp():
+    msg = request.json.get("message")
+    if not msg: return jsonify({"status": "error", "message": "Message empty"}), 400
+    return jsonify({"status": "success", "message": "WhatsApp Broadcast Sent (Mock)!"})
+
+@app.route("/api/send-email", methods=["POST"])
+@login_required
+def send_email():
+    subject = request.json.get("subject")
+    if not subject: return jsonify({"status": "error", "message": "Subject empty"}), 400
+    return jsonify({"status": "success", "message": "Email Sent Successfully (Mock)!"})
 
 
 # ---------------- STUDENTS ----------------
@@ -191,23 +206,18 @@ def collect(roll_no):
 
         try:
             receipt_no = f"RCP{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            
-            # 1. Payment insert
             run("""INSERT INTO payments (receipt_no, roll_no, amount, mode, pay_date, remark)
                    VALUES (%s, %s, %s, %s, %s, %s)""",
                 (receipt_no, roll_no, amount, mode, today(), remark))
             
-            # 2. Distribute amount to bills
             bills_list = db_all("SELECT id, balance, paid, total FROM bills WHERE roll_no=%s AND balance>0 ORDER BY month ASC", (roll_no,))
             rem = amount
             for b in bills_list:
-                if rem <= 0:
-                    break
+                if rem <= 0: break
                 deduct = min(rem, float(b['balance']))
                 new_paid = float(b['paid']) + deduct
                 new_bal = float(b['total']) - new_paid
                 status = "Paid" if new_bal <= 0 else "Partial"
-                
                 run("UPDATE bills SET paid=%s, balance=%s, status=%s WHERE id=%s",
                     (new_paid, new_bal, status, b['id']))
                 rem -= deduct
@@ -217,10 +227,8 @@ def collect(roll_no):
         except Exception as e:
             flash(f"❌ Error: {e}", "error")
             
-    # GET Request: Fetch pending bills
     bills_list = db_all("SELECT * FROM bills WHERE roll_no=%s AND balance>0 ORDER BY month ASC", (roll_no,))
     total_due = sum(float(b['balance']) for b in bills_list)
-    
     return render_template("fees/collect.html", student=student, bills=bills_list, total_due=total_due)
 
 @app.route("/receipt/<roll_no>/<receipt_no>")
@@ -231,7 +239,6 @@ def receipt(roll_no, receipt_no):
     if not student or not payment:
         flash("Receipt not found", "error")
         return redirect(url_for("students"))
-    
     return render_template("fees/receipt.html", student=student, payment=payment, now=datetime.now())
 
 @app.route("/defaulters")
@@ -274,7 +281,6 @@ def attendance():
 
     att_date = request.args.get("date", today())
     class_name = request.args.get("class_name", "")
-    
     students_list = []
     existing_att = {}
     
@@ -284,13 +290,10 @@ def attendance():
         existing_att = {a['roll_no']: a['status'] for a in att_records}
 
     classes = db_all("SELECT DISTINCT class_name FROM students WHERE class_name IS NOT NULL ORDER BY class_name")
-    
-    return render_template("attendance/attendance.html", 
-                           students=students_list, classes=classes, 
-                           att_date=att_date, class_name=class_name, existing_att=existing_att)
+    return render_template("attendance/attendance.html", students=students_list, classes=classes, att_date=att_date, class_name=class_name, existing_att=existing_att)
 
 
-# ---------------- NOTICES ----------------
+# ---------------- NOTICES (SINGLE FIXED ROUTE) ----------------
 @app.route("/notices", methods=["GET", "POST"])
 @login_required
 def notices():
@@ -306,40 +309,26 @@ def notices():
     return render_template("communication/notices.html", notices=notices_list)
 
 
-# ---------------- AI ASSISTANT ----------------
+# ---------------- AI ASSISTANT (PATH FIXED) ----------------
 @app.route("/ai-assistant")
 @login_required
 def ai_assistant():
-    return render_template("ai/ai_assistant.html")
+    return render_template("ai_assistant.html") # <--- Yahan se 'ai/' hata diya gaya hai
 
 @app.route("/api/ai-chat", methods=["POST"])
 @login_required
 def api_ai_chat():
     if not ai_model:
         return jsonify({"reply": "⚠️ AI Configure nahi hai. Render me GEMINI_API_KEY daalein."})
-        
     data = request.get_json() or {}
     user_msg = data.get("message", "").strip()
     if not user_msg:
         return jsonify({"reply": "Kuch toh likho bhai!"})
-        
     try:
         students_count = one("SELECT COUNT(*) c FROM students")["c"]
         total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE balance > 0")["t"]
         today_collection = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE pay_date = %s", (today(),))["t"]
-        
-        prompt = f"""
-        Aap ek School Management System ke AI Assistant hain.
-        Aapko Hinglish (Hindi + English) me short aur helpful jawab dena hai.
-        
-        Live School Data:
-        - Total Students: {students_count}
-        - Total Pending Fees: Rs {total_due}
-        - Today's Collection: Rs {today_collection}
-        
-        User ka Sawaal: {user_msg}
-        """
-        
+        prompt = f"School AI Assistant. Data: Students={students_count}, Due={total_due}, Today={today_collection}. User asks: {user_msg}"
         response = ai_model.generate_content(prompt)
         return jsonify({"reply": response.text})
     except Exception as e:
@@ -361,16 +350,12 @@ def result():
     if request.method == "POST":
         d = request.form
         try:
-            existing = one("SELECT id FROM marks WHERE roll_no=%s AND subject=%s AND exam=%s", 
-                           (d["roll_no"], d["subject"], d["exam"]))
+            existing = one("SELECT id FROM marks WHERE roll_no=%s AND subject=%s AND exam=%s", (d["roll_no"], d["subject"], d["exam"]))
             if existing:
-                run("UPDATE marks SET marks=%s, total=%s WHERE id=%s", 
-                    (d["marks"], d["total"], existing["id"]))
-                flash("✏️ Marks updated successfully!", "success")
+                run("UPDATE marks SET marks=%s, total=%s WHERE id=%s", (d["marks"], d["total"], existing["id"]))
             else:
-                run("INSERT INTO marks (roll_no, subject, exam, marks, total) VALUES (%s,%s,%s,%s,%s)",
-                    (d["roll_no"], d["subject"], d["exam"], d["marks"], d["total"]))
-                flash("✅ Marks added successfully!", "success")
+                run("INSERT INTO marks (roll_no, subject, exam, marks, total) VALUES (%s,%s,%s,%s,%s)", (d["roll_no"], d["subject"], d["exam"], d["marks"], d["total"]))
+            flash("✅ Marks saved!", "success")
         except Exception as e:
             flash(f"❌ Error: {e}", "error")
         return redirect(url_for("result", roll_no=d["roll_no"]))
@@ -381,7 +366,6 @@ def result():
     if roll:
         student = one("SELECT * FROM students WHERE roll_no=%s", (roll,))
         marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll,))
-        
     students_list = db_all("SELECT roll_no, name FROM students ORDER BY roll_no")
     return render_template("exams/result.html", students=students_list, marks=marks_data, student=student, roll=roll)
 
@@ -392,50 +376,20 @@ def report_card(roll_no):
     if not student:
         flash("Student not found!", "error")
         return redirect(url_for("students"))
-        
     marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
-    
     total_obtained = sum(float(m['marks'] or 0) for m in marks_data)
     total_max = sum(float(m['total'] or 0) for m in marks_data)
     percentage = (total_obtained / total_max * 100) if total_max > 0 else 0
     overall_grade = calc_grade(percentage)
-    
-    return render_template("exams/report_card.html", 
-                           student=student, marks=marks_data, 
-                           total_obtained=total_obtained, total_max=total_max,
-                           percentage=round(percentage, 2), overall_grade=overall_grade,
-                           today_date=today())
-    # ---------------- NOTICES ----------------
-@app.route("/notices", methods=["GET", "POST"])
-@login_required
-def notices():
-    if request.method == "POST":
-        title = request.form.get("title")
-        content = request.form.get("content")
-        priority = request.form.get("priority", "Normal")
-        
-        if title and content:
-            run("INSERT INTO notices (title, content, priority, posted_date) VALUES (%s,%s,%s,%s)", 
-                (title, content, priority, today()))
-            flash("✅ Notice posted successfully!", "success")
-        return redirect(url_for("notices"))
-        
-    notice_list = db_all("SELECT * FROM notices WHERE is_active = TRUE ORDER BY id DESC")
-    return render_template("communication/notices.html", notices=notice_list)
+    return render_template("exams/report_card.html", student=student, marks=marks_data, total_obtained=total_obtained, total_max=total_max, percentage=round(percentage, 2), overall_grade=overall_grade, today_date=today())
 
-@app.route("/notice/delete/<int:nid>")
-@login_required
-def delete_notice(nid):
-    run("UPDATE notices SET is_active = FALSE WHERE id = %s", (nid,))
-    flash("🗑️ Notice removed", "success")
-    return redirect(url_for("notices"))
-    # ---------------- STAFF MANAGEMENT ----------------
+
+# ---------------- STAFF MANAGEMENT ----------------
 @app.route("/staff")
 @login_required
 def staff():
     try:
         rows = db_all("SELECT * FROM staff WHERE is_active = TRUE ORDER BY name")
-        # Total monthly salary expense
         total_salary = sum(float(s['salary'] or 0) for s in rows)
     except:
         rows = []
@@ -449,24 +403,24 @@ def add_staff():
     try:
         run("""INSERT INTO staff (emp_id, name, designation, subject, phone, email, salary, joining_date) 
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-            (d["emp_id"], d["name"], d.get("designation"), d.get("subject"), 
-             d.get("phone"), d.get("email"), d.get("salary") or 0, d.get("joining_date")))
+            (d["emp_id"], d["name"], d.get("designation"), d.get("subject"), d.get("phone"), d.get("email"), d.get("salary") or 0, d.get("joining_date")))
         flash("✅ Staff member added successfully!", "success")
     except Exception as e:
-        flash(f"❌ Error: {e} (Make sure Employee ID is unique)", "error")
+        flash(f"❌ Error: {e}", "error")
     return redirect(url_for("staff"))
 
 @app.route("/staff/delete/<int:sid>")
 @login_required
 def delete_staff(sid):
     try:
-        # Soft delete (record rehne do, bas deactivate kar do)
         run("UPDATE staff SET is_active = FALSE WHERE id = %s", (sid,))
         flash("🗑️ Staff member removed", "success")
     except Exception as e:
         flash(f"❌ Error: {e}", "error")
     return redirect(url_for("staff"))
-    # ---------------- TRANSPORT MANAGEMENT ----------------
+
+
+# ---------------- TRANSPORT MANAGEMENT ----------------
 @app.route("/transport")
 @login_required
 def transport():
@@ -486,7 +440,7 @@ def add_transport():
             (d["route_number"], d["route_name"], d.get("driver_name"), d.get("driver_phone"), d.get("vehicle_no"), d.get("capacity") or 40))
         flash("✅ Transport route added successfully!", "success")
     except Exception as e:
-        flash(f"❌ Error: {e} (Route number must be unique)", "error")
+        flash(f"❌ Error: {e}", "error")
     return redirect(url_for("transport"))
 
 @app.route("/transport/delete/<int:rid>")
@@ -498,4 +452,3 @@ def delete_transport(rid):
     except Exception as e:
         flash(f"❌ Error: {e}", "error")
     return redirect(url_for("transport"))
-    # -
