@@ -1,438 +1,188 @@
 {% extends "shared/base.html" %}
-{% block title %}Command Center{% endblock %}
-{% block page_title %}Command Center{% endblock %}
-
 {% block content %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <style>
-  /* ====================================================
-     HYPER-ADVANCED 3D HUD DASHBOARD (COMPLETE CSS)
-  ==================================================== */
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { overflow-x: hidden; background-color: #030308; }
-
-  .hud-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; background: radial-gradient(circle at center, #0a0f1e 0%, #030308 100%); overflow: hidden; perspective: 500px; }
-  .hud-grid-bg { position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background-image: linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px); background-size: 60px 60px; transform: rotateX(60deg) translateZ(-100px); animation: gridMove 8s linear infinite; mask-image: radial-gradient(circle at center, black 10%, transparent 70%); -webkit-mask-image: radial-gradient(circle at center, black 10%, transparent 70%); }
-  @keyframes gridMove { 0% { background-position: 0 0; } 100% { background-position: 0 60px; } }
-
-  .hud-container { width: 100%; max-width: 1600px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 25px; }
-
-  .hud-card { 
-    background: linear-gradient(135deg, rgba(16, 22, 40, 0.85), rgba(5, 8, 15, 0.95));
-    backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); 
-    border: 1px solid rgba(0, 243, 255, 0.4); border-radius: 16px; 
-    padding: 25px; padding-top: 45px;
-    position: relative; overflow: hidden; height: 100%;
-    box-shadow: 0 0 15px rgba(0, 243, 255, 0.15), inset 0 0 20px rgba(0, 243, 255, 0.05), 0 10px 30px rgba(0,0,0,0.5); 
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    display: flex; flex-direction: column;
-    animation: cardPulse 4s infinite alternate;
-  }
-  
-  @keyframes cardPulse {
-    0% { box-shadow: 0 0 15px rgba(0, 243, 255, 0.1), inset 0 0 15px rgba(0, 243, 255, 0.05), 0 10px 30px rgba(0,0,0,0.5); }
-    100% { box-shadow: 0 0 30px rgba(0, 243, 255, 0.25), inset 0 0 25px rgba(0, 243, 255, 0.1), 0 10px 30px rgba(0,0,0,0.5); }
-  }
-
-  .hud-card:hover { border-color: #00f3ff; transform: translateY(-4px); box-shadow: 0 0 40px rgba(0, 243, 255, 0.5), 0 0 80px rgba(0, 243, 255, 0.2), inset 0 0 30px rgba(0, 243, 255, 0.2); animation: none; }
-
-  /* Window Controls */
-  .win-controls { position: absolute; top: 12px; right: 15px; display: flex; gap: 10px; z-index: 10; }
-  .win-btn { width: 14px; height: 14px; border-radius: 50%; border: none; cursor: pointer; transition: 0.3s; position: relative; }
-  .win-close { background: #ff5f56; box-shadow: 0 0 10px #ff5f56, inset 0 0 4px rgba(255,255,255,0.5); }
-  .win-min { background: #ffbd2e; box-shadow: 0 0 10px #ffbd2e, inset 0 0 4px rgba(255,255,255,0.5); }
-  .win-max { background: #27c93f; box-shadow: 0 0 10px #27c93f, inset 0 0 4px rgba(255,255,255,0.5); }
-  .win-btn:hover { transform: scale(1.3); box-shadow: 0 0 20px currentColor, inset 0 0 6px rgba(255,255,255,0.8); }
-
-  /* States */
-  .hud-card.is-minimized .card-content { display: none; } 
-  .hud-card.is-minimized { padding-bottom: 20px; }
-  .hud-card.is-maximized { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 99999; border-radius: 0; border: none; background: #030308; padding: 40px; margin: 0; box-shadow: none; animation: none; }
-  .hud-card.is-maximized .card-content { height: calc(100vh - 100px); overflow-y: auto; }
-
-  /* Typography & Colors */
-  .text-cyan { color: #00f3ff; text-shadow: 0 0 5px #00f3ff, 0 0 15px #00f3ff; }
-  .text-pink { color: #ff0055; text-shadow: 0 0 5px #ff0055, 0 0 15px #ff0055; }
-  .text-lime { color: #39ff14; text-shadow: 0 0 5px #39ff14, 0 0 15px #39ff14; }
-  .text-gold { color: #ffd700; text-shadow: 0 0 5px #ffd700, 0 0 15px #ffd700; }
-  
-  .hud-label { font-size: 14px; font-weight: 800; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
-  .hud-value { font-size: clamp(38px, 5vw, 56px); font-weight: 900; font-family: 'Courier New', monospace; letter-spacing: -1px; line-height: 1.1; }
-
-  /* Grid */
-  .hud-grid-layout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; width: 100%; }
-  .col-1 { grid-column: span 1; } .col-2 { grid-column: span 2; } .col-3 { grid-column: span 3; } .col-4 { grid-column: span 4; }
-  @media (max-width: 1024px) { .hud-grid-layout { grid-template-columns: repeat(2, 1fr); } .col-3, .col-4 { grid-column: span 2; } .col-1 { grid-column: span 1; } .col-2 { grid-column: span 2; } }
-  @media (max-width: 768px) { .hud-container { padding: 10px; gap: 15px; } .hud-grid-layout { grid-template-columns: 1fr; gap: 15px; } .col-1, .col-2, .col-3, .col-4 { grid-column: span 1; } .hud-card { padding: 20px 15px; padding-top: 45px; } .hud-value { font-size: 42px; } }
-
-  /* Header */
-  .hud-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(0, 243, 255, 0.4); padding-bottom: 20px; margin-bottom: 10px; flex-wrap: wrap; gap: 15px; }
-  .hud-title { font-size: clamp(20px, 4vw, 26px); font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 3px; margin: 0; text-shadow: 0 0 10px #fff, 0 0 20px #00f3ff; }
-  .hud-btns { display: flex; gap: 10px; flex-wrap: wrap; }
-  .search-trigger-btn, .fs-btn { background: rgba(0, 243, 255, 0.05); border: 1px solid rgba(0, 243, 255, 0.6); color: #00f3ff; padding: 10px 18px; border-radius: 8px; font-family: 'Courier New', monospace; font-weight: 900; font-size: 14px; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 8px; }
-  .search-trigger-btn:hover, .fs-btn:hover { background: rgba(0, 243, 255, 0.2); transform: translateY(-2px); box-shadow: 0 0 25px rgba(0,243,255,0.6); }
-  .hud-clock-box { display: flex; flex-direction: column; align-items: flex-end; font-family: 'Courier New', monospace; }
-  .hud-clock { font-size: 24px; font-weight: 900; color: #00f3ff; text-shadow: 0 0 10px #00f3ff; background: rgba(0, 243, 255, 0.05); padding: 6px 20px; border: 1px solid rgba(0, 243, 255, 0.6); border-radius: 8px; line-height: 1; margin-bottom: 6px; }
-  .hud-date { font-size: 12px; font-weight: 800; color: #ffd700; text-shadow: 0 0 10px #ffd700; letter-spacing: 1.5px; }
-  @media (max-width: 768px) { .hud-header { flex-direction: column; align-items: flex-start; } .hud-btns { width: 100%; } .search-trigger-btn, .fs-btn { flex: 1; justify-content: center; } .hud-clock-box { width: 100%; align-items: flex-start; } }
-
-  /* Weather */
-  .weather-hud { display: flex; align-items: center; justify-content: space-between; height: 100%; margin-top: 10px; }
-  .weather-temp { font-size: 42px; font-weight: 900; font-family: 'Courier New', monospace; color: #fff; text-shadow: 0 0 15px #fff; }
-  .weather-cond { font-size: 13px; color: #00f3ff; font-weight: 800; text-transform: uppercase; }
-  .weather-icon { font-size: 45px; animation: float 3s ease-in-out infinite; }
-  @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
-
-  /* Map */
-  #map { width: 100%; height: 150px; border-radius: 8px; border: 1px solid rgba(0,243,255,0.6); margin-top: 15px; background: #000; }
-
-  /* Lists (Feed & Inbox) */
-  .feed-container, .msg-container { flex-grow: 1; max-height: 220px; overflow-y: auto; padding-right: 5px; }
-  .feed-container::-webkit-scrollbar, .msg-container::-webkit-scrollbar { width: 6px; }
-  .feed-container::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 10px; } 
-  .msg-container::-webkit-scrollbar-thumb { background: #ff0055; border-radius: 10px; }
-  
-  .pay-feed-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(0, 243, 255, 0.05); border-left: 4px solid #39ff14; border-radius: 6px; margin-bottom: 10px; }
-  .pay-name { font-size: 14px; font-weight: 800; color: #fff; }
-  .pay-amt { font-size: 16px; font-weight: 900; color: #39ff14; text-shadow: 0 0 10px #39ff14; }
-
-  .msg-item { padding: 12px; background: rgba(255, 0, 85, 0.05); border: 1px solid rgba(255, 0, 85, 0.4); border-radius: 8px; margin-bottom: 10px; position: relative; }
-  .msg-sender { font-size: 13px; font-weight: 900; color: #ff0055; text-shadow: 0 0 8px #ff0055; }
-  .msg-text { font-size: 12px; color: rgba(255,255,255,0.9); margin-top: 5px; }
-
-  /* Forms & Terminal */
-  .hud-input { width: 100%; background: rgba(0,0,0,0.7); border: 1px solid rgba(0,243,255,0.5); color: #fff; padding: 12px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 13px; outline: none; resize: none; margin-bottom: 10px; }
-  .hud-input:focus { border-color: #00f3ff; box-shadow: 0 0 15px rgba(0,243,255,0.4); }
-  
-  .hud-btn { width: 100%; padding: 12px; border-radius: 8px; font-family: 'Courier New', monospace; font-weight: 900; font-size: 13px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.3s; border: none; }
-  .hud-btn-wa { background: rgba(37, 211, 102, 0.1); border: 1px solid #25D366; color: #25D366; }
-  .hud-btn-wa:hover { background: #25D366; color: #000; box-shadow: 0 0 30px #25D366; transform: translateY(-2px); }
-  .hud-btn-email { background: rgba(0, 243, 255, 0.1); border: 1px solid #00f3ff; color: #00f3ff; }
-  .hud-btn-email:hover { background: #00f3ff; color: #000; box-shadow: 0 0 30px #00f3ff; transform: translateY(-2px); }
-
-  .hud-terminal { background: rgba(0,0,0,0.95); border: 1px solid #00f3ff; padding: 12px; border-radius: 8px; font-family: 'Courier New', monospace; color: #39ff14; font-size: 12px; height: 100%; min-height: 100px; overflow-y: auto; line-height: 1.6; box-shadow: inset 0 0 20px rgba(0,243,255,0.1); }
+    /* 3D Cyberpunk / Glassmorphism Style */
+    .glass-card { 
+        background: rgba(15, 23, 42, 0.7); 
+        backdrop-filter: blur(15px); 
+        border: 1px solid rgba(56, 189, 248, 0.2); 
+        border-radius: 16px; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100%;
+    }
+    .glass-card:hover { 
+        transform: translateY(-5px); 
+        box-shadow: 0 15px 40px rgba(56, 189, 248, 0.3); 
+        border-color: rgba(56, 189, 248, 0.6);
+    }
+    
+    /* Text Colors */
+    .neon-text { 
+        color: #38bdf8; 
+        text-shadow: 0 0 10px rgba(56, 189, 248, 0.7); 
+    }
+    .text-success { color: #22c55e !important; text-shadow: 0 0 10px rgba(34, 197, 94, 0.5); }
+    .text-danger { color: #ef4444 !important; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+    
+    /* Stat Icons */
+    .stat-icon { 
+        font-size: 2rem; 
+        opacity: 0.8; 
+        filter: drop-shadow(0 0 10px currentColor);
+    }
 </style>
 
-<div class="hud-bg"><div class="hud-grid-bg"></div></div>
-
-<div class="hud-container">
-    <!-- HEADER -->
-    <div class="hud-header">
-      <div>
-        <h1 class="hud-title">SYSTEM: ONLINE</h1>
-        <div style="color: rgba(255,255,255,0.8); font-size: 12px; font-weight: 700; margin-top: 5px;">WELCOME, {{ session.get('name', 'Admin')|upper }}</div>
-      </div>
-      <div class="hud-btns">
-        <button class="search-trigger-btn"><span>🔍 SEARCH</span><span style="font-size: 11px; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px;">Ctrl + K</span></button>
-        <button class="fs-btn" onclick="toggleFullScreen()"><span>⛶ FULLSCREEN</span></button>
-      </div>
-      <div class="hud-clock-box">
-        <div class="hud-clock" id="hud-time">00:00:00</div>
-        <div class="hud-date" id="hud-date">DATE</div>
-      </div>
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-bold text-white mb-1">SYSTEM: <span class="neon-text">ONLINE</span></h2>
+            <p class="text-secondary mb-0">Welcome back, System Admin. All systems operational.</p>
+        </div>
+        <div class="d-flex gap-3">
+            <div class="glass-card px-4 py-2 text-center">
+                <span class="text-muted small d-block">Current Time</span>
+                <span class="fw-bold text-info" id="liveClock">00:00:00</span>
+            </div>
+        </div>
     </div>
 
-    <!-- ROW 1: KPI CARDS -->
-    <div class="hud-grid-layout">
-      <div class="hud-card col-1 tilt-card">
-        <div class="win-controls"><button class="win-btn win-min" onclick="minimizeCard(this)"></button><button class="win-btn win-max" onclick="maximizeCard(this)"></button><button class="win-btn win-close" onclick="closeCard(this)"></button></div>
-        <div class="card-content">
-          <div class="hud-label">TOTAL STUDENTS</div>
-          <div class="hud-value text-cyan counter" data-target="{{ students_count | default(1250) }}">0</div>
+    <!-- Stats Row -->
+    <div class="row g-4 mb-4">
+        <!-- Total Students -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="glass-card p-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-muted mb-2">TOTAL STUDENTS</h6>
+                        <h2 class="fw-bold text-white mb-0">{{ students_count }}</h2>
+                    </div>
+                    <div class="stat-icon text-primary">🎓</div>
+                </div>
+            </div>
         </div>
-      </div>
-      
-      <div class="hud-card col-1 tilt-card">
-        <div class="win-controls"><button class="win-btn win-min" onclick="minimizeCard(this)"></button><button class="win-btn win-max" onclick="maximizeCard(this)"></button><button class="win-btn win-close" onclick="closeCard(this)"></button></div>
-        <div class="card-content">
-          <div class="hud-label">TODAY'S COLLECTION</div>
-          <div class="hud-value text-lime">₹<span class="counter" data-target="{{ today_collection | default(45000) }}">0</span></div>
-        </div>
-      </div>
 
-      <div class="hud-card col-1 tilt-card">
-        <div class="win-controls"><button class="win-btn win-min" onclick="minimizeCard(this)"></button><button class="win-btn win-max" onclick="maximizeCard(this)"></button><button class="win-btn win-close" onclick="closeCard(this)"></button></div>
-        <div class="card-content">
-          <div class="hud-label">PENDING DUES</div>
-          <div class="hud-value text-pink">₹<span class="counter" data-target="{{ pending_dues | default(120000) }}">0</span></div>
+        <!-- Today's Collection -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="glass-card p-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-muted mb-2">TODAY'S COLLECTION</h6>
+                        <h2 class="fw-bold text-success mb-0">₹{{ '{:,.0f}'.format(today_collection or 0) }}</h2>
+                    </div>
+                    <div class="stat-icon text-success">💰</div>
+                </div>
+            </div>
         </div>
-      </div>
 
-      <div class="hud-card col-1 tilt-card">
-        <div class="win-controls"><button class="win-btn win-min" onclick="minimizeCard(this)"></button><button class="win-btn win-max" onclick="maximizeCard(this)"></button><button class="win-btn win-close" onclick="closeCard(this)"></button></div>
-        <div class="card-content">
-          <div class="hud-label">WEATHER SYSTEM</div>
-          <div class="weather-hud">
-            <div><div class="weather-temp" id="temp">--°C</div><div class="weather-cond" id="weather-desc">Loading...</div></div>
-            <div class="weather-icon" id="weather-icon">🌤️</div>
-          </div>
+        <!-- Pending Dues -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="glass-card p-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-muted mb-2">PENDING DUES</h6>
+                        <h2 class="fw-bold text-danger mb-0">₹{{ '{:,.0f}'.format(pending_dues or 0) }}</h2>
+                    </div>
+                    <div class="stat-icon text-danger">🚨</div>
+                </div>
+            </div>
         </div>
-      </div>
+
+        <!-- System Status -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="glass-card p-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-muted mb-2">SYSTEM STATUS</h6>
+                        <h2 class="fw-bold text-info mb-0">Active</h2>
+                    </div>
+                    <div class="stat-icon text-info">⚡</div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- ROW 2: CHARTS & MAP -->
-    <div class="hud-grid-layout">
-      <!-- Revenue Chart -->
-      <div class="hud-card col-2">
-        <div class="win-controls"><button class="win-btn win-min" onclick="minimizeCard(this)"></button><button class="win-btn win-max" onclick="maximizeCard(this)"></button><button class="win-btn win-close" onclick="closeCard(this)"></button></div>
-        <div class="card-content" style="display: flex; flex-direction: column; flex-grow: 1;">
-          <div class="hud-label" style="margin-bottom: 15px;">📈 REVENUE FLOW</div>
-          <div style="flex-grow: 1; width: 100%; min-height: 200px; position: relative;">
-            <canvas id="revenueChart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- Fee Dist Chart -->
-      <div class="hud-card col-1">
-        <div class="win-controls"><button class="win-btn win-min" onclick="minimizeCard(this)"></button><button class="win-btn win-max" onclick="maximizeCard(this)"></button><button class="win-btn win-close" onclick="closeCard(this)"></button></div>
-        <div class="card-content" style="display: flex; flex-direction: column; flex-grow: 1;">
-          <div class="hud-label">🥧 FEE DIST.</div>
-          <div style="flex-grow: 1; position: relative; display: flex; justify-content: center; margin-top: 10px;">
-            <canvas id="feeChart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- Live Map -->
-      <div class="hud-card col-1">
-        <div class="win-controls"><button class="win-btn win-min" onclick="minimizeCard(this)"></button><button class="win-btn win-max" onclick="maximizeCard(this)"></button><button class="win-btn win-close" onclick="closeCard(this)"></button></div>
-        <div class="card-content" style="display: flex; flex-direction: column;">
-          <div class="hud-label">📍 LIVE RADAR</div>
-          <div id="map"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ROW 3: PAYMENT FEED, INBOX, AI ANALYST -->
-    <div class="hud-grid-layout">
-      <!-- Live Payment Feed -->
-      <div class="hud-card col-2">
-        <div class="win-controls"><button class="win-btn win-min" onclick="minimizeCard(this)"></button><button class="win-btn win-max" onclick="maximizeCard(this)"></button><button class="win-btn win-close" onclick="closeCard(this)"></button></div>
-        <div class="card-content" style="display: flex; flex-direction: column; height: 100%;">
-          <div class="hud-label">🔔 LIVE PAYMENT FEED</div>
-          <div class="feed-container">
-            <div class="pay-feed-item">
-              <div><div class="pay-name">Rahul Sharma</div><div style="font-size: 10px; color: #aaa;">Today, 10:45 AM</div></div>
-              <div class="pay-amt">+ ₹5,000</div>
+    <!-- Charts & Live Feed Row -->
+    <div class="row g-4">
+        <!-- Revenue Flow Chart -->
+        <div class="col-12 col-lg-7">
+            <div class="glass-card p-4 h-100">
+                <h5 class="text-white mb-4">📈 Revenue Flow (Last 6 Months)</h5>
+                <canvas id="revenueChart" height="250"></canvas>
             </div>
-            <div class="pay-feed-item">
-              <div><div class="pay-name">Aman Kumar</div><div style="font-size: 10px; color: #aaa;">Today, 10:30 AM</div></div>
-              <div class="pay-amt">+ ₹8,000</div>
-            </div>
-            <div class="pay-feed-item">
-              <div><div class="pay-name">Sneha Patel</div><div style="font-size: 10px; color: #aaa;">Today, 09:15 AM</div></div>
-              <div class="pay-amt">+ ₹3,500</div>
-            </div>
-          </div>
         </div>
-      </div>
 
-      <!-- Inbox -->
-      <div class="hud-card col-1">
-        <div class="win-controls"><button class="win-btn win-min" onclick="minimizeCard(this)"></button><button class="win-btn win-max" onclick="maximizeCard(this)"></button><button class="win-btn win-close" onclick="closeCard(this)"></button></div>
-        <div class="card-content" style="display: flex; flex-direction: column; height: 100%;">
-          <div class="hud-label">📥 INBOX</div>
-          <div class="msg-container">
-            <div class="msg-item">
-              <div class="msg-sender">Principal</div>
-              <div class="msg-text">Meeting scheduled at 10 AM.</div>
+        <!-- Live Payment Feed -->
+        <div class="col-12 col-lg-5">
+            <div class="glass-card p-4 h-100">
+                <h5 class="text-white mb-4">💳 Live Payment Feed</h5>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle bg-transparent mb-0">
+                        <thead>
+                            <tr>
+                                <th class="text-muted border-secondary">Student</th>
+                                <th class="text-muted border-secondary text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in payment_feed %}
+                            <tr>
+                                <td class="border-secondary text-white">
+                                    <strong>{{ p.name }}</strong><br>
+                                    <small class="text-muted">{{ p.date }}</small>
+                                </td>
+                                <td class="border-secondary text-end text-success fw-bold">+₹{{ '{:,.0f}'.format(p.amount) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted border-secondary py-4">No recent payments.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="msg-item">
-              <div class="msg-sender">Accountant</div>
-              <div class="msg-text">Monthly fee report generated.</div>
-            </div>
-          </div>
         </div>
-      </div>
-
-      <!-- AI Analyst Terminal -->
-      <div class="hud-card col-1">
-        <div class="win-controls"><button class="win-btn win-min" onclick="minimizeCard(this)"></button><button class="win-btn win-max" onclick="maximizeCard(this)"></button><button class="win-btn win-close" onclick="closeCard(this)"></button></div>
-        <div class="card-content" style="display: flex; flex-direction: column; height: 100%;">
-          <div class="hud-label">🤖 AI ANALYST</div>
-          <div class="hud-terminal">
-            root@sya:~#<br>
-            > System check: OK<br>
-            > Syncing data...<br>
-            > _ <span style="animation: blink 1s infinite;">█</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ROW 4: COMMUNICATION (WhatsApp & Email Forms) -->
-    <div class="hud-grid-layout">
-      <!-- WhatsApp Form -->
-      <div class="hud-card col-2">
-        <div class="win-controls"><button class="win-btn win-min" onclick="minimizeCard(this)"></button><button class="win-btn win-max" onclick="maximizeCard(this)"></button><button class="win-btn win-close" onclick="closeCard(this)"></button></div>
-        <div class="card-content">
-          <div class="hud-label">🟢 WHATSAPP BROADCAST</div>
-          <form action="/send-whatsapp" method="POST">
-            <textarea name="whatsapp_msg" class="hud-input" rows="3" placeholder="Type broadcast message..." required></textarea>
-            <button type="submit" class="hud-btn hud-btn-wa">SEND BROADCAST</button>
-          </form>
-        </div>
-      </div>
-
-      <!-- Email Form (COMPLETED) -->
-      <div class="hud-card col-2">
-        <div class="win-controls"><button class="win-btn win-min" onclick="minimizeCard(this)"></button><button class="win-btn win-max" onclick="maximizeCard(this)"></button><button class="win-btn win-close" onclick="closeCard(this)"></button></div>
-        <div class="card-content">
-          <div class="hud-label">✉️ EMAIL MESSAGE</div>
-          <form action="/send-email" method="POST">
-            <input type="text" name="email_subject" class="hud-input" placeholder="Subject..." required>
-            <textarea name="email_body" class="hud-input" rows="2" placeholder="Message body..." required></textarea>
-            <button type="submit" class="hud-btn hud-btn-email">SEND EMAIL</button>
-          </form>
-        </div>
-      </div>
     </div>
 </div>
 
-<!-- JAVASCRIPT FOR DASHBOARD FUNCTIONALITY -->
+<!-- Chart.js Setup -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // 1. Live Clock
-    function updateClock() {
+    setInterval(() => {
         const now = new Date();
-        document.getElementById('hud-time').innerText = now.toLocaleTimeString('en-US', { hour12: false });
-        document.getElementById('hud-date').innerText = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
+        document.getElementById('liveClock').innerText = now.toLocaleTimeString();
+    }, 1000);
 
-    // 2. Animated Counters
-    document.querySelectorAll('.counter').forEach(counter => {
-        const target = +counter.getAttribute('data-target');
-        const increment = target / 50; // Speed
-        let current = 0;
-        const updateCounter = () => {
-            current += increment;
-            if (current < target) {
-                counter.innerText = Math.ceil(current).toLocaleString();
-                requestAnimationFrame(updateCounter);
-            } else {
-                counter.innerText = target.toLocaleString();
-            }
-        };
-        updateCounter();
-    });
-
-    // 3. Window Controls (Min/Max/Close)
-    function minimizeCard(btn) {
-        const card = btn.closest('.hud-card');
-        card.classList.toggle('is-minimized');
-    }
-    function maximizeCard(btn) {
-        const card = btn.closest('.hud-card');
-        card.classList.toggle('is-maximized');
-    }
-    function closeCard(btn) {
-        const card = btn.closest('.hud-card');
-        card.style.display = 'none';
-    }
-
-    // 4. Fullscreen Mode
-    function toggleFullScreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen();
-        } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            }
-        }
-    }
-
-    // 5. Vanilla Tilt (3D effect on cards)
-    VanillaTilt.init(document.querySelectorAll(".tilt-card"), {
-        max: 10,
-        speed: 400,
-        glare: true,
-        "max-glare": 0.2,
-    });
-
-    // 6. Weather API (Simulated for now - you can connect to OpenWeather)
-    setTimeout(() => {
-        document.getElementById('temp').innerText = "32°C";
-        document.getElementById('weather-desc').innerText = "Clear Sky";
-        document.getElementById('weather-icon').innerText = "☀️";
-    }, 1500);
-
-    // 7. Revenue Chart
-    const revCtx = document.getElementById('revenueChart').getContext('2d');
-    let revGradient = revCtx.createLinearGradient(0, 0, 0, 400);
-    revGradient.addColorStop(0, 'rgba(0, 243, 255, 0.5)');
-    revGradient.addColorStop(1, 'rgba(0, 243, 255, 0.0)');
-
-    new Chart(revCtx, {
+    // 2. Revenue Chart (Dummy Data ke saath)
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(ctx, {
         type: 'line',
         data: {
             labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
             datasets: [{
-                label: 'Revenue',
-                data: [15000, 25000, 20000, 35000, 45000, 40000], // Dummy data
-                borderColor: '#00f3ff',
-                backgroundColor: revGradient,
+                label: 'Collection (₹)',
+                data: [15000, 22000, 18000, 28000, 35000, {{ today_collection or 0 }}], // Backend se connect kar sakte hain
+                borderColor: '#38bdf8',
+                backgroundColor: 'rgba(56, 189, 248, 0.2)',
                 borderWidth: 3,
                 pointBackgroundColor: '#fff',
-                pointBorderColor: '#00f3ff',
-                pointRadius: 4,
-                fill: true,
-                tension: 0.4
+                pointBorderColor: '#38bdf8',
+                pointRadius: 5,
+                tension: 0.4,
+                fill: true
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#00f3ff' } },
-                x: { grid: { display: false }, ticks: { color: '#00f3ff' } }
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
             }
         }
     });
-
-    // 8. Fee Distribution Chart
-    const feeCtx = document.getElementById('feeChart').getContext('2d');
-    new Chart(feeCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Paid', 'Pending'],
-            datasets: [{
-                data: [75, 25], // Dummy data
-                backgroundColor: ['#39ff14', '#ff0055'],
-                borderWidth: 0,
-                hoverOffset: 10
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '75%',
-            plugins: { legend: { display: false } }
-        }
-    });
-
-    // 9. Live Map (Leaflet)
-    var map = L.map('map').setView([28.6139, 77.2090], 12); // Delhi coordinates
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        subdomains: 'abcd',
-        maxZoom: 20
-    }).addTo(map);
-    
-    // Add a glowing marker
-    var myIcon = L.divIcon({
-        className: 'custom-div-icon',
-        html: "<div style='background-color:#ff0055; width:15px; height:15px; border-radius:50%; box-shadow:0 0 15px #ff0055;'></div>",
-        iconSize: [15, 15],
-        iconAnchor: [7, 7]
-    });
-    L.marker([28.6139, 77.2090], {icon: myIcon}).addTo(map);
-
 </script>
 {% endblock %}
