@@ -700,6 +700,261 @@ def fees():
         ORDER BY s.roll_no
     """)
     return render_template("fees.html", fees=rows)
+    import qrcode
+import base64
+from io import BytesIO
+from fpdf import FPDF
+from datetime import datetime, date
+
+# ==========================================
+# 💵 ULTIMATE FEE MANAGEMENT ENGINE
+# ==========================================
+
+@app.route("/fees")
+@login_required
+def fees():
+    # Saara data fetch karo (Students + Fees)
+    rows = db_all("""
+        SELECT s.roll_no, s.name, s.class_name, s.section, s.parent_contact, s.father,
+               f.tuition_fee, f.transport_fee, f.hostel_fee, f.misc_fee, 
+               f.discount, f.late_fee, f.back_dues, f.due_date, f.wallet_balance
+        FROM students s 
+        LEFT JOIN student_fees f ON s.roll_no = f.roll_no
+        ORDER BY s.roll_no
+    """)
+    
+    # 1. Sibling Logic (Bhai-Behen Detect karne ke liye)
+    sibling_fathers = {}
+    for r in rows:
+        if r['father']:
+            sibling_fathers[r['father']] = sibling_fathers.get(r['father'], 0) + 1
+
+    today = date.today()
+    aging_stats = {"0-30": 0, "30-60": 0, "60+": 0} 
+    processed_rows = []
+    
+    for r in rows:
+        r_dict = dict(r)
+        dues = r_dict['back_dues'] or 0
+        
+        # 2. Aging Logic (Kitna din purana baaki hai)
+        aging_bucket = "Clear"
+        if dues > 0 and r_dict['due_date']:
+            try:
+                if isinstance(r_dict['due_date'], str):
+                    d_date = datetime.strptime(r_dict['due_date'], '%Y-%m-%d').date()
+                else:
+                    d_date = r_dict['due_date']
+                    
+                days_overdue = (today - d_date).days
+                
+                if days_overdue <= 0:
+                    aging_bucket = "Current"
+                elif days_overdue <= 30:
+                    aging_bucket = "0-30 Days"
+                    aging_stats["0-30"] += dues
+                elif days_overdue <= 60:
+                    aging_bucket = "30-60 Days"
+                    aging_stats["30-60"] += dues
+                else:
+                    aging_bucket = "60+ Days"
+                    aging_stats["60+"] += dues
+            except:
+                aging_bucket = "N/A"
+                
+        r_dict['aging_bucket'] = aging_bucket
+        # Sibling Check
+        r_dict['is_sibling'] = (r_dict['father'] and sibling_fathers.get(r_dict['father'], 0) > 1)
+        r_dict['wallet'] = r_dict['wallet_balance'] or 0
+        
+        processed_rows.append(r_dict)
+        
+    return render_template("fees.html", fees=processed_rows, aging_stats=aging_stats)
+
+@app.route("/fees/save", methods=["POST"])
+@login_required
+def save_fees():
+    d = request.form
+    roll = d["roll_no"]
+    existing = one("SELECT id FROM student_fees WHERE roll_no=%s", (roll,))
+    
+    vals = (
+        float(d.get("tuition_fee") or 0), float(d.get("transport_fee") or 0),
+        float(d.get("hostel_fee") or 0), float(d.get("misc_fee") or 0),
+        float(d.get("discount") or 0), float(d.get("late_fee") or 0),
+        float(d.get("back_dues") or 0), d.get("due_date") or None, 
+        float(d.get("wallet_balance") or 0), roll
+    )
+    
+    if existing:
+        run("""UPDATE student_fees SET
+            tuition_fee=%s, transport_fee=%s, hostel_fee=%s, misc_fee=%s,
+            discount=%s, late_fee=%s, back_dues=%s, due_date=%s, wallet_balance=%s 
+            WHERE roll_no=%s""", vals)
+        flash("✅ Fee structure updated!", "success")
+    else:
+        run("""INSERT INTO student_fees
+            (tuition_fee,transport_fee,hostel_fee,misc_fee,
+             discount,late_fee,back_dues,due_date,wallet_balance,roll_no) 
+             VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""", vals)
+        flash("✅ New Fee structure added!", "success")
+    return redirect(url_for("fees"))
+
+@app.route("/fees/update", methods=["POST"])
+@login_required
+def update_fee_modal():
+    d = request.form
+    roll = d["roll_no"]
+    run("""UPDATE student_fees SET
+           tuition_fee=%s, back_dues=%s, due_date=%s, wallet_balance=%s 
+           WHERE roll_no=%s""", 
+        (float(d.get("tuition_fee") or 0), float(d.get("back_dues") or 0), 
+         d.get("due_date") or None, float(d.get("wallet_balance") or 0), roll))
+    flash(f"✅ {roll} ki fee update ho gayi!", "success")
+    return redirect(url_for('fees'))
+
+@app.route("/fees/delete/<roll_no>")
+@login_required
+def delete_fees(roll_no):
+    run("DELETE FROM student_fees WHERE roll_no=%s", (roll_no,))
+    flash("🗑️ Fee record deleted!", "success")
+    return redirect(url_for("fees"))
+
+# Bulk Actions (Delete / WhatsApp)
+@app.route("/fees/bulk-action", methods=["POST"])
+@login_required
+def bulk_action():
+    action = request.form.get("action")
+    selected_rolls = request.form.getlist("selected_students")
+    
+    if not selected_rolls:
+        flash("Koi student select nahi kiya!", "error")
+        return redirect(url_for('fees'))
+        
+    if action == "delete":
+        for roll in selected_rolls:
+            run("DELETE FROM student_fees WHERE roll_no=%s", (roll,))
+        flash(f"🗑️ {len(selected_rolls)} records deleted successfully!", "success")
+    elif action == "whatsapp":
+        flash(f"📱 WhatsApp reminders triggered for {len(selected_rolls)} students.", "info")
+        
+    return redirect(url_for('fees'))
+
+# Waive Off (Dues Maaf karna)
+@app.route("/fees/waive-off", methods=["POST"])
+@login_required
+def waive_off_fees():
+    roll_no = request.form.get("roll_no")
+    run("UPDATE student_fees SET back_dues=0 WHERE roll_no=%s", (roll_no,))
+    flash(f"⚖️ Roll No {roll_no} ke dues maaf (waive off) kar diye gaye hain.", "success")
+    return redirect(url_for('fees'))
+
+# AI Financial Advisor
+@app.route("/fees/ai-advisor", methods=["POST"])
+@login_required
+def fees_ai_advisor():
+    if not ai_model:
+        return jsonify({"reply": "AI API key configure nahi hai."})
+    
+    total_pending = one("SELECT SUM(back_dues) t FROM student_fees")['t'] or 0
+    total_collected = one("SELECT SUM(amount) t FROM payments")['t'] or 0
+    
+    prompt = f"""
+    You are an expert Financial Advisor for a School ERP.
+    Total Pending Dues: Rs {total_pending}
+    Total Collected Revenue: Rs {total_collected}
+    Give 3 short, actionable bullet points in Hinglish on how to recover pending dues faster. Keep it under 60 words.
+    """
+    try:
+        res = ai_model.generate_content(prompt)
+        return jsonify({"reply": res.text})
+    except Exception as e:
+        return jsonify({"reply": f"Error: {str(e)}"})
+
+# AI WhatsApp Reminder Generator
+@app.route("/fees/ai-reminder/<roll_no>", methods=["GET"])
+@login_required
+def fees_ai_reminder(roll_no):
+    student = one("SELECT name, class_name, parent_contact FROM students WHERE roll_no=%s", (roll_no,))
+    fee = one("SELECT back_dues FROM student_fees WHERE roll_no=%s", (roll_no,))
+    dues = fee['back_dues'] if fee else 0
+    
+    msg = f"Dear Parent, {student['name']} (Class {student['class_name']}) ki fees me Rs {dues} pending hai. Kripya jaldi jama karein. - School ERP"
+    
+    if ai_model:
+        try:
+            prompt = f"Write a very polite, short 2-line WhatsApp reminder in Hinglish for parent of {student['name']}. Pending amount is Rs {dues}. No formal English."
+            msg = ai_model.generate_content(prompt).text.strip()
+        except:
+            pass
+            
+    return jsonify({"message": msg, "contact": student['parent_contact']})
+
+# UPI QR Code Generator
+@app.route("/fees/upi-qr/<roll_no>")
+@login_required
+def generate_upi_qr(roll_no):
+    fee = one("SELECT back_dues FROM student_fees WHERE roll_no=%s", (roll_no,))
+    amount = fee['back_dues'] if fee else 0
+    if amount <= 0: return jsonify({"error": "No pending dues!"})
+    
+    UPI_ID = "school@upi" 
+    upi_string = f"upi://pay?pa={UPI_ID}&pn=School ERP&am={amount}&cu=INR"
+    qr = qrcode.QRCode(version=1, box_size=10, border=2)
+    qr.add_data(upi_string)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    return jsonify({"qr_code": img_str, "amount": amount})
+
+# PDF Fee Receipt
+@app.route("/fees/pdf/<roll_no>")
+@login_required
+def fee_pdf(roll_no):
+    s = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    f = one("SELECT * FROM student_fees WHERE roll_no=%s", (roll_no,))
+    if not s or not f: return redirect(url_for('fees'))
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 20)
+    pdf.cell(200, 10, txt="SCHOOL MANAGEMENT SYSTEM", ln=True, align='C')
+    pdf.set_font("Arial", 'I', 12)
+    pdf.cell(200, 10, txt="Official Fee Receipt", ln=True, align='C')
+    pdf.ln(10)
+    
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(100, 10, txt=f"Student Name: {s['name']}", ln=False)
+    pdf.cell(90, 10, txt=f"Roll No: {s['roll_no']}", ln=True)
+    pdf.cell(100, 10, txt=f"Class: {s['class_name']}-{s['section']}", ln=False)
+    pdf.cell(90, 10, txt=f"Date: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
+    pdf.ln(5)
+    
+    pdf.set_fill_color(240, 240, 240)
+    pdf.cell(100, 10, "Particulars", border=1, fill=True)
+    pdf.cell(90, 10, "Amount (Rs)", border=1, fill=True, ln=True)
+    
+    total = 0
+    items = [("Tuition Fee", f['tuition_fee'] or 0), ("Transport Fee", f['transport_fee'] or 0),
+             ("Hostel Fee", f['hostel_fee'] or 0), ("Misc Fee", f['misc_fee'] or 0),
+             ("Discount", -(f['discount'] or 0)), ("Late Fee", f['late_fee'] or 0),
+             ("Back Dues", f['back_dues'] or 0)]
+             
+    for name, amt in items:
+        pdf.cell(100, 10, name, border=1)
+        pdf.cell(90, 10, str(amt), border=1, ln=True)
+        total += amt
+        
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(100, 10, "Grand Total", border=1)
+    pdf.cell(90, 10, str(total), border=1, ln=True)
+    
+    pdf_bytes = pdf.output(dest='S').encode('latin-1')
+    return send_file(BytesIO(pdf_bytes), mimetype="application/pdf", as_attachment=True, download_name=f"Receipt_{roll_no}.pdf")
+
 
 
 # ---------------- APP RUN (SocketIO) ----------------
