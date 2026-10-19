@@ -1,2 +1,3 @@
 <a href="/bills" class="{% if '/bills' in request.path %}active{% endif %}">🧾 Bills</a>
 <a href="/defaulters" class="{% if '/defaulters' in request.path %}active{% endif %}">🚨 Defaulters</a>
+<a href="{{ url_for('ai_auto_whatsapp') }}">📱 WhatsApp Auto</a>
