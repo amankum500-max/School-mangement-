@@ -565,6 +565,97 @@ def ai_student_persona(roll_no):
         return jsonify({"persona": response.text})
     except:
         return jsonify({"persona": "Could not generate persona."})
+        # 🔥 1. AI Grade Predictor
+@app.route("/api/ai-grade-predictor/<roll_no>")
+@login_required
+def ai_grade_predictor(roll_no):
+    if not ai_model: return jsonify({"prediction": "AI Offline"})
+    
+    marks = db_all("SELECT subject, marks, total FROM marks WHERE roll_no=%s", (roll_no,))
+    if not marks: return jsonify({"prediction": "Not enough data to predict. Please upload marks first."})
+    
+    marks_str = ", ".join([f"{m['subject']}: {m['marks']}/{m['total']}" for m in marks])
+    
+    prompt = f"""
+    Analyze these past marks: {marks_str}.
+    Predict the likely percentage and marks for the NEXT exam for each subject.
+    Output in a short, encouraging paragraph. Include a brief advice on which subject needs the most focus.
+    """
+    try:
+        response = ai_model.generate_content(prompt)
+        return jsonify({"prediction": response.text})
+    except Exception as e:
+        return jsonify({"prediction": "Error predicting grades."})
+
+# 🔥 2. AI Personalized Study Plan
+@app.route("/api/ai-study-plan/<roll_no>")
+@login_required
+def ai_study_plan(roll_no):
+    if not ai_model: return jsonify({"plan": "AI Offline"})
+    
+    marks = db_all("SELECT subject, marks, total FROM marks WHERE roll_no=%s", (roll_no,))
+    # Find weakest subject
+    weakest = min(marks, key=lambda x: (x['marks']/x['total']) if x['total'] > 0 else 100) if marks else None
+    focus_subject = weakest['subject'] if weakest else "General"
+    
+    prompt = f"""
+    Create a 7-day personalized study plan for a student struggling with {focus_subject}.
+    Format: Day 1, Day 2... etc. Include 2-hour daily slots (1 hour {focus_subject}, 1 hour revision).
+    Keep it concise and actionable. Use bullet points.
+    """
+    try:
+        response = ai_model.generate_content(prompt)
+        return jsonify({"plan": response.text})
+    except Exception as e:
+        return jsonify({"plan": "Error generating plan."})
+
+# 🔥 3. AI PTM (Parent-Teacher Meeting) Script
+@app.route("/api/ai-ptm-script/<roll_no>")
+@login_required
+def ai_ptm_script(roll_no):
+    if not ai_model: return jsonify({"script": "AI Offline"})
+    
+    student = one("SELECT name FROM students WHERE roll_no=%s", (roll_no,))
+    marks = db_all("SELECT subject, marks, total FROM marks WHERE roll_no=%s", (roll_no,))
+    due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE roll_no=%s", (roll_no,))["t"]
+    
+    prompt = f"""
+    You are a class teacher preparing for a Parent-Teacher Meeting for {student['name']}.
+    Data: Marks: {marks}. Pending Fees: ₹{due}.
+    Write a short 1-minute script for the teacher to read to the parents. 
+    It should be polite, highlight 1 positive thing, address 1 academic concern, and remind about fees gently if due.
+    """
+    try:
+        response = ai_model.generate_content(prompt)
+        return jsonify({"script": response.text})
+    except Exception as e:
+        return jsonify({"script": "Error generating script."})
+
+# 🔥 4. AI Psychological Alert (Based on private notes)
+@app.route("/api/ai-psych-alert/<roll_no>")
+@login_required
+def ai_psych_alert(roll_no):
+    if not ai_model: return jsonify({"alert": "AI Offline"})
+    
+    try:
+        notes = db_all("SELECT note_text FROM teacher_notes WHERE roll_no=%s", (roll_no,))
+    except:
+        notes = []
+        
+    if not notes: return jsonify({"alert": "No teacher notes available to analyze."})
+    
+    notes_str = " | ".join([n['note_text'] for n in notes])
+    
+    prompt = f"""
+    Analyze these teacher observations: "{notes_str}".
+    Is the student showing signs of stress, bullying, or depression? 
+    Output a short 2-line psychological insight for the counselor. If everything seems normal, just say "Student seems mentally healthy and active."
+    """
+    try:
+        response = ai_model.generate_content(prompt)
+        return jsonify({"alert": response.text})
+    except Exception as e:
+        return jsonify({"alert": "Error analyzing notes."})
 
 
 # ---------------- APP RUN (SocketIO) ----------------
