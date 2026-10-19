@@ -16,3 +16,4 @@ eventlet
 razorpay
 werkzeug
 xhtml2pdf
+supabase
