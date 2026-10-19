@@ -1,302 +1,454 @@
-"""
-=====================================================
-   DATABASE LAYER - Supabase PostgreSQL
-   Complete School ERP + AI Database
-=====================================================
-"""
 import os
-import psycopg2
-import psycopg2.extras
 from datetime import datetime
+from functools import wraps
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+import google.generativeai as genai
+import requests  # Live Weather ke liye zaroori hai
 
-# Supabase Connection String
-DATABASE_URL = os.environ.get("DATABASE_URL")
+# Local Database Functions
+from database import init_db, run, all as db_all, one, current_month, today
 
-def get_db():
-    conn = psycopg2.connect(DATABASE_URL)
-    conn.cursor_factory = psycopg2.extras.RealDictCursor
-    return conn
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "school-secret-key-2026")
 
-def init_db():
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("""
-    -- USERS & AUTH
-    CREATE TABLE IF NOT EXISTS users(
-        id SERIAL PRIMARY KEY,
-        username TEXT UNIQUE,
-        password TEXT,
-        role TEXT,
-        full_name TEXT,
-        active INTEGER DEFAULT 1
-    );
+# Setup Gemini AI
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
+if GEMINI_KEY:
+    genai.configure(api_key=GEMINI_KEY)
+    ai_model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    ai_model = None
 
-    -- PARENT PORTAL USERS
-    CREATE TABLE IF NOT EXISTS parent_users(
-        id SERIAL PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        parent_name TEXT,
-        child_roll_no TEXT,
-        contact TEXT,
-        active INTEGER DEFAULT 1
-    );
+# ---------------- AUTH DECORATOR & ROUTES ----------------
+def login_required(f):
+    @wraps(f)
+    def wrapper(*a, **kw):
+        if "user" not in session:
+            return redirect(url_for("login"))
+        return f(*a, **kw)
+    return wrapper
 
-    -- STUDENTS
-    CREATE TABLE IF NOT EXISTS students(
-        id SERIAL PRIMARY KEY,
-        roll_no TEXT UNIQUE,
-        name TEXT,
-        father TEXT,
-        mother TEXT,
-        class_name TEXT,
-        section TEXT,
-        gender TEXT,
-        dob TEXT,
-        contact TEXT,
-        parent_contact TEXT,
-        address TEXT,
-        admission_date TEXT,
-        transport_route TEXT,
-        hostel TEXT
-    );
+@app.route("/", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        u = request.form.get("username", "").strip()
+        p = request.form.get("password", "").strip()
+        if u == "admin" and p == "admin123":
+            session["user"] = u
+            session["role"] = "admin"
+            session["name"] = "System Admin"
+            return redirect(url_for("dashboard"))
+        flash("Invalid credentials!", "error")
+    return render_template("auth/login.html")
 
-    -- STAFF
-    CREATE TABLE IF NOT EXISTS staff(
-        id SERIAL PRIMARY KEY,
-        emp_id TEXT UNIQUE,
-        name TEXT,
-        role TEXT,
-        subject TEXT,
-        qualification TEXT,
-        contact TEXT,
-        salary TEXT,
-        join_date TEXT
-    );
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
-    -- STUDENT FEES STRUCTURE
-    CREATE TABLE IF NOT EXISTS student_fees(
-        id SERIAL PRIMARY KEY,
-        roll_no TEXT UNIQUE,
-        tuition_fee REAL,
-        transport_fee REAL,
-        hostel_fee REAL,
-        admission_fee REAL,
-        dress_fee REAL,
-        exam_fee REAL,
-        book_fee REAL,
-        notebook_fee REAL,
-        misc_fee REAL,
-        admission_paid INTEGER,
-        back_dues REAL DEFAULT 0
-    );
 
-    -- BILLS
-    CREATE TABLE IF NOT EXISTS bills(
-        id SERIAL PRIMARY KEY,
-        bill_no TEXT,
-        roll_no TEXT,
-        month TEXT,
-        bill_date TEXT,
-        tuition REAL,
-        transport REAL,
-        hostel REAL,
-        admission REAL,
-        dress REAL,
-        exam REAL,
-        book REAL,
-        notebook REAL,
-        misc REAL,
-        prev_due REAL,
-        total REAL,
-        paid REAL,
-        balance REAL,
-        status TEXT
-    );
+# ---------------- DASHBOARD & LIVE APIs ----------------
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    return render_template("dashboard/dashboard.html")
 
-    -- PAYMENTS
-    CREATE TABLE IF NOT EXISTS payments(
-        id SERIAL PRIMARY KEY,
-        receipt_no TEXT,
-        roll_no TEXT,
-        bill_id INTEGER,
-        amount REAL,
-        mode TEXT,
-        pay_date TEXT,
-        remark TEXT
-    );
+# 🔥 Naya API: Dashboard Live Data (Payment Feed, Dues, Fee Dist)
+@app.route("/api/dashboard-live")
+@login_required
+def api_dashboard_live():
+    try:
+        total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE balance > 0")["t"]
+        
+        # Live Payment Feed (Last 5 payments)
+        recent_payments = db_all("""
+            SELECT s.name, p.amount, p.pay_date 
+            FROM payments p JOIN students s ON p.roll_no = s.roll_no 
+            ORDER BY p.id DESC LIMIT 5
+        """)
+        payment_feed = [{"name": r["name"], "amount": float(r["amount"]), "date": str(r["pay_date"])} for r in recent_payments]
 
-    -- EXPENSES
-    CREATE TABLE IF NOT EXISTS expenses(
-        id SERIAL PRIMARY KEY,
-        category TEXT,
-        description TEXT,
-        amount REAL,
-        exp_date TEXT,
-        staff_id TEXT
-    );
+        # Fee Status (Paid, Partial, Unpaid)
+        paid = one("SELECT COUNT(*) c FROM bills WHERE status='Paid'")["c"]
+        partial = one("SELECT COUNT(*) c FROM bills WHERE status='Partial'")["c"]
+        unpaid = one("SELECT COUNT(*) c FROM bills WHERE status='Unpaid' OR status IS NULL")["c"]
 
-    -- MARKS / RESULTS
-    CREATE TABLE IF NOT EXISTS marks(
-        id SERIAL PRIMARY KEY,
-        roll_no TEXT,
-        subject TEXT,
-        exam TEXT,
-        marks TEXT,
-        total TEXT
-    );
+        return jsonify({
+            "status": "success",
+            "total_due": float(total_due),
+            "payment_feed": payment_feed,
+            "fee_status": [paid, partial, unpaid]
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
 
-    -- ATTENDANCE
-    CREATE TABLE IF NOT EXISTS attendance(
-        id SERIAL PRIMARY KEY,
-        roll_no TEXT,
-        att_date TEXT NOT NULL,
-        status TEXT NOT NULL
-    );
+# 🔥 Naya API: Live Weather
+@app.route("/api/weather")
+@login_required
+def api_weather():
+    # Yahan OpenWeather API laga sakte hain, abhi ke liye dummy data de rahe hain
+    return jsonify({"temp": "32°C", "condition": "Clear Sky", "icon": "☀️"})
 
-    -- STUDENT HEALTH RECORDS
-    CREATE TABLE IF NOT EXISTS student_health(
-        id SERIAL PRIMARY KEY,
-        roll_no TEXT UNIQUE,
-        blood_group TEXT,
-        allergies TEXT,
-        emergency_contact TEXT
-    );
+# 🔥 Naya API: WhatsApp & Email (Dummy for now)
+@app.route("/api/send-whatsapp", methods=["POST"])
+@login_required
+def send_whatsapp():
+    msg = request.json.get("message")
+    if not msg: return jsonify({"status": "error", "message": "Message empty"}), 400
+    return jsonify({"status": "success", "message": "WhatsApp Broadcast Sent (Mock)!"})
 
-    -- DIGITAL LIBRARY
-    CREATE TABLE IF NOT EXISTS library_books(
-        id SERIAL PRIMARY KEY,
-        book_id TEXT UNIQUE,
-        title TEXT NOT NULL,
-        author TEXT,
-        category TEXT,
-        total_copies INTEGER DEFAULT 1,
-        available_copies INTEGER DEFAULT 1
-    );
+@app.route("/api/send-email", methods=["POST"])
+@login_required
+def send_email():
+    subject = request.json.get("subject")
+    if not subject: return jsonify({"status": "error", "message": "Subject empty"}), 400
+    return jsonify({"status": "success", "message": "Email Sent Successfully (Mock)!"})
 
-    CREATE TABLE IF NOT EXISTS book_issues(
-        id SERIAL PRIMARY KEY,
-        book_id TEXT,
-        roll_no TEXT,
-        issue_date TEXT,
-        due_date TEXT,
-        return_date TEXT,
-        fine REAL DEFAULT 0,
-        status TEXT DEFAULT 'Issued'
-    );
 
-    -- HOSTEL MANAGEMENT
-    CREATE TABLE IF NOT EXISTS hostel_rooms(
-        id SERIAL PRIMARY KEY,
-        room_no TEXT UNIQUE,
-        floor TEXT,
-        capacity INTEGER DEFAULT 4,
-        occupied INTEGER DEFAULT 0,
-        monthly_fee REAL DEFAULT 0,
-        warden_name TEXT,
-        warden_contact TEXT
-    );
+# ---------------- STUDENTS ----------------
+@app.route("/students")
+@login_required
+def students():
+    try:
+        rows = db_all("SELECT * FROM students ORDER BY roll_no")
+    except Exception:
+        rows = []
+    return render_template("students/students.html", students=rows)
 
-    CREATE TABLE IF NOT EXISTS hostel_allocations(
-        id SERIAL PRIMARY KEY,
-        roll_no TEXT,
-        room_no TEXT,
-        allocated_date TEXT,
-        status TEXT DEFAULT 'Active'
-    );
+@app.route("/student/add", methods=["POST"])
+@login_required
+def add_student():
+    d = request.form
+    try:
+        run("""INSERT INTO students (roll_no, name, class_name, father, parent_contact) 
+               VALUES (%s, %s, %s, %s, %s)""",
+            (d["roll_no"], d["name"], d.get("class_name", ""), d.get("father", ""), d.get("parent_contact", "")))
+        flash("✅ Student added successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("students"))
 
-    -- TRANSPORT MANAGEMENT
-    CREATE TABLE IF NOT EXISTS transport_routes(
-        id SERIAL PRIMARY KEY,
-        route_name TEXT,
-        route_number TEXT UNIQUE,
-        driver_name TEXT,
-        driver_contact TEXT,
-        vehicle_no TEXT,
-        capacity INTEGER DEFAULT 30,
-        occupied INTEGER DEFAULT 0,
-        monthly_fee REAL DEFAULT 0,
-        stops TEXT
-    );
 
-    CREATE TABLE IF NOT EXISTS transport_allocations(
-        id SERIAL PRIMARY KEY,
-        roll_no TEXT,
-        route_number TEXT,
-        stop_name TEXT,
-        allocated_date TEXT,
-        status TEXT DEFAULT 'Active'
-    );
+# ---------------- BILLS & FEES ----------------
+@app.route("/bills")
+@login_required
+def bills():
+    month = request.args.get("month", current_month())
+    try:
+        rows = db_all("SELECT * FROM bills WHERE month=%s ORDER BY roll_no", (month,))
+    except Exception:
+        rows = []
+    return render_template("fees/bills.html", bills=rows, month=month)
 
-    -- CLASSES & SUBJECTS
-    CREATE TABLE IF NOT EXISTS classes(
-        id SERIAL PRIMARY KEY,
-        class_name TEXT UNIQUE,
-        sections TEXT,
-        class_teacher TEXT,
-        room_no TEXT
-    );
+@app.route("/bills/generate", methods=["POST"])
+@login_required
+def generate_bills():
+    month = request.form["month"]
+    students_list = db_all("SELECT roll_no, name FROM students")
+    created = skipped = 0
+    
+    for s in students_list:
+        roll = s["roll_no"]
+        ex = one("SELECT id FROM bills WHERE roll_no=%s AND month=%s", (roll, month))
+        if ex:
+            skipped += 1
+            continue
+            
+        fs = one("SELECT * FROM student_fees WHERE roll_no=%s", (roll,))
+        if not fs:
+            skipped += 1
+            continue
+            
+        t = fs["tuition_fee"] or 0
+        tr = fs["transport_fee"] or 0
+        ho = fs["hostel_fee"] or 0
+        adm_paid = fs["admission_paid"] or 0
+        
+        prev_added = one("SELECT COALESCE(SUM(admission),0) a FROM bills WHERE roll_no=%s", (roll,))["a"]
+        adm = 0 if (adm_paid or prev_added > 0) else (fs["admission_fee"] or 0)
+        dr = 0 if prev_added > 0 else (fs["dress_fee"] or 0)
+        ex_f = 0 if prev_added > 0 else (fs["exam_fee"] or 0)
+        bk = 0 if prev_added > 0 else (fs["book_fee"] or 0)
+        nb = 0 if prev_added > 0 else (fs["notebook_fee"] or 0)
+        ms = fs["misc_fee"] or 0
+        
+        prev_due = one("SELECT COALESCE(SUM(balance),0) d FROM bills WHERE roll_no=%s AND balance>0", (roll,))["d"]
+        
+        total = t + tr + ho + adm + dr + ex_f + bk + nb + ms + prev_due
+        bill_no = f"B{month.replace('-','')}{roll}"
 
-    CREATE TABLE IF NOT EXISTS subjects(
-        id SERIAL PRIMARY KEY,
-        subject_name TEXT,
-        subject_code TEXT,
-        class_name TEXT,
-        teacher_name TEXT,
-        max_marks INTEGER DEFAULT 100
-    );
+        run("""INSERT INTO bills
+            (bill_no,roll_no,month,bill_date,tuition,transport,hostel,
+             admission,dress,exam,book,notebook,misc,prev_due,total,paid,balance,status)
+            VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (bill_no, roll, month, today(), t, tr, ho, adm, dr, ex_f, bk, nb, ms, prev_due, total, 0, total, "Unpaid"))
+        created += 1
+        
+    flash(f"✅ Bills generated: {created} | Skipped: {skipped}", "success")
+    return redirect(url_for("bills", month=month))
 
-    -- AUDIT LOGS
-    CREATE TABLE IF NOT EXISTS audit_logs(
-        id SERIAL PRIMARY KEY,
-        user_name TEXT,
-        action TEXT,
-        details TEXT,
-        log_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
+@app.route("/collect/<roll_no>", methods=["GET", "POST"])
+@login_required
+def collect(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("Student not found", "error")
+        return redirect(url_for("students"))
 
-    -- NOTICE BOARD
-    CREATE TABLE IF NOT EXISTS notices(
-        id SERIAL PRIMARY KEY,
-        title TEXT,
-        content TEXT,
-        category TEXT,
-        posted_by TEXT,
-        posted_date TEXT,
-        priority TEXT DEFAULT 'Normal',
-        active INTEGER DEFAULT 1
-    );
-    """)
-    conn.commit()
-    c.close()
-    conn.close()
+    if request.method == "POST":
+        amount = float(request.form.get("amount") or 0)
+        mode = request.form.get("mode", "Cash")
+        remark = request.form.get("remark", "")
+        
+        if amount <= 0:
+            flash("Amount must be greater than 0", "error")
+            return redirect(url_for("collect", roll_no=roll_no))
 
-def run(query, params=None, fetch=False, fetchone=False):
-    conn = get_db()
-    c = conn.cursor()
-    c.execute(query, params or ())
-    result = None
-    if fetch:
-        result = c.fetchall()
-    if fetchone:
-        result = c.fetchone()
-    conn.commit()
-    c.close()
-    conn.close()
-    return result
+        try:
+            receipt_no = f"RCP{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            run("""INSERT INTO payments (receipt_no, roll_no, amount, mode, pay_date, remark)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (receipt_no, roll_no, amount, mode, today(), remark))
+            
+            bills_list = db_all("SELECT id, balance, paid, total FROM bills WHERE roll_no=%s AND balance>0 ORDER BY month ASC", (roll_no,))
+            rem = amount
+            for b in bills_list:
+                if rem <= 0: break
+                deduct = min(rem, float(b['balance']))
+                new_paid = float(b['paid']) + deduct
+                new_bal = float(b['total']) - new_paid
+                status = "Paid" if new_bal <= 0 else "Partial"
+                run("UPDATE bills SET paid=%s, balance=%s, status=%s WHERE id=%s",
+                    (new_paid, new_bal, status, b['id']))
+                rem -= deduct
+                
+            flash(f"✅ ₹{amount} collected successfully!", "success")
+            return redirect(url_for("receipt", roll_no=roll_no, receipt_no=receipt_no))
+        except Exception as e:
+            flash(f"❌ Error: {e}", "error")
+            
+    bills_list = db_all("SELECT * FROM bills WHERE roll_no=%s AND balance>0 ORDER BY month ASC", (roll_no,))
+    total_due = sum(float(b['balance']) for b in bills_list)
+    return render_template("fees/collect.html", student=student, bills=bills_list, total_due=total_due)
 
-# Helper functions
-def all(query, params=None):
-    return run(query, params, fetch=True)
+@app.route("/receipt/<roll_no>/<receipt_no>")
+@login_required
+def receipt(roll_no, receipt_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    payment = one("SELECT * FROM payments WHERE receipt_no=%s", (receipt_no,))
+    if not student or not payment:
+        flash("Receipt not found", "error")
+        return redirect(url_for("students"))
+    return render_template("fees/receipt.html", student=student, payment=payment, now=datetime.now())
 
-def one(query, params=None):
-    return run(query, params, fetchone=True)
+@app.route("/defaulters")
+@login_required
+def defaulters():
+    try:
+        rows = db_all("""SELECT s.roll_no, s.name, s.class_name, s.section,
+                         s.parent_contact, b.month, b.balance
+                         FROM bills b JOIN students s ON b.roll_no = s.roll_no
+                         WHERE b.balance > 0 ORDER BY b.balance DESC""")
+        total = sum(float(r["balance"]) for r in rows)
+    except Exception:
+        rows = []
+        total = 0
+    return render_template("fees/defaulters.html", defaulters=rows, total=total)
 
-def current_month():
-    return datetime.now().strftime("%Y-%m")
 
-def today():
-    return datetime.now().strftime("%Y-%m-%d")
+# ---------------- ATTENDANCE ----------------
+@app.route("/attendance", methods=["GET", "POST"])
+@login_required
+def attendance():
+    if request.method == "POST":
+        att_date = request.form.get("att_date")
+        class_name = request.form.get("class_name")
+        
+        run("""DELETE FROM attendance WHERE att_date=%s AND roll_no IN 
+               (SELECT roll_no FROM students WHERE class_name=%s)""", (att_date, class_name))
+        
+        present_count = 0
+        for key, value in request.form.items():
+            if key.startswith("status_"):
+                roll_no = key.replace("status_", "")
+                run("INSERT INTO attendance (roll_no, att_date, status) VALUES (%s, %s, %s)", 
+                    (roll_no, att_date, value))
+                if value == "Present":
+                    present_count += 1
+                
+        flash(f"✅ Attendance marked for {class_name}! Present: {present_count}", "success")
+        return redirect(url_for("attendance", date=att_date, class_name=class_name))
 
-# Initialize DB on import
-init_db()
+    att_date = request.args.get("date", today())
+    class_name = request.args.get("class_name", "")
+    students_list = []
+    existing_att = {}
+    
+    if class_name:
+        students_list = db_all("SELECT * FROM students WHERE class_name=%s ORDER BY roll_no", (class_name,))
+        att_records = db_all("SELECT roll_no, status FROM attendance WHERE att_date=%s", (att_date,))
+        existing_att = {a['roll_no']: a['status'] for a in att_records}
+
+    classes = db_all("SELECT DISTINCT class_name FROM students WHERE class_name IS NOT NULL ORDER BY class_name")
+    return render_template("attendance/attendance.html", students=students_list, classes=classes, att_date=att_date, class_name=class_name, existing_att=existing_att)
+
+
+# ---------------- NOTICES (SINGLE FIXED ROUTE) ----------------
+@app.route("/notices", methods=["GET", "POST"])
+@login_required
+def notices():
+    if request.method == "POST":
+        d = request.form
+        run("""INSERT INTO notices (title, content, category, posted_by, posted_date, priority) 
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (d["title"], d["content"], "General", session.get("name", "Admin"), today(), "Normal"))
+        flash("✅ Notice posted successfully!", "success")
+        return redirect(url_for("notices"))
+        
+    notices_list = db_all("SELECT * FROM notices ORDER BY posted_date DESC, id DESC")
+    return render_template("communication/notices.html", notices=notices_list)
+
+
+# ---------------- AI ASSISTANT (PATH FIXED) ----------------
+@app.route("/ai-assistant")
+@login_required
+def ai_assistant():
+    return render_template("ai_assistant.html") # <--- Yahan se 'ai/' hata diya gaya hai
+
+@app.route("/api/ai-chat", methods=["POST"])
+@login_required
+def api_ai_chat():
+    if not ai_model:
+        return jsonify({"reply": "⚠️ AI Configure nahi hai. Render me GEMINI_API_KEY daalein."})
+    data = request.get_json() or {}
+    user_msg = data.get("message", "").strip()
+    if not user_msg:
+        return jsonify({"reply": "Kuch toh likho bhai!"})
+    try:
+        students_count = one("SELECT COUNT(*) c FROM students")["c"]
+        total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE balance > 0")["t"]
+        today_collection = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE pay_date = %s", (today(),))["t"]
+        prompt = f"School AI Assistant. Data: Students={students_count}, Due={total_due}, Today={today_collection}. User asks: {user_msg}"
+        response = ai_model.generate_content(prompt)
+        return jsonify({"reply": response.text})
+    except Exception as e:
+        return jsonify({"reply": f"❌ AI Error: {str(e)}"})
+
+
+# ---------------- EXAMS & MARKS ----------------
+def calc_grade(pct):
+    if pct >= 90: return "A+"
+    if pct >= 80: return "A"
+    if pct >= 70: return "B"
+    if pct >= 60: return "C"
+    if pct >= 50: return "D"
+    return "F"
+
+@app.route("/result", methods=["GET", "POST"])
+@login_required
+def result():
+    if request.method == "POST":
+        d = request.form
+        try:
+            existing = one("SELECT id FROM marks WHERE roll_no=%s AND subject=%s AND exam=%s", (d["roll_no"], d["subject"], d["exam"]))
+            if existing:
+                run("UPDATE marks SET marks=%s, total=%s WHERE id=%s", (d["marks"], d["total"], existing["id"]))
+            else:
+                run("INSERT INTO marks (roll_no, subject, exam, marks, total) VALUES (%s,%s,%s,%s,%s)", (d["roll_no"], d["subject"], d["exam"], d["marks"], d["total"]))
+            flash("✅ Marks saved!", "success")
+        except Exception as e:
+            flash(f"❌ Error: {e}", "error")
+        return redirect(url_for("result", roll_no=d["roll_no"]))
+
+    roll = request.args.get("roll_no", "")
+    marks_data = []
+    student = None
+    if roll:
+        student = one("SELECT * FROM students WHERE roll_no=%s", (roll,))
+        marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll,))
+    students_list = db_all("SELECT roll_no, name FROM students ORDER BY roll_no")
+    return render_template("exams/result.html", students=students_list, marks=marks_data, student=student, roll=roll)
+
+@app.route("/report-card/<roll_no>")
+@login_required
+def report_card(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("Student not found!", "error")
+        return redirect(url_for("students"))
+    marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
+    total_obtained = sum(float(m['marks'] or 0) for m in marks_data)
+    total_max = sum(float(m['total'] or 0) for m in marks_data)
+    percentage = (total_obtained / total_max * 100) if total_max > 0 else 0
+    overall_grade = calc_grade(percentage)
+    return render_template("exams/report_card.html", student=student, marks=marks_data, total_obtained=total_obtained, total_max=total_max, percentage=round(percentage, 2), overall_grade=overall_grade, today_date=today())
+
+
+# ---------------- STAFF MANAGEMENT ----------------
+@app.route("/staff")
+@login_required
+def staff():
+    try:
+        rows = db_all("SELECT * FROM staff WHERE is_active = TRUE ORDER BY name")
+        total_salary = sum(float(s['salary'] or 0) for s in rows)
+    except:
+        rows = []
+        total_salary = 0
+    return render_template("management/staff.html", staff=rows, total_salary=total_salary)
+
+@app.route("/staff/add", methods=["POST"])
+@login_required
+def add_staff():
+    d = request.form
+    try:
+        run("""INSERT INTO staff (emp_id, name, designation, subject, phone, email, salary, joining_date) 
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (d["emp_id"], d["name"], d.get("designation"), d.get("subject"), d.get("phone"), d.get("email"), d.get("salary") or 0, d.get("joining_date")))
+        flash("✅ Staff member added successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("staff"))
+
+@app.route("/staff/delete/<int:sid>")
+@login_required
+def delete_staff(sid):
+    try:
+        run("UPDATE staff SET is_active = FALSE WHERE id = %s", (sid,))
+        flash("🗑️ Staff member removed", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("staff"))
+
+
+# ---------------- TRANSPORT MANAGEMENT ----------------
+@app.route("/transport")
+@login_required
+def transport():
+    try:
+        routes = db_all("SELECT * FROM transport_routes WHERE is_active = TRUE ORDER BY route_number")
+    except:
+        routes = []
+    return render_template("facilities/transport.html", routes=routes)
+
+@app.route("/transport/add", methods=["POST"])
+@login_required
+def add_transport():
+    d = request.form
+    try:
+        run("""INSERT INTO transport_routes (route_number, route_name, driver_name, driver_phone, vehicle_no, capacity) 
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (d["route_number"], d["route_name"], d.get("driver_name"), d.get("driver_phone"), d.get("vehicle_no"), d.get("capacity") or 40))
+        flash("✅ Transport route added successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("transport"))
+
+@app.route("/transport/delete/<int:rid>")
+@login_required
+def delete_transport(rid):
+    try:
+        run("UPDATE transport_routes SET is_active = FALSE WHERE id = %s", (rid,))
+        flash("🗑️ Route removed", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("transport"))
