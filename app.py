@@ -50,8 +50,9 @@ def login_required(f):
         return f(*a, **kw)
     return wrapper
 
+
 # ==========================================
-# 🔐 AUTH & LOGIN (Admin & Parent)
+# 🔐 AUTHENTICATION & LOGIN (Admin & Parent)
 # ==========================================
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -77,6 +78,10 @@ def login():
         flash("Invalid credentials!", "error")
     return render_template("auth/login.html")
 
+@app.route("/parent/login", methods=["GET", "POST"])
+def parent_login():
+    return render_template("auth/parent_login.html")
+
 @app.route("/logout")
 def logout():
     session.clear()
@@ -84,7 +89,7 @@ def logout():
 
 
 # ==========================================
-# 📊 DASHBOARD & LIVE APIS
+# 📊 DASHBOARD, ANALYTICS & LIVE APIS
 # ==========================================
 @app.route("/dashboard")
 @login_required
@@ -103,6 +108,16 @@ def dashboard():
 
     return render_template("dashboard/dashboard.html", students_count=students_count, pending_dues=total_due, today_collection=today_collection, payment_feed=payment_feed)
 
+@app.route("/analytics")
+@login_required
+def analytics():
+    return render_template("dashboard/analytics.html")
+
+@app.route("/reports")
+@login_required
+def reports():
+    return render_template("dashboard/reports.html")
+
 @app.route("/api/dashboard-live")
 @login_required
 def api_dashboard_live():
@@ -118,7 +133,6 @@ def api_dashboard_live():
     except Exception as e:
         return jsonify({"status": "error"})
 
-# 🔥 Global Search (Dashboard ke liye)
 @app.route("/api/global-search")
 @login_required
 def api_global_search():
@@ -150,7 +164,7 @@ def parent_dashboard():
 
 
 # ==========================================
-# 👨‍🎓 STUDENTS MODULE
+# 👨‍🎓 STUDENTS MODULE & PDF GENERATORS
 # ==========================================
 @app.route("/students")
 @login_required
@@ -191,7 +205,6 @@ def student_profile(roll_no):
     marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
     recent_payments = db_all("SELECT * FROM payments WHERE roll_no=%s ORDER BY id DESC LIMIT 5", (roll_no,))
     
-    # Heatmap & Attendance
     total_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s", (roll_no,))["c"]
     present_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s AND status='Present'", (roll_no,))["c"]
     attendance_pct = round((present_days / total_days * 100), 2) if total_days > 0 else 0
@@ -199,7 +212,6 @@ def student_profile(roll_no):
     att_records = db_all("SELECT att_date, status FROM attendance WHERE roll_no=%s ORDER BY att_date ASC", (roll_no,))
     heatmap_data = {r['att_date']: r['status'] for r in att_records}
 
-    # Documents
     try:
         documents = db_all("SELECT * FROM student_documents WHERE roll_no=%s ORDER BY id DESC", (roll_no,))
     except:
@@ -209,16 +221,20 @@ def student_profile(roll_no):
                            marks_data=marks_data, recent_payments=recent_payments, heatmap_data=heatmap_data,
                            total_days=total_days, present_days=present_days, attendance_pct=attendance_pct, documents=documents)
 
-@app.route("/student/edit/<roll_no>", methods=["POST"])
+@app.route("/student/edit/<roll_no>", methods=["GET", "POST"])
 @login_required
 def edit_student(roll_no):
-    d = request.form
-    try:
-        run("UPDATE students SET name=%s, class_name=%s, father=%s, parent_contact=%s WHERE roll_no=%s",
-            (d["name"], d.get("class_name", ""), d.get("father", ""), d.get("parent_contact", ""), roll_no))
-        return jsonify({"status": "success", "message": "Student updated successfully!"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+    if request.method == "POST":
+        d = request.form
+        try:
+            run("UPDATE students SET name=%s, class_name=%s, father=%s, parent_contact=%s WHERE roll_no=%s",
+                (d["name"], d.get("class_name", ""), d.get("father", ""), d.get("parent_contact", ""), roll_no))
+            return jsonify({"status": "success", "message": "Student updated successfully!"})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)})
+    
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    return render_template("students/edit_student.html", student=student)
 
 @app.route("/student/delete/<roll_no>")
 @login_required
@@ -234,6 +250,12 @@ def delete_student(roll_no):
         flash(f"❌ Error: {e}", "error")
     return redirect(url_for("students"))
 
+@app.route("/student/bulk_import")
+@login_required
+def bulk_import():
+    return render_template("students/bulk_import.html")
+
+# ID Card & PDF
 @app.route("/student/id_card/<roll_no>")
 @login_required
 def student_id_card(roll_no):
@@ -242,7 +264,6 @@ def student_id_card(roll_no):
         student['photo_url'] = f"https://api.dicebear.com/7.x/initials/svg?seed={student['name']}&backgroundColor=00f3ff"
     return render_template("students/id_card.html", student=student)
 
-# 🔥 ID Card PDF Download
 @app.route("/student/id_card/pdf/<roll_no>")
 @login_required
 def id_card_pdf(roll_no):
@@ -258,7 +279,27 @@ def id_card_pdf(roll_no):
     response.headers['Content-Disposition'] = f'attachment; filename=ID_{roll_no}.pdf'
     return response
 
-# 🔥 Upload Photo & Documents
+# Transfer Certificate (TC) & PDF
+@app.route("/student/tc/<roll_no>")
+@login_required
+def transfer_certificate(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    return render_template("students/transfer_certificate.html", student=student)
+
+@app.route("/student/tc_pdf/<roll_no>")
+@login_required
+def transfer_certificate_pdf(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    html = render_template("students/transfer_certificate.html", student=student, is_pdf=True)
+    pdf = io.BytesIO()
+    pisa.CreatePDF(html, dest=pdf)
+    pdf.seek(0)
+    response = make_response(pdf.read())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename=TC_{roll_no}.pdf'
+    return response
+
+# Uploads
 @app.route("/student/upload_photo/<roll_no>", methods=["POST"])
 @login_required
 def upload_photo(roll_no):
@@ -286,8 +327,24 @@ def upload_document(roll_no):
 
 
 # ==========================================
-# 💰 FEES, PAYMENTS & WEBSOCKETS
+# 💰 FEES, BILLS & PAYMENTS
 # ==========================================
+@app.route("/fees")
+@login_required
+def fees():
+    return render_template("fees/fees.html")
+
+@app.route("/fees/edit")
+@login_required
+def edit_fees():
+    return render_template("fees/edit_fees.html")
+
+@app.route("/bills")
+@login_required
+def bills():
+    rows = db_all("SELECT * FROM bills ORDER BY id DESC")
+    return render_template("fees/bills.html", bills=rows)
+
 @app.route("/collect/<roll_no>", methods=["GET", "POST"])
 @login_required
 def collect(roll_no):
@@ -310,7 +367,7 @@ def collect(roll_no):
             run("UPDATE bills SET paid=%s, balance=%s, status=%s WHERE id=%s", (new_paid, new_bal, status, b['id']))
             rem -= deduct
             
-        # 🔥 Live WebSocket Alert
+        # Live WebSocket Alert
         socketio.emit('new_payment_alert', {
             'name': student['name'],
             'amount': amount,
@@ -333,6 +390,22 @@ def create_payment_order():
         return jsonify({"status": "success", "order_id": order['id'], "key": RAZORPAY_KEY_ID})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
+
+@app.route("/receipt_pdf/<roll_no>/<receipt_no>")
+@login_required
+def receipt_pdf(roll_no, receipt_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    payment = one("SELECT * FROM payments WHERE receipt_no=%s", (receipt_no,))
+    
+    html = render_template("fees/receipt.html", student=student, payment=payment, is_pdf=True)
+    pdf = io.BytesIO()
+    pisa.CreatePDF(html, dest=pdf)
+    pdf.seek(0)
+    
+    response = make_response(pdf.read())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename=Receipt_{receipt_no}.pdf'
+    return response
 
 
 # ==========================================
@@ -378,7 +451,6 @@ def api_ai_chat():
     except Exception as e:
         return jsonify({"reply": f"❌ AI Error: {str(e)}"})
 
-# 🔥 AI Career Counselor
 @app.route("/api/ai-career-counselor/<roll_no>")
 @login_required
 def ai_career_counselor(roll_no):
@@ -393,7 +465,6 @@ def ai_career_counselor(roll_no):
     except:
         return jsonify({"reply": "Error fetching career advice."})
 
-# 🔥 AI Fee Predictor
 @app.route("/api/ai-fee-predictor")
 @login_required
 def ai_fee_predictor():
@@ -410,7 +481,7 @@ def ai_fee_predictor():
 
 
 # ==========================================
-# 📱 COMMUNICATION ROUTES
+# 📱 COMMUNICATION & QUICK ACTIONS
 # ==========================================
 @app.route("/send-whatsapp", methods=["POST"])
 @login_required
@@ -425,6 +496,11 @@ def send_email():
     subject = request.form.get("email_subject")
     if subject: flash("✅ Email Sent Successfully!", "success")
     return redirect(url_for("dashboard"))
+
+@app.route("/quick_actions")
+@login_required
+def quick_actions():
+    return render_template("quick_actions.html")
 
 
 # ---------------- APP RUN (SocketIO) ----------------
