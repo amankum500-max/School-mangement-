@@ -1,1 +1,20 @@
-
+{
+  "name": "School ERP - Ultimate",
+  "short_name": "SchoolERP",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#38bdf8",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3257/3257055.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3257/3257055.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
