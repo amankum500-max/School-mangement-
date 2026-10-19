@@ -50,7 +50,7 @@
 
   /* States */
   .hud-card.is-minimized .card-content { display: none; } 
-  .hud-card.is-minimized { padding-bottom: 20px; }
+  .hud-card.is-minimized { padding-bottom: 20px; height: auto; }
   .hud-card.is-maximized { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 99999; border-radius: 0; border: none; background: #030308; padding: 40px; margin: 0; box-shadow: none; animation: none; }
   .hud-card.is-maximized .card-content { height: calc(100vh - 100px); overflow-y: auto; }
 
@@ -115,6 +115,7 @@
   .hud-btn-email:hover { background: #00f3ff; color: #000; box-shadow: 0 0 30px #00f3ff; transform: translateY(-2px); }
 
   .hud-terminal { background: rgba(0,0,0,0.95); border: 1px solid #00f3ff; padding: 12px; border-radius: 8px; font-family: 'Courier New', monospace; color: #39ff14; font-size: 12px; height: 100%; min-height: 100px; overflow-y: auto; line-height: 1.6; box-shadow: inset 0 0 20px rgba(0,243,255,0.1); }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 </style>
 
 <div class="hud-bg"><div class="hud-grid-bg"></div></div>
@@ -167,8 +168,8 @@
         <div class="card-content">
           <div class="hud-label">WEATHER SYSTEM</div>
           <div class="weather-hud">
-            <div><div class="weather-temp" id="temp">--°C</div><div class="weather-cond" id="weather-desc">Loading...</div></div>
-            <div class="weather-icon" id="weather-icon">🌤️</div>
+            <div><div class="weather-temp" id="temp">28°C</div><div class="weather-cond" id="weather-desc">CLEAR SKY</div></div>
+            <div class="weather-icon" id="weather-icon">☀️</div>
           </div>
         </div>
       </div>
@@ -239,7 +240,6 @@
           <div class="hud-label">📥 INBOX</div>
           <div class="msg-container">
             <div class="msg-item">
-              <div class="msg-unread-dot"></div>
               <div class="msg-sender">Principal</div>
               <div class="msg-text">Meeting scheduled at 10 AM.</div>
             </div>
@@ -295,283 +295,67 @@
     </div>
 </div>
 
-<!-- ====================================================
-     JAVASCRIPT LOGIC
-==================================================== -->
 <script>
-  // 1. Vanilla Tilt (3D Hover)
-  VanillaTilt.init(document.querySelectorAll(".tilt-card"), {
-    max: 5, speed: 400, glare: true, "max-glare": 0.2, scale: 1.02
-  });
+  // 1. Clock & Date
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('hud-time').innerText = now.toLocaleTimeString('en-US', { hour12: false });
+    document.getElementById('hud-date').innerText = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
 
   // 2. Window Controls
   function minimizeCard(btn) {
-    let card = btn.closest('.hud-card');
+    const card = btn.closest('.hud-card');
     card.classList.toggle('is-minimized');
   }
+
   function maximizeCard(btn) {
-    let card = btn.closest('.hud-card');
+    const card = btn.closest('.hud-card');
     card.classList.toggle('is-maximized');
-    setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 300);
   }
+
   function closeCard(btn) {
-    let card = btn.closest('.hud-card');
+    const card = btn.closest('.hud-card');
     card.style.display = 'none';
   }
 
-  // 3. Live Clock
-  setInterval(() => {
-    const now = new Date();
-    document.getElementById('hud-time').innerText = now.toLocaleTimeString('en-US', { hour12: false });
-    document.getElementById('hud-date').innerText = now.toDateString().toUpperCase();
-  }, 1000);
+  function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  }
 
-  // 4. Counter Animation
+  // 3. Counter Animation
   document.querySelectorAll('.counter').forEach(counter => {
     const target = +counter.getAttribute('data-target');
-    const updateCounter = () => {
-      const c = +counter.innerText;
-      const increment = target / 50;
-      if (c < target) {
-        counter.innerText = Math.ceil(c + increment);
-        setTimeout(updateCounter, 30);
+    let count = 0;
+    const speed = target / 50;
+    const updateCount = () => {
+      count += speed;
+      if (count < target) {
+        counter.innerText = Math.ceil(count).toLocaleString('en-IN');
+        setTimeout(updateCount, 30);
       } else {
-        counter.innerText = target;
+        counter.innerText = target.toLocaleString('en-IN');
       }
     };
-    updateCounter();
+    updateCount();
   });
 
-  // 5. Charts (Chart.js)
-  Chart.defaults.color = '#8892b0';
-  Chart.defaults.font.family = "'Courier New', monospace";
-
-  // Revenue Chart
-  new Chart(document.getElementById('revenueChart'), {
-    type: 'line',
-    data: {
-      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-      datasets: [{
-        label: 'Revenue (₹)', data: [10000, 25000, 15000, 35000, 42000, 38000],
-        borderColor: '#00f3ff', backgroundColor: 'rgba(0, 243, 255, 0.1)', fill: true, tension: 0.4
-      }]
-    },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' } }, y: { grid: { color: 'rgba(255,255,255,0.05)' } } } }
-  });
-
-  // Fee Doughnut Chart
-  new Chart(document.getElementById('feeChart'), {
-    type: 'doughnut',
-    data: {
-      labels: ['Paid', 'Pending'],
-      datasets: [{ data: [70, 30], backgroundColor: ['#39ff14', '#ff0055'], borderWidth: 0 }]
-    },
-    options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'bottom', labels: { color: '#fff' } } } }
-  });
-
-  // 6. Map (Leaflet)
-  var map = L.map('map', { zoomControl: false }).setView([28.6139, 77.2090], 12);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '' }).addTo(map);
-  L.circleMarker([28.6139, 77.2090], { color: '#ff0055', radius: 8, fillOpacity: 0.8 }).addTo(map).bindPopup("Student Location");
-
-  // 7. Weather API
-  const apiKey = 'YOUR_OPENWEATHER_API_KEY'; // <--- APNI API KEY YAHAN DAALEIN
-  fetch(`https://api.openweathermap.org/data/2.5/weather?q=Delhi&appid=${apiKey}&units=metric`)
-    .then(res => res.json())
-    .then(data => {
-      if (data.main) {
-        document.getElementById('temp').innerText = Math.round(data.main.temp) + '°C';
-        document.getElementById('weather-desc').innerText = data.weather[0].description;
-        document.getElementById('weather-icon').innerText = '🌤️';
-      }
-    }).catch(() => { document.getElementById('weather-desc').innerText = "Offline"; });
-</script>
-{% endblock %}
-{% extends "shared/base.html" %}
-{% block content %}
-
-<style>
-    /* 3D Cyberpunk / Glassmorphism Style */
-    .glass-card { 
-        background: rgba(15, 23, 42, 0.7); 
-        backdrop-filter: blur(15px); 
-        border: 1px solid rgba(56, 189, 248, 0.2); 
-        border-radius: 16px; 
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        height: 100%;
-    }
-    .glass-card:hover { 
-        transform: translateY(-5px); 
-        box-shadow: 0 15px 40px rgba(56, 189, 248, 0.3); 
-        border-color: rgba(56, 189, 248, 0.6);
-    }
-    
-    /* Text Colors */
-    .neon-text { 
-        color: #38bdf8; 
-        text-shadow: 0 0 10px rgba(56, 189, 248, 0.7); 
-    }
-    .text-success { color: #22c55e !important; text-shadow: 0 0 10px rgba(34, 197, 94, 0.5); }
-    .text-danger { color: #ef4444 !important; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
-    
-    /* Stat Icons */
-    .stat-icon { 
-        font-size: 2rem; 
-        opacity: 0.8; 
-        filter: drop-shadow(0 0 10px currentColor);
-    }
-</style>
-
-<div class="container-fluid py-4">
-    <!-- Header -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
-        <div>
-            <h2 class="fw-bold text-white mb-1">SYSTEM: <span class="neon-text">ONLINE</span></h2>
-            <p class="text-secondary mb-0">Welcome back, System Admin. All systems operational.</p>
-        </div>
-        <div class="d-flex gap-3">
-            <div class="glass-card px-4 py-2 text-center">
-                <span class="text-muted small d-block">Current Time</span>
-                <span class="fw-bold text-info" id="liveClock">00:00:00</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Stats Row -->
-    <div class="row g-4 mb-4">
-        <!-- Total Students -->
-        <div class="col-12 col-sm-6 col-xl-3">
-            <div class="glass-card p-4">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="text-muted mb-2">TOTAL STUDENTS</h6>
-                        <h2 class="fw-bold text-white mb-0">{{ students_count }}</h2>
-                    </div>
-                    <div class="stat-icon text-primary">🎓</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Today's Collection -->
-        <div class="col-12 col-sm-6 col-xl-3">
-            <div class="glass-card p-4">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="text-muted mb-2">TODAY'S COLLECTION</h6>
-                        <h2 class="fw-bold text-success mb-0">₹{{ '{:,.0f}'.format(today_collection or 0) }}</h2>
-                    </div>
-                    <div class="stat-icon text-success">💰</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Pending Dues -->
-        <div class="col-12 col-sm-6 col-xl-3">
-            <div class="glass-card p-4">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="text-muted mb-2">PENDING DUES</h6>
-                        <h2 class="fw-bold text-danger mb-0">₹{{ '{:,.0f}'.format(pending_dues or 0) }}</h2>
-                    </div>
-                    <div class="stat-icon text-danger">🚨</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- System Status -->
-        <div class="col-12 col-sm-6 col-xl-3">
-            <div class="glass-card p-4">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="text-muted mb-2">SYSTEM STATUS</h6>
-                        <h2 class="fw-bold text-info mb-0">Active</h2>
-                    </div>
-                    <div class="stat-icon text-info">⚡</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Charts & Live Feed Row -->
-    <div class="row g-4">
-        <!-- Revenue Flow Chart -->
-        <div class="col-12 col-lg-7">
-            <div class="glass-card p-4 h-100">
-                <h5 class="text-white mb-4">📈 Revenue Flow (Last 6 Months)</h5>
-                <canvas id="revenueChart" height="250"></canvas>
-            </div>
-        </div>
-
-        <!-- Live Payment Feed -->
-        <div class="col-12 col-lg-5">
-            <div class="glass-card p-4 h-100">
-                <h5 class="text-white mb-4">💳 Live Payment Feed</h5>
-                <div class="table-responsive">
-                    <table class="table table-dark table-hover align-middle bg-transparent mb-0">
-                        <thead>
-                            <tr>
-                                <th class="text-muted border-secondary">Student</th>
-                                <th class="text-muted border-secondary text-end">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for p in payment_feed %}
-                            <tr>
-                                <td class="border-secondary text-white">
-                                    <strong>{{ p.name }}</strong><br>
-                                    <small class="text-muted">{{ p.date }}</small>
-                                </td>
-                                <td class="border-secondary text-end text-success fw-bold">+₹{{ '{:,.0f}'.format(p.amount) }}</td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="2" class="text-center text-muted border-secondary py-4">No recent payments.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Chart.js Setup -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    // 1. Live Clock
-    setInterval(() => {
-        const now = new Date();
-        document.getElementById('liveClock').innerText = now.toLocaleTimeString();
-    }, 1000);
-
-    // 2. Revenue Chart (Dummy Data ke saath)
-    const ctx = document.getElementById('revenueChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            datasets: [{
-                label: 'Collection (₹)',
-                data: [15000, 22000, 18000, 28000, 35000, {{ today_collection or 0 }}], // Backend se connect kar sakte hain
-                borderColor: '#38bdf8',
-                backgroundColor: 'rgba(56, 189, 248, 0.2)',
-                borderWidth: 3,
-                pointBackgroundColor: '#fff',
-                pointBorderColor: '#38bdf8',
-                pointRadius: 5,
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
-                x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
-            }
-        }
+  // 4. Vanilla Tilt
+  if (typeof VanillaTilt !== 'undefined') {
+    VanillaTilt.init(document.querySelectorAll(".tilt-card"), {
+      max: 10,
+      speed: 400,
+      glare: true,
+      "max-glare": 0.2,
     });
-</script>
-{% endblock %}
+  }
+
+  // 5.
