@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>📱 AI Auto WhatsApp Reminders</h2>
+<p style="color: #7f8c8d; margin-bottom: 15px;">Ek click me parents ko fees ki yaad dilao!</p>
+
+<div class="card">
+  <h3>⚠️ Pending Fees List ({{ reminders|length }} students)</h3>
+  <div style="overflow-x: auto;">
+    <table>
+      <tr><th>Student Name</th><th>Roll No</th><th>Class</th><th>Pending Due (₹)</th><th>Action</th></tr>
+      {% for r in reminders %}
+      <tr>
+        <td><strong>{{ r['name'] }}</strong></td>
+        <td>{{ r['roll_no'] }}</td>
+        <td>{{ r['class_name'] }}</td>
+        <td style="color: #e74c3c; font-weight: bold;">₹{{ '{:,.0f}'.format(r['total_due']) }}</td>
+        <td>
+          <a href="{{ r['wa_link'] }}" target="_blank" class="btn" style="background: #25D366; padding: 8px 15px; font-size: 14px; border-radius: 5px; text-decoration: none; color: white;">
+            💬 Send WhatsApp
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}
