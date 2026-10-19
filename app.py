@@ -656,6 +656,38 @@ def ai_psych_alert(roll_no):
         return jsonify({"alert": response.text})
     except Exception as e:
         return jsonify({"alert": "Error analyzing notes."})
+        # 📱 WHATSAPP AUTO REMINDERS
+@app.route("/ai-auto-whatsapp")
+@login_required
+@admin_required
+def ai_auto_whatsapp():
+    # Un students ko dhundho jinka balance 0 se zyada hai
+    defaulters = db_all("""
+        SELECT s.roll_no, s.name, s.class_name, s.parent_contact, 
+               SUM(b.balance) as total_due
+        FROM bills b 
+        JOIN students s ON b.roll_no = s.roll_no
+        WHERE b.balance > 0 AND s.parent_contact IS NOT NULL AND s.parent_contact != ''
+        GROUP BY s.roll_no, s.name, s.class_name, s.parent_contact
+        HAVING SUM(b.balance) > 0
+        ORDER BY total_due DESC
+    """)
+    
+    reminders = []
+    for d in defaulters:
+        # Phone number format sahi karo (91 lagao agar nahi hai)
+        phone = str(d['parent_contact']).replace(" ", "").replace("+", "").replace("-", "")
+        if len(phone) == 10:
+            phone = "91" + phone
+            
+        # AI Jaisa Professional Message
+        msg = f"Dear Parent, Aapke bachhe {d['name']} (Roll: {d['roll_no']}) ki school fees me Rs {d['total_due']:,.0f} pending hai. Kripya jaldi jama karein. Dhanyawad - School Management"
+        
+        # WhatsApp Link
+        wa_link = f"https://wa.me/{phone}?text={msg.replace(' ', '%20')}"
+        reminders.append({**dict(d), "wa_link": wa_link, "message": msg})
+
+    return render_template("ai_auto_whatsapp.html", reminders=reminders)
 
 
 # ---------------- APP RUN (SocketIO) ----------------
