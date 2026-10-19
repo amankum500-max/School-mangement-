@@ -213,12 +213,14 @@
 </div>
 
 <script>
+    // Growth Chart
     new Chart(document.getElementById('growthChart'), {
         type: 'line',
         data: { labels: {{ growth_labels | tojson }}, datasets: [{ label: 'Percentage', data: {{ growth_data | tojson }}, borderColor: '#38bdf8', tension: 0.4, fill: true }] },
         options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, ticks: { color: '#94a3b8' } }, x: { ticks: { color: '#94a3b8' } } } }
     });
 
+    // ALL AI ACTIONS LOGIC
     async function aiAction(type) {
         const modal = new bootstrap.Modal(document.getElementById('aiModal'));
         const content = document.getElementById('aiContent');
@@ -259,6 +261,7 @@
         }
     }
 
+    // Gate Pass Logic
     async function generateGatePass(rollNo) {
         const modal = new bootstrap.Modal(document.getElementById('gatePassModal'));
         document.getElementById('gpImg').style.display = 'none';
