@@ -1,40 +1,204 @@
-{% extends "shared/base.html" %}
-{% block title %}Fees{% endblock %}
-{% block page_title %}Fee Management{% endblock %}
-
+{% extends "base.html" %}
 {% block content %}
-<div class="card">
-  <h3 style="margin-bottom: 20px;">Fee Structures & Dues</h3>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Roll No</th>
-        <th>Student Name</th>
-        <th>Class</th>
-        <th>Tuition Fee</th>
-        <th>Back Dues</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for f in fees %}
-      <tr>
-        <td><strong>{{ f.roll_no }}</strong></td>
-        <td>{{ f.name }}</td>
-        <td>{{ f.class_name or '-' }}</td>
-        <td>₹{{ f.tuition_fee or 0 }}</td>
-        <td style="color: #ef4444; font-weight: bold;">₹{{ f.back_dues or 0 }}</td>
-        <td>
-          <a href="/collect/{{ f.roll_no }}" class="btn" style="padding: 6px 12px; font-size: 12px;">Collect</a>
-        </td>
-      </tr>
-      {% else %}
-      <tr>
-        <td colspan="6" style="text-align: center; color: #64748b;">No fee records found. Please add students first.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<style>
+    .glass-card { background: rgba(15, 23, 42, 0.85); border: 1px solid #334155; border-radius: 12px; backdrop-filter: blur(10px); }
+    .aging-card { border-left: 5px solid; border-radius: 8px; padding: 15px; background: #1e293b; margin-bottom: 15px; }
+    .aging-danger { border-left-color: #ef4444; }
+    .aging-warning { border-left-color: #f59e0b; }
+    .btn-action { padding: 4px 8px; font-size: 12px; border-radius: 6px; margin-right: 2px; }
+    .dataTables_wrapper .dataTables_filter input, .dataTables_wrapper .dataTables_length select { background: #0f172a; color: white; border: 1px solid #334155; }
+    .dataTables_wrapper .dataTables_info, .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter { color: #94a3b8; }
+    .page-link { background: #1e293b !important; color: #38bdf8 !important; border-color: #334155 !important; }
+    .page-item.active .page-link { background: #0ea5e9 !important; color: white !important; }
+    .action-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; border: 1px solid #38bdf8; padding: 10px 20px; border-radius: 50px; display: none; z-index: 1000; }
+    .action-bar.active { display: flex; gap: 15px; align-items: center; animation: slideUp 0.3s ease; }
+    @keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 20px; opacity: 1; } }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-white mb-0">💵 Ultimate Fee Engine</h2>
+            <p class="text-secondary mb-0">DPS/KVS Grade Features Loaded.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-info" onclick="askAI()" id="aiBtn">🧠 AI Advisor</button>
+            <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#addForm">➕ Add/Edit Fee</button>
+        </div>
+    </div>
+
+    <!-- AI Response Area -->
+    <div id="aiResponse" class="alert alert-info border-info bg-dark text-info mb-4" style="display: none; white-space: pre-line;"></div>
+
+    <!-- Aging Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="aging-card aging-warning">
+                <h6 class="text-muted mb-1">0-30 Days Overdue</h6>
+                <h3 class="text-warning fw-bold mb-0">₹{{ '{:,.0f}'.format(aging_stats['0-30']) }}</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="aging-card aging-danger">
+                <h6 class="text-muted mb-1">30-60 Days Overdue</h6>
+                <h3 class="text-danger fw-bold mb-0">₹{{ '{:,.0f}'.format(aging_stats['30-60']) }}</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="aging-card aging-danger" style="border-left-color: #991b1b;">
+                <h6 class="text-muted mb-1">60+ Days (Critical)</h6>
+                <h3 class="text-danger fw-bold mb-0">₹{{ '{:,.0f}'.format(aging_stats['60+']) }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Form -->
+    <div class="collapse mb-4" id="addForm">
+        <div class="glass-card p-4">
+            <form method="POST" action="/fees/save" class="row g-3">
+                <div class="col-md-2"><input type="text" name="roll_no" class="form-control" placeholder="Roll No *" required></div>
+                <div class="col-md-2"><input type="number" name="tuition_fee" class="form-control" placeholder="Tuition Fee"></div>
+                <div class="col-md-2"><input type="number" name="discount" class="form-control text-success" placeholder="Discount (-)"></div>
+                <div class="col-md-2"><input type="number" name="back_dues" class="form-control text-danger" placeholder="Back Dues"></div>
+                <div class="col-md-2"><input type="date" name="due_date" class="form-control" title="Due Date"></div>
+                <div class="col-md-2"><button type="submit" class="btn btn-success w-100">Save</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Table -->
+    <div class="glass-card p-4">
+        <form method="POST" action="/fees/bulk-action" id="bulkForm">
+            <table id="feeTable" class="table table-dark table-hover align-middle w-100">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
+                        <th>Roll No</th><th>Name</th><th>Class</th><th>Dues</th><th>Aging</th><th>Wallet</th><th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in fees %}
+                    <tr>
+                        <td><input type="checkbox" name="selected_students" value="{{ f['roll_no'] }}" class="row-checkbox" onclick="updateActionBar()"></td>
+                        <td class="fw-bold text-info">{{ f['roll_no'] }}</td>
+                        <td class="text-white">
+                            {{ f['name'] }} 
+                            {% if f['is_sibling'] %}<span class="badge bg-purple text-white ms-1" style="background:#8b5cf6;">👨‍👩‍👧 Sibling</span>{% endif %}
+                        </td>
+                        <td>{{ f['class_name'] }}-{{ f['section'] }}</td>
+                        <td class="text-danger fw-bold">₹{{ '{:,.0f}'.format(f['back_dues'] or 0) }}</td>
+                        <td>
+                            {% if f['aging_bucket'] == '60+ Days' %}<span class="badge bg-danger">🔴 {{ f['aging_bucket'] }}</span>
+                            {% elif f['aging_bucket'] == '30-60 Days' %}<span class="badge bg-warning text-dark">🟡 {{ f['aging_bucket'] }}</span>
+                            {% elif f['aging_bucket'] == '0-30 Days' %}<span class="badge bg-info text-dark">🔵 {{ f['aging_bucket'] }}</span>
+                            {% else %}<span class="badge bg-success">🟢 Clear</span>{% endif %}
+                        </td>
+                        <td class="text-success">₹{{ '{:,.0f}'.format(f['wallet']) }}</td>
+                        <td>
+                            <a href="/fees/pdf/{{ f['roll_no'] }}" class="btn btn-outline-danger btn-action" title="Receipt">📄</a>
+                            <button type="button" class="btn btn-outline-success btn-action" onclick="generateAIWhatsApp('{{ f['roll_no'] }}')" title="AI WA">🤖</button>
+                            <button type="button" class="btn btn-outline-primary btn-action" onclick="showUPIQR('{{ f['roll_no'] }}')" title="UPI QR">📸</button>
+                            
+                            {% if f['back_dues'] and f['back_dues'] > 0 %}
+                            <button type="submit" formaction="/fees/waive-off" name="roll_no" value="{{ f['roll_no'] }}" class="btn btn-outline-warning btn-action" onclick="return confirm('Dues maaf karne hain?')" title="Waive Off">⚖️</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <!-- Floating Bulk Bar -->
+            <div class="action-bar" id="actionBar">
+                <span class="text-white fw-bold"><span id="selectedCount">0</span> selected</span>
+                <button type="submit" name="action" value="delete" class="btn btn-danger btn-sm" onclick="return confirm('Delete selected?')">🗑️ Delete</button>
+            </div>
+        </form>
+    </div>
 </div>
+
+<!-- Modals (AI WhatsApp & QR) -->
+<div class="modal fade" id="aiWaModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content glass-card text-white border-success">
+      <div class="modal-header border-secondary"><h5 class="modal-title">🤖 AI Reminder</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <textarea id="aiMsgBox" class="form-control bg-dark text-success" rows="4"></textarea>
+      </div>
+      <div class="modal-footer border-secondary"><a href="#" id="waLink" target="_blank" class="btn btn-success">📱 Send WhatsApp</a></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="qrModal" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content glass-card text-white border-primary text-center">
+      <div class="modal-body">
+        <h4 class="text-success fw-bold" id="qrAmt">₹0</h4>
+        <div id="qrLoad" class="spinner-border text-primary"></div>
+        <img id="qrImg" style="display:none; width:100%; border-radius:8px;">
+        <p class="text-muted small mt-2">Scan with GPay/PhonePe</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    // 1. DataTables Initialization
+    $(document).ready(function() { $('#feeTable').DataTable({ "pageLength": 10, "order": [[ 4, "desc" ]] }); });
+
+    // 2. AI Advisor
+    async function askAI() {
+        const btn = document.getElementById('aiBtn'); const res = document.getElementById('aiResponse');
+        btn.innerHTML = '⏳ Thinking...'; res.style.display = 'block'; res.innerText = 'Analyzing...';
+        try {
+            const r = await fetch('/fees/ai-advisor', { method: 'POST' });
+            const d = await r.json(); res.innerText = d.reply;
+        } catch(e) { res.innerText = "Error!"; }
+        btn.innerHTML = '🧠 AI Advisor';
+    }
+
+    // 3. AI WhatsApp
+    async function generateAIWhatsApp(roll) {
+        const modal = new bootstrap.Modal(document.getElementById('aiWaModal'));
+        document.getElementById('aiMsgBox').value = "Generating AI message..."; modal.show();
+        try {
+            const r = await fetch(`/fees/ai-reminder/${roll}`);
+            const d = await r.json();
+            document.getElementById('aiMsgBox').value = d.message;
+            let phone = d.contact ? d.contact.replace(/[^0-9]/g, '') : '';
+            if(phone.length === 10) phone = '91' + phone;
+            document.getElementById('waLink').href = `https://wa.me/${phone}?text=${encodeURIComponent(d.message)}`;
+        } catch(e) { document.getElementById('aiMsgBox').value = "Error loading AI."; }
+    }
+
+    // 4. UPI QR Code
+    async function showUPIQR(roll) {
+        const modal = new bootstrap.Modal(document.getElementById('qrModal'));
+        document.getElementById('qrImg').style.display = 'none';
+        document.getElementById('qrLoad').style.display = 'block'; modal.show();
+        try {
+            const r = await fetch(`/fees/upi-qr/${roll}`); const d = await r.json();
+            if(d.error) { alert(d.error); modal.hide(); return; }
+            document.getElementById('qrAmt').innerText = '₹' + d.amount.toLocaleString('en-IN');
+            document.getElementById('qrImg').src = `data:image/png;base64,${d.qr_code}`;
+            document.getElementById('qrImg').style.display = 'block';
+            document.getElementById('qrLoad').style.display = 'none';
+        } catch(e) { alert("QR Error"); modal.hide(); }
+    }
+
+    // 5. Bulk Selection
+    function toggleAll(src) { document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = src.checked); updateActionBar(); }
+    function updateActionBar() {
+        let count = document.querySelectorAll('.row-checkbox:checked').length;
+        document.getElementById('selectedCount').innerText = count;
+        document.getElementById('actionBar').classList.toggle('active', count > 0);
+    }
+</script>
 {% endblock %}
