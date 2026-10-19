@@ -202,55 +202,63 @@ def add_student():
 @app.route("/student/profile/<roll_no>")
 @login_required
 def student_profile(roll_no):
-    student_row = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
-    if not student_row: return redirect(url_for("students"))
-    
-    student = dict(student_row)
-    
-    # Defaults (Agar DB me column nahi hai toh crash na ho)
-    defaults = {
-        'photo_url': f"https://api.dicebear.com/7.x/initials/svg?seed={student['name']}&backgroundColor=00f3ff", 
-        'house': 'Red', 'blood_group': 'O+', 'allergies': 'None', 
-        'emergency_contact': 'N/A', 'merit_points': 0, 'transport_route': 'N/A', 
-        'hostel_room': 'N/A', 'library_books': 'None', 'achievements': 'State Level Kabaddi Winner',
-        'communication_log': 'Parent called for PTM on 10th.', 'portfolio_links': 'https://github.com, https://wikipedia.org',
-        'gate_pass_active': False
-    }
-    for key, val in defaults.items():
-        if key not in student or student[key] is None:
-            student[key] = val
+    try:
+        student_row = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+        if not student_row: 
+            flash("Student not found!", "error")
+            return redirect(url_for("students"))
+        
+        student = dict(student_row)
+        
+        # Defaults (Agar DB me column nahi hai toh crash na ho)
+        defaults = {
+            'photo_url': f"https://api.dicebear.com/7.x/initials/svg?seed={student.get('name','Student')}&backgroundColor=00f3ff", 
+            'house': 'Red', 'blood_group': 'O+', 'allergies': 'None', 
+            'emergency_contact': 'N/A', 'merit_points': 0, 'transport_route': 'N/A', 
+            'hostel_room': 'N/A', 'library_books': 'None', 'achievements': 'No achievements recorded.',
+            'communication_log': 'No parent communication logged.', 'portfolio_links': '',
+            'gate_pass_active': False
+        }
+        for key, val in defaults.items():
+            if key not in student or student[key] is None:
+                student[key] = val
 
-    # Fees Data
-    total_paid = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE roll_no=%s", (roll_no,))["t"]
-    total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE roll_no=%s AND balance>0", (roll_no,))["t"]
-    recent_payments = db_all("SELECT * FROM payments WHERE roll_no=%s ORDER BY id DESC LIMIT 5", (roll_no,))
-    
-    # Attendance Data
-    total_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s", (roll_no,))["c"]
-    present_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s AND status='Present'", (roll_no,))["c"]
-    attendance_pct = round((present_days / total_days * 100), 2) if total_days > 0 else 0
-    heatmap_data = {str(r['att_date']): r['status'] for r in db_all("SELECT att_date, status FROM attendance WHERE roll_no=%s", (roll_no,))}
+        # Fees Data
+        total_paid = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE roll_no=%s", (roll_no,))["t"]
+        total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE roll_no=%s AND balance>0", (roll_no,))["t"]
+        recent_payments = db_all("SELECT * FROM payments WHERE roll_no=%s ORDER BY id DESC LIMIT 5", (roll_no,))
+        
+        # Attendance Data
+        total_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s", (roll_no,))["c"]
+        present_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s AND status='Present'", (roll_no,))["c"]
+        attendance_pct = round((present_days / total_days * 100), 2) if total_days > 0 else 0
+        heatmap_data = {str(r['att_date']): r['status'] for r in db_all("SELECT att_date, status FROM attendance WHERE roll_no=%s", (roll_no,))}
 
-    # Academic & Notes Data
-    marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
-    try: teacher_notes = db_all("SELECT * FROM teacher_notes WHERE roll_no=%s ORDER BY id DESC", (roll_no,))
-    except: teacher_notes = []
+        # Academic & Notes Data
+        marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
+        try: teacher_notes = db_all("SELECT * FROM teacher_notes WHERE roll_no=%s ORDER BY id DESC", (roll_no,))
+        except: teacher_notes = []
 
-    # AI Warnings
-    warnings = []
-    if attendance_pct < 75 and total_days > 0: warnings.append(f"Low Attendance ({attendance_pct}%).")
-    if float(total_due) > 5000: warnings.append(f"High Pending Dues (₹{total_due}).")
+        # AI Warnings
+        warnings = []
+        if attendance_pct < 75 and total_days > 0: warnings.append(f"Low Attendance ({attendance_pct}%).")
+        if float(total_due) > 5000: warnings.append(f"High Pending Dues (₹{total_due}).")
 
-    # Portfolio List
-    portfolio_list = [link.strip() for link in student['portfolio_links'].split(',')] if student['portfolio_links'] else []
+        # Portfolio List
+        portfolio_list = [link.strip() for link in student['portfolio_links'].split(',')] if student['portfolio_links'] else []
 
-    return render_template("students/student_profile.html", 
-        student=student, total_paid=total_paid, total_due=total_due, 
-        marks_data=marks_data, recent_payments=recent_payments,
-        total_days=total_days, present_days=present_days, attendance_pct=attendance_pct, 
-        heatmap_data=heatmap_data, warnings=warnings, teacher_notes=teacher_notes,
-        portfolio_list=portfolio_list, growth_labels=["UT-1", "Half Yearly", "UT-2", "Pre-Board"], growth_data=[65, 72, 78, 85] 
-    )
+        return render_template("students/student_profile.html", 
+            student=student, total_paid=total_paid, total_due=total_due, 
+            marks_data=marks_data, recent_payments=recent_payments,
+            total_days=total_days, present_days=present_days, attendance_pct=attendance_pct, 
+            heatmap_data=heatmap_data, warnings=warnings, teacher_notes=teacher_notes,
+            portfolio_list=portfolio_list, growth_labels=["UT-1", "Half Yearly", "UT-2", "Pre-Board"], growth_data=[65, 72, 78, 85] 
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        flash(f"Error loading profile: {str(e)}", "error")
+        return redirect(url_for("students"))
 
 @app.route("/student/add_note/<roll_no>", methods=["POST"])
 @login_required
