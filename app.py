@@ -501,6 +501,70 @@ def send_email():
 @login_required
 def quick_actions():
     return render_template("quick_actions.html")
+    @app.route("/student/profile/<roll_no>")
+@login_required
+def student_profile(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student: return redirect(url_for("students"))
+    
+    # Photo Fallback
+    if not student.get('photo_url'):
+        student['photo_url'] = f"https://api.dicebear.com/7.x/initials/svg?seed={student['name']}&backgroundColor=00f3ff"
+
+    # 1. Basic Data
+    total_paid = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE roll_no=%s", (roll_no,))["t"]
+    total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE roll_no=%s AND balance>0", (roll_no,))["t"]
+    
+    # 2. Marks & Growth Data
+    marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
+    # Mocking growth data for line chart (Aap isko real DB se connect kar sakte hain)
+    growth_labels = ["Unit Test 1", "Half Yearly", "Unit Test 2", "Pre-Board", "Final"]
+    growth_data = [65, 72, 78, 85, 88] # Dummy percentages
+    
+    # 3. Attendance & Heatmap
+    total_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s", (roll_no,))["c"]
+    present_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s AND status='Present'", (roll_no,))["c"]
+    attendance_pct = round((present_days / total_days * 100), 2) if total_days > 0 else 0
+    att_records = db_all("SELECT att_date, status FROM attendance WHERE roll_no=%s ORDER BY att_date ASC", (roll_no,))
+    heatmap_data = {r['att_date']: r['status'] for r in att_records}
+
+    # 4. Documents, Fees, Discipline
+    try: documents = db_all("SELECT * FROM student_documents WHERE roll_no=%s ORDER BY id DESC", (roll_no,))
+    except: documents = []
+    
+    recent_payments = db_all("SELECT * FROM payments WHERE roll_no=%s ORDER BY id DESC LIMIT 5", (roll_no,))
+    try: discipline_logs = db_all("SELECT * FROM student_discipline WHERE roll_no=%s ORDER BY id DESC", (roll_no,))
+    except: discipline_logs = []
+
+    return render_template("students/student_profile.html", 
+                           student=student, total_paid=total_paid, total_due=total_due, 
+                           marks_data=marks_data, growth_labels=growth_labels, growth_data=growth_data,
+                           heatmap_data=heatmap_data, total_days=total_days, present_days=present_days, 
+                           attendance_pct=attendance_pct, documents=documents, recent_payments=recent_payments,
+                           discipline_logs=discipline_logs)
+
+# 🔥 AI Persona Generation API
+@app.route("/api/ai-student-persona/<roll_no>")
+@login_required
+def ai_student_persona(roll_no):
+    if not ai_model: return jsonify({"persona": "AI Offline"})
+    
+    student = one("SELECT name FROM students WHERE roll_no=%s", (roll_no,))
+    marks = db_all("SELECT AVG((marks * 100.0) / total) as avg_score FROM marks WHERE roll_no=%s", (roll_no,))
+    att = one("SELECT ROUND((SUM(CASE WHEN status='Present' THEN 1 ELSE 0 END) * 100.0) / COUNT(*), 1) p FROM attendance WHERE roll_no=%s", (roll_no,))["p"] or 0
+    
+    prompt = f"""
+    Analyze this student's data: Name: {student['name']}, Average Marks: {marks[0]['avg_score'] if marks else 'N/A'}%, Attendance: {att}%.
+    Write a 2-sentence AI Persona summary for the Principal. 
+    Example: "Rahul is a highly disciplined student with excellent attendance. However, he needs to focus more on Mathematics to improve his overall score."
+    Keep it professional and insightful.
+    """
+    
+    try:
+        response = ai_model.generate_content(prompt)
+        return jsonify({"persona": response.text})
+    except:
+        return jsonify({"persona": "Could not generate persona."})
 
 
 # ---------------- APP RUN (SocketIO) ----------------
