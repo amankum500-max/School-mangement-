@@ -18,3 +18,4 @@ werkzeug
 xhtml2pdf
 supabase
 fastapi
+fpdf2
