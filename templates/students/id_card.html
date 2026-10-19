@@ -707,7 +707,21 @@
 </style>
 </head>
 <body>
+<body>
 
+    <!-- ⬇️ YAHAN SE CODE PASTE KAREIN ⬇️ -->
+    {% if not is_pdf %}
+    <div style="text-align: center; margin-bottom: 20px; margin-top: 20px;">
+        <a href="/student/id_card/pdf/{{ student.roll_no }}" style="padding: 12px 20px; background: #ffd700; text-decoration: none; color: #000; font-weight: bold; border-radius: 8px; box-shadow: 0 0 15px rgba(255,215,0,0.5); display: inline-block; margin-right: 10px;">⬇️ Download PDF</a>
+        
+        <a href="/student/profile/{{ student.roll_no }}" style="padding: 12px 20px; background: #333; text-decoration: none; color: #fff; font-weight: bold; border-radius: 8px; display: inline-block;">⬅ Back to Profile</a>
+    </div>
+    {% endif %}
+    <!-- ⬆️ YAHAN TAK CODE PASTE KAREIN ⬆️ -->
+
+    <!-- Aapka ID Card ka main div (card-container) uske niche se shuru hoga -->
+    <div class="card-container">
+        <!-- ... aapka purana 900+ lines ka code ... -->
 <button class="print-btn" onclick="playSound('click'); setTimeout(window.print, 200);">
   🖨️ Print Ultra Smart Card
 </button>
