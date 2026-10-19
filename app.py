@@ -202,39 +202,180 @@ def add_student():
 @app.route("/student/profile/<roll_no>")
 @login_required
 def student_profile(roll_no):
-    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
-    if not student: return redirect(url_for("students"))
+    student_row = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student_row: return redirect(url_for("students"))
     
-    student = dict(student)
-    if not student.get('photo_url'):
-        student['photo_url'] = f"https://api.dicebear.com/7.x/initials/svg?seed={student['name']}&backgroundColor=00f3ff"
+    student = dict(student_row)
+    
+    # Defaults (Agar DB me column nahi hai toh crash na ho)
+    defaults = {
+        'photo_url': f"https://api.dicebear.com/7.x/initials/svg?seed={student['name']}&backgroundColor=00f3ff", 
+        'house': 'Red', 'blood_group': 'O+', 'allergies': 'None', 
+        'emergency_contact': 'N/A', 'merit_points': 0, 'transport_route': 'N/A', 
+        'hostel_room': 'N/A', 'library_books': 'None', 'achievements': 'State Level Kabaddi Winner',
+        'communication_log': 'Parent called for PTM on 10th.', 'portfolio_links': 'https://github.com, https://wikipedia.org',
+        'gate_pass_active': False
+    }
+    for key, val in defaults.items():
+        if key not in student or student[key] is None:
+            student[key] = val
 
+    # Fees Data
     total_paid = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE roll_no=%s", (roll_no,))["t"]
     total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE roll_no=%s AND balance>0", (roll_no,))["t"]
-    marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
     recent_payments = db_all("SELECT * FROM payments WHERE roll_no=%s ORDER BY id DESC LIMIT 5", (roll_no,))
     
-    growth_labels = ["Unit Test 1", "Half Yearly", "Unit Test 2", "Pre-Board", "Final"]
-    growth_data = [65, 72, 78, 85, 88]
-
+    # Attendance Data
     total_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s", (roll_no,))["c"]
     present_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s AND status='Present'", (roll_no,))["c"]
     attendance_pct = round((present_days / total_days * 100), 2) if total_days > 0 else 0
+    heatmap_data = {str(r['att_date']): r['status'] for r in db_all("SELECT att_date, status FROM attendance WHERE roll_no=%s", (roll_no,))}
+
+    # Academic & Notes Data
+    marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
+    try: teacher_notes = db_all("SELECT * FROM teacher_notes WHERE roll_no=%s ORDER BY id DESC", (roll_no,))
+    except: teacher_notes = []
+
+    # AI Warnings
+    warnings = []
+    if attendance_pct < 75 and total_days > 0: warnings.append(f"Low Attendance ({attendance_pct}%).")
+    if float(total_due) > 5000: warnings.append(f"High Pending Dues (₹{total_due}).")
+
+    # Portfolio List
+    portfolio_list = [link.strip() for link in student['portfolio_links'].split(',')] if student['portfolio_links'] else []
+
+    return render_template("students/student_profile.html", 
+        student=student, total_paid=total_paid, total_due=total_due, 
+        marks_data=marks_data, recent_payments=recent_payments,
+        total_days=total_days, present_days=present_days, attendance_pct=attendance_pct, 
+        heatmap_data=heatmap_data, warnings=warnings, teacher_notes=teacher_notes,
+        portfolio_list=portfolio_list, growth_labels=["UT-1", "Half Yearly", "UT-2", "Pre-Board"], growth_data=[65, 72, 78, 85] 
+    )
+
+@app.route("/student/add_note/<roll_no>", methods=["POST"])
+@login_required
+def add_teacher_note(roll_no):
+    note_text = request.form.get("note_text")
+    if note_text:
+        run("INSERT INTO teacher_notes (roll_no, note_text, teacher_name) VALUES (%s, %s, %s)", (roll_no, note_text, session.get("name", "Teacher")))
+        flash("✅ Diary note added!", "success")
+    return redirect(url_for("student_profile", roll_no=roll_no))
+
+# -------- PDF & Gate Pass Generation --------
+@app.route("/student/dossier/pdf/<roll_no>")
+@login_required
+def student_dossier_pdf(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    marks = db_all("SELECT * FROM marks WHERE roll_no=%s", (roll_no,))
     
-    att_records = db_all("SELECT att_date, status FROM attendance WHERE roll_no=%s ORDER BY att_date ASC", (roll_no,))
-    heatmap_data = {str(r['att_date']): r['status'] for r in att_records}
+    html = f"""
+    <html><body>
+    <h2 style="text-align:center; color: #2c3e50;">STUDENT DOSSIER</h2>
+    <hr>
+    <h3>Personal Info</h3>
+    <p><b>Name:</b> {student['name']}<br><b>Roll No:</b> {student['roll_no']}<br><b>Class:</b> {student['class_name']}<br><b>Father:</b> {student['father']}</p>
+    <h3>Academic Records</h3>
+    <table border="1" style="width:100%; text-align:left; border-collapse: collapse;">
+        <tr style="background:#f2f2f2;"><th>Subject</th><th>Marks</th><th>Total</th></tr>
+        {''.join([f"<tr><td>{m['subject']}</td><td>{m['marks']}</td><td>{m['total']}</td></tr>" for m in marks])}
+    </table>
+    </body></html>
+    """
+    pdf = io.BytesIO()
+    pisa.CreatePDF(html, dest=pdf)
+    pdf.seek(0)
+    return send_file(pdf, mimetype='application/pdf', as_attachment=True, download_name=f"{roll_no}_Dossier.pdf")
 
-    try: documents = db_all("SELECT * FROM student_documents WHERE roll_no=%s ORDER BY id DESC", (roll_no,))
-    except: documents = []
+@app.route("/api/generate-gate-pass/<roll_no>")
+@login_required
+def generate_gate_pass(roll_no):
+    run("UPDATE students SET gate_pass_active=TRUE WHERE roll_no=%s", (roll_no,))
+    data = f"GATE_PASS|{roll_no}|{datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    qr = qrcode.QRCode(version=1, box_size=10, border=2); qr.add_data(data); qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffered = io.BytesIO(); img.save(buffered, format="PNG")
+    return jsonify({"qr_code": base64.b64encode(buffered.getvalue()).decode()})
 
-    try: discipline_logs = db_all("SELECT * FROM student_discipline WHERE roll_no=%s ORDER BY id DESC", (roll_no,))
-    except: discipline_logs = []
+# -------- ALL 8 AI ROUTES FOR STUDENT --------
+@app.route("/api/ai-study-plan/<roll_no>")
+@login_required
+def api_ai_study_plan(roll_no):
+    if not ai_model: return jsonify({"reply": "AI Offline"})
+    marks = db_all("SELECT subject, marks, total FROM marks WHERE roll_no=%s", (roll_no,))
+    prompt = f"Create a 7-day study plan for a student with marks: {marks}. Keep it short in Hinglish."
+    try: return jsonify({"reply": ai_model.generate_content(prompt).text})
+    except: return jsonify({"reply": "Error"})
 
-    return render_template("students/student_profile.html", student=student, total_paid=total_paid, total_due=total_due, 
-                           marks_data=marks_data, growth_labels=growth_labels, growth_data=growth_data,
-                           recent_payments=recent_payments, heatmap_data=heatmap_data,
-                           total_days=total_days, present_days=present_days, attendance_pct=attendance_pct, 
-                           documents=documents, discipline_logs=discipline_logs)
+@app.route("/api/ai-ptm-script/<roll_no>")
+@login_required
+def api_ai_ptm_script(roll_no):
+    if not ai_model: return jsonify({"reply": "AI Offline"})
+    student = one("SELECT name FROM students WHERE roll_no=%s", (roll_no,))
+    marks = db_all("SELECT subject, marks, total FROM marks WHERE roll_no=%s", (roll_no,))
+    prompt = f"Write a 1-minute PTM script for teacher to talk to parents of {student['name']} with marks: {marks}."
+    try: return jsonify({"reply": ai_model.generate_content(prompt).text})
+    except: return jsonify({"reply": "Error"})
+
+@app.route("/api/ai-grade-predictor/<roll_no>")
+@login_required
+def api_ai_grade_predictor(roll_no):
+    if not ai_model: return jsonify({"reply": "AI Offline"})
+    marks = db_all("SELECT subject, marks, total FROM marks WHERE roll_no=%s", (roll_no,))
+    prompt = f"Predict next exam percentage and give 2 tips based on marks: {marks}."
+    try: return jsonify({"reply": ai_model.generate_content(prompt).text})
+    except: return jsonify({"reply": "Error"})
+
+@app.route("/api/ai-psych-alert/<roll_no>")
+@login_required
+def api_ai_psych_alert(roll_no):
+    if not ai_model: return jsonify({"reply": "AI Offline"})
+    notes = db_all("SELECT note_text FROM teacher_notes WHERE roll_no=%s", (roll_no,))
+    notes_str = " | ".join([n['note_text'] for n in notes]) if notes else "No notes."
+    prompt = f"Analyze behavior from notes: '{notes_str}'. Give a 2-line psychological insight."
+    try: return jsonify({"reply": ai_model.generate_content(prompt).text})
+    except: return jsonify({"reply": "Error"})
+
+@app.route("/api/ai-career-counselor/<roll_no>")
+@login_required
+def api_ai_career_counselor(roll_no):
+    if not ai_model: return jsonify({"reply": "AI Offline"})
+    marks = db_all("SELECT subject, marks, total FROM marks WHERE roll_no=%s", (roll_no,))
+    prompt = f"Act as Career Counselor. Suggest stream and top 3 careers based on marks: {marks}. Keep it under 50 words."
+    try: return jsonify({"reply": ai_model.generate_content(prompt).text})
+    except: return jsonify({"reply": "Error"})
+
+@app.route("/api/ai-dropout-risk/<roll_no>")
+@login_required
+def api_ai_dropout_risk(roll_no):
+    if not ai_model: return jsonify({"risk_score": 50, "reason": "AI Offline", "action": "Check manually"})
+    due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE roll_no=%s", (roll_no,))["t"]
+    absent = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s AND status='Absent'", (roll_no,))["c"]
+    prompt = f"Analyze dropout risk. Pending Fees: {due}, Absences: {absent}. Output ONLY JSON: {{\"risk_score\": 0-100, \"reason\": \"...\", \"action\": \"...\"}}"
+    try:
+        res = ai_model.generate_content(prompt).text.replace('```json', '').replace('```', '').strip()
+        return jsonify(json.loads(res))
+    except: return jsonify({"risk_score": 50, "reason": "Error", "action": "Manual check"})
+
+@app.route("/api/ai-sentiment/<roll_no>")
+@login_required
+def api_ai_sentiment(roll_no):
+    if not ai_model: return jsonify({"sentiment": "Neutral", "score": 50, "advice": "AI Offline"})
+    notes = db_all("SELECT note_text FROM teacher_notes WHERE roll_no=%s", (roll_no,))
+    notes_str = " | ".join([n['note_text'] for n in notes]) if notes else "Good"
+    prompt = f"Analyze sentiment: '{notes_str}'. Output ONLY JSON: {{\"sentiment\": \"Positive/Negative/Neutral\", \"score\": 0-100, \"advice\": \"...\"}}"
+    try:
+        res = ai_model.generate_content(prompt).text.replace('```json', '').replace('```', '').strip()
+        return jsonify(json.loads(res))
+    except: return jsonify({"sentiment": "Neutral", "score": 50, "advice": "Error"})
+
+@app.route("/api/ai-subject-forecast/<roll_no>")
+@login_required
+def api_ai_subject_forecast(roll_no):
+    if not ai_model: return jsonify({"reply": "AI Offline"})
+    marks = db_all("SELECT subject, marks, total FROM marks WHERE roll_no=%s", (roll_no,))
+    prompt = f"Forecast which subject is at highest risk of dropping next term based on marks: {marks}."
+    try: return jsonify({"reply": ai_model.generate_content(prompt).text})
+    except: return jsonify({"reply": "Error"})
 
 @app.route("/student/edit/<roll_no>", methods=["GET", "POST"])
 @login_required
@@ -762,8 +903,6 @@ def notices():
 # ==========================================
 # 🚀 APP RUN
 # ==========================================
-# Render par chalane ke liye `if __name__ == '__main__':` block ki zaroorat nahi hoti, 
-# par local testing ke liye yeh rakhna sahi hai.
 if __name__ == '__main__':
     init_db()
     socketio.run(app, debug=True, port=5000)
