@@ -688,6 +688,18 @@ def ai_auto_whatsapp():
         reminders.append({**dict(d), "wa_link": wa_link, "message": msg})
 
     return render_template("ai_auto_whatsapp.html", reminders=reminders)
+@app.route("/fees")
+@login_required
+def fees():
+    # Students aur Fees ko join karke data laao
+    rows = db_all("""
+        SELECT s.roll_no, s.name, s.class_name, s.section, 
+               f.tuition_fee, f.transport_fee, f.hostel_fee, f.misc_fee, f.back_dues
+        FROM students s 
+        LEFT JOIN student_fees f ON s.roll_no = f.roll_no
+        ORDER BY s.roll_no
+    """)
+    return render_template("fees.html", fees=rows)
 
 
 # ---------------- APP RUN (SocketIO) ----------------
