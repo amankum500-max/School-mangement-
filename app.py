@@ -1,519 +1,501 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}School ERP{% endblock %}</title>
-
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-
-  <!-- Apply saved theme BEFORE paint (prevents dark-mode flash) -->
-  <script>
-    (function () {
-      try {
-        var saved = localStorage.getItem('theme');
-        if (saved === 'dark' ||
-           (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-          document.documentElement.classList.add('dark');
-        }
-      } catch (e) {}
-    })();
-  </script>
-
-  <style>
-    /* ====================================================
-       MASTER DESIGN SYSTEM
-    ==================================================== */
-    :root {
-      --primary: #6366f1;
-      --primary-grad: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --bg: #f8fafc;
-      --card: #ffffff;
-      --text: #0f172a;
-      --border: #e2e8f0;
-      --sidebar-bg: #0a0e1a;
-      --sidebar-hover: #1e293b;
-      --danger: #ef4444;
-      --danger-hover: #f87171;
-    }
-
-    /* Dark mode via html element */
-    html.dark {
-      --bg: #0f172a;
-      --card: #1e293b;
-      --text: #f1f5f9;
-      --border: #334155;
-      color-scheme: dark;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body { height: 100%; }
-
-    body {
-      font-family: 'Inter', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      display: flex;
-      min-height: 100vh;
-      transition: background .3s, color .3s;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    a { color: inherit; }
-    button { font-family: inherit; }
-
-    /* ---------- SIDEBAR ---------- */
-    .sidebar {
-      width: 280px;
-      background: var(--sidebar-bg);
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      position: fixed;
-      inset: 0 auto 0 0;
-      z-index: 100;
-      overflow-y: auto;
-      transition: transform .3s ease;
-    }
-
-    .sidebar::-webkit-scrollbar { width: 6px; }
-    .sidebar::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,.15);
-      border-radius: 3px;
-    }
-
-    .sidebar-logo {
-      padding: 25px 20px;
-      font-size: 22px;
-      font-weight: 800;
-      border-bottom: 1px solid rgba(255,255,255,.1);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      letter-spacing: -0.3px;
-    }
-
-    .sidebar-nav {
-      padding: 20px 15px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .sidebar-link {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      padding: 16px 18px;
-      border-radius: 12px;
-      color: #94a3b8;
-      text-decoration: none;
-      font-size: 16px;
-      font-weight: 700;
-      transition: background .2s, color .2s, transform .2s;
-      margin-bottom: 6px;
-    }
-
-    .sidebar-link:hover {
-      background: var(--sidebar-hover);
-      color: #fff;
-      transform: translateX(5px);
-    }
-
-    .sidebar-link.active {
-      background: var(--primary-grad);
-      color: #fff;
-      box-shadow: 0 6px 16px rgba(99,102,241,.35);
-    }
-
-    .sidebar-link .ico { font-size: 22px; width: 24px; text-align: center; }
-
-    .sidebar-divider {
-      height: 1px;
-      background: rgba(255,255,255,.1);
-      margin: 20px 15px 12px;
-    }
-
-    .logout-link { color: var(--danger); margin-top: auto; }
-    .logout-link:hover {
-      background: rgba(239,68,68,.12);
-      color: var(--danger-hover);
-      transform: translateX(5px);
-    }
-
-    /* ---------- MAIN CONTENT ---------- */
-    .main-content {
-      flex: 1;
-      margin-left: 280px;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      min-width: 0; 
-    }
-
-    /* ---------- TOPBAR ---------- */
-    .topbar {
-      height: 85px;
-      background: var(--card);
-      border-bottom: 1px solid var(--border);
-      padding: 0 30px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      position: sticky;
-      top: 0;
-      z-index: 90;
-      transition: background .3s, border-color .3s;
-    }
-
-    .topbar-left { display: flex; align-items: center; gap: 15px; min-width: 0; }
-
-    .topbar h2 {
-      font-size: 24px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .topbar-actions { display: flex; align-items: center; gap: 15px; }
-
-    .topbar-btn {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text);
-      cursor: pointer;
-      font-size: 20px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      transition: background .2s, transform .15s;
-      text-decoration: none;
-      flex-shrink: 0;
-    }
-
-    .topbar-btn:hover { background: var(--border); }
-    .topbar-btn:active { transform: scale(.95); }
-    .topbar-btn:focus-visible {
-      outline: 2px solid var(--primary);
-      outline-offset: 2px;
-    }
-
-    .topbar-user {
-      padding: 6px 16px 6px 6px;
-      border-radius: 24px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      font-size: 15px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      max-width: 240px;
-    }
-
-    .topbar-user span {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .topbar-user .avatar {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      background: var(--primary-grad);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 15px;
-      font-weight: 800;
-      flex-shrink: 0;
-    }
-
-    /* ---------- PAGE CONTENT ---------- */
-    .page-content {
-      padding: 30px;
-      max-width: 1500px;
-      margin: 0 auto;
-      width: 100%;
-    }
-
-    /* ---------- FLASH MESSAGES ---------- */
-    .flash {
-      padding: 14px 18px;
-      margin-bottom: 16px;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 15px;
-      border-left: 4px solid;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .flash-error, .flash-danger { background: #fee2e2; color: #991b1b; border-color: #ef4444; }
-    .flash-success            { background: #dcfce7; color: #166534; border-color: #22c55e; }
-    .flash-warning            { background: #fef3c7; color: #92400e; border-color: #f59e0b; }
-    .flash-info, .flash-message { background: #dbeafe; color: #1e40af; border-color: #3b82f6; }
-
-    html.dark .flash-error, html.dark .flash-danger { background: #451a1a; color: #fecaca; }
-    html.dark .flash-success { background: #052e16; color: #bbf7d0; }
-    html.dark .flash-warning { background: #451a03; color: #fde68a; }
-    html.dark .flash-info, html.dark .flash-message { background: #172554; color: #bfdbfe; }
-
-    /* ---------- MOBILE OVERLAY ---------- */
-    .overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.55);
-      z-index: 99;
-      opacity: 0;
-      transition: opacity .3s;
-    }
-    .overlay.active { display: block; opacity: 1; }
-
-    /* ---------- MENU BUTTON (hidden by default) ---------- */
-    #menuBtn { display: none; }
-
-    /* ---------- RESPONSIVE ---------- */
-    @media (max-width: 900px) {
-      .sidebar { transform: translateX(-100%); }
-      .sidebar.open { transform: translateX(0); }
-
-      .main-content { margin-left: 0; }
-      .page-content { padding: 15px; }
-
-      .topbar { padding: 0 15px; height: 72px; }
-      .topbar h2 { font-size: 18px; }
-
-      #menuBtn { display: inline-flex; }
-
-      .topbar-user span { display: none; }
-      .topbar-user { padding: 6px; }
-
-      .topbar-btn { width: 42px; height: 42px; font-size: 18px; }
-      .topbar-user .avatar { width: 42px; height: 42px; }
-    }
-  </style>
-</head>
-<body>
-
-  <!-- Mobile backdrop -->
-  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
-
-  <!-- SIDEBAR -->
-  <aside class="sidebar" id="sidebar" aria-label="Main navigation">
-    <div class="sidebar-logo">🏫 School ERP</div>
-    <nav class="sidebar-nav">
-      {% set current_path = request.path if request is defined else '' %}
-      <a href="/dashboard"     class="sidebar-link {% if current_path.startswith('/dashboard') %}active{% endif %}">
-        <span class="ico">📊</span> Dashboard
-      </a>
-      <a href="/students"      class="sidebar-link {% if current_path.startswith('/students') %}active{% endif %}">
-        <span class="ico">🎓</span> Students
-      </a>
-      <a href="/fees"          class="sidebar-link {% if current_path.startswith('/fees') %}active{% endif %}">
-        <span class="ico">💵</span> Fees
-      </a>
-      <a href="/attendance"    class="sidebar-link {% if current_path.startswith('/attendance') %}active{% endif %}">
-        <span class="ico">📅</span> Attendance
-      </a>
-      <a href="/staff"         class="sidebar-link {% if current_path.startswith('/staff') %}active{% endif %}">
-        <span class="ico">👨‍🏫</span> Staff
-      </a>
-      <a href="/notices"       class="sidebar-link {% if current_path.startswith('/notices') %}active{% endif %}">
-        <span class="ico">📢</span> Notices
-      </a>
-      <a href="/ai-assistant"  class="sidebar-link {% if current_path.startswith('/ai-assistant') %}active{% endif %}">
-        <span class="ico">🤖</span> AI Assistant
-      </a>
-
-      <div class="sidebar-divider"></div>
-      <a href="/logout" class="sidebar-link logout-link">
-        <span class="ico">🚪</span> Logout
-      </a>
-    </nav>
-  </aside>
-
-  <!-- MAIN CONTENT -->
-  <main class="main-content">
-    <header class="topbar">
-      <div class="topbar-left">
-        <button class="topbar-btn" id="menuBtn"
-                aria-label="Toggle sidebar"
-                onclick="toggleSidebar()">☰</button>
-        <h2>{% block page_title %}Dashboard{% endblock %}</h2>
-      </div>
-
-      <div class="topbar-actions">
-        <button class="topbar-btn" id="themeBtn"
-                aria-label="Toggle dark mode"
-                onclick="toggleTheme()">🌙</button>
-        <div class="topbar-user" title="{{ session.name or 'Admin' if session is defined else 'Admin' }}">
-          <span>{{ session.name or 'Admin' if session is defined else 'Admin' }}</span>
-          <div class="avatar">
-            {{ ((session.name or 'A') if session is defined else 'A')[0]|upper }}
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <div class="page-content">
-      {# Category-based flash messages #}
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, msg in messages %}
-            <div class="flash flash-{{ category }}">{{ msg }}</div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
-
-      {% block content %}{% endblock %}
-    </div>
-  </main>
-
-  <script>
-    /* ---------- Sidebar (mobile) ---------- */
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('overlay');
-
-    function openSidebar() {
-      sidebar.classList.add('open');
-      overlay.classList.add('active');
-    }
-    function closeSidebar() {
-      sidebar.classList.remove('open');
-      overlay.classList.remove('active');
-    }
-    function toggleSidebar() {
-      sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
-    }
-
-    /* Auto-close sidebar on link click (mobile) */
-    document.querySelectorAll('.sidebar-link').forEach(function (link) {
-      link.addEventListener('click', function () {
-        if (window.innerWidth <= 900) closeSidebar();
-      });
-    });
-
-    /* ---------- Dark mode ---------- */
-    const themeBtn = document.getElementById('themeBtn');
-
-    function applyThemeIcon() {
-      const isDark = document.documentElement.classList.contains('dark');
-      themeBtn.textContent = isDark ? '☀️' : '🌙';
-      themeBtn.setAttribute('aria-pressed', isDark);
-    }
-
-    function toggleTheme() {
-      const isDark = document.documentElement.classList.toggle('dark');
-      try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (e) {}
-      applyThemeIcon();
-    }
-
-    applyThemeIcon(); // set icon on load
-
-    /* ---------- Close sidebar on Escape ---------- */
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') closeSidebar();
-    });
-   {% extends "base.html" %}
-
-{% block page_title %}Dashboard{% endblock %}
-
-{% block content %}
-<!-- Chart.js CDN (Head me add karein ya yahan) -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<!-- Leaflet Map CSS/JS (Map ke liye) -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-<!-- 1. REVENUE CHART -->
-<div class="card">
-    <h3>Revenue Flow</h3>
-    <div style="height: 300px; width: 100%;">
-        <canvas id="revenueChart"></canvas>
-    </div>
-</div>
-
-<!-- 2. LIVE RADAR MAP -->
-<div class="card">
-    <h3>Live Radar</h3>
-    <div id="map" style="height: 300px; width: 100%;"></div>
-</div>
-
-<!-- 3. WHATSAPP FORM -->
-<div class="card">
-    <h3>WhatsApp Message</h3>
-    <form action="/send-whatsapp" method="POST">
-        <textarea name="whatsapp_msg" placeholder="Type broadcast message..." required></textarea>
-        <button type="submit">SEND BROADCAST</button>
-    </form>
-</div>
-
-<!-- 4. EMAIL FORM -->
-<div class="card">
-    <h3>Email Message</h3>
-    <form action="/send-email" method="POST">
-        <input type="text" name="email_subject" placeholder="Subject..." required>
-        <textarea name="email_body" placeholder="Message..." required></textarea>
-        <button type="submit">SEND EMAIL</button>
-    </form>
-</div>
-
-<!-- 5. JAVASCRIPT LOGIC (Charts, Map, Weather, Window Buttons) -->
-<script>
-    // --- Chart JS ---
-    const ctx = document.getElementById('revenueChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: {{ labels | tojson }}, 
-            datasets: [{
-                label: 'Revenue (₹)',
-                data: {{ data | tojson }},
-                borderColor: '#6366f1',
-                backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                fill: true
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
-    });
-
-    // --- Map JS ---
-    var map = L.map('map').setView([28.6139, 77.2090], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-    // --- Weather API ---
-    fetch('https://api.openweathermap.org/data/2.5/weather?q=Delhi&appid=YOUR_API_KEY&units=metric')
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('weather-temp').innerText = Math.round(data.main.temp) + '°C';
-        });
-
-    // --- Window Control Buttons (Red/Green/Yellow) ---
-    function closeCard(btn) {
-        btn.closest('.card').style.display = 'none';
-    }
-    function maximizeCard(btn) {
-        let card = btn.closest('.card');
-        if (card.requestFullscreen) card.requestFullscreen();
-    }
-</script>
-{% endblock %} 
-  </script>
-</body>
-</html>
+import os
+from datetime import datetime
+from functools import wraps
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+import google.generativeai as genai
+
+# Local Database Functions
+from database import init_db, run, all as db_all, one, current_month, today
+
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "school-secret-key-2026")
+
+# Setup Gemini AI
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
+if GEMINI_KEY:
+    genai.configure(api_key=GEMINI_KEY)
+    ai_model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    ai_model = None
+
+
+# ---------------- AUTH DECORATOR & ROUTES ----------------
+def login_required(f):
+    @wraps(f)
+    def wrapper(*a, **kw):
+        if "user" not in session:
+            return redirect(url_for("login"))
+        return f(*a, **kw)
+    return wrapper
+
+@app.route("/", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        u = request.form.get("username", "").strip()
+        p = request.form.get("password", "").strip()
+        if u == "admin" and p == "admin123":
+            session["user"] = u
+            session["role"] = "admin"
+            session["name"] = "System Admin"
+            return redirect(url_for("dashboard"))
+        flash("Invalid credentials!", "error")
+    return render_template("auth/login.html")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+# ---------------- DASHBOARD ----------------
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    try:
+        students_count = one("SELECT COUNT(*) c FROM students")["c"]
+        total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE balance > 0")["t"]
+        today_collection = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE pay_date = %s", (today(),))["t"]
+        
+        # Fee Status Data for Doughnut Chart
+        paid = one("SELECT COUNT(*) c FROM bills WHERE status='Paid'")["c"]
+        partial = one("SELECT COUNT(*) c FROM bills WHERE status='Partial'")["c"]
+        unpaid = one("SELECT COUNT(*) c FROM bills WHERE status='Unpaid' OR status IS NULL")["c"]
+        fee_status = [paid, partial, unpaid]
+
+        # Monthly Trend Data for Bar Chart (Last 6 Months)
+        trend = db_all("""
+            SELECT substr(pay_date, 1, 7) as month, SUM(amount) as total
+            FROM payments GROUP BY substr(pay_date, 1, 7)
+            ORDER BY month DESC LIMIT 6
+        """)
+        trend.reverse()  # Chronological order
+        trend_labels = [t['month'] for t in trend]
+        trend_data = [float(t['total']) for t in trend]
+
+    except Exception as e:
+        print("Dashboard Error:", e)
+        students_count, total_due, today_collection = 0, 0, 0
+        fee_status = [0, 0, 0]
+        trend_labels = []
+        trend_data = []
+
+    return render_template(
+        "dashboard/dashboard.html",
+        students=students_count,
+        total_due=total_due,
+        today_collection=today_collection,
+        fee_status=fee_status,
+        trend_labels=trend_labels,
+        trend_data=trend_data
+    )
+
+
+# ---------------- STUDENTS ----------------
+@app.route("/students")
+@login_required
+def students():
+    try:
+        rows = db_all("SELECT * FROM students ORDER BY roll_no")
+    except Exception:
+        rows = []
+    return render_template("students/students.html", students=rows)
+
+@app.route("/student/add", methods=["POST"])
+@login_required
+def add_student():
+    d = request.form
+    try:
+        run("""INSERT INTO students (roll_no, name, class_name, father, parent_contact) 
+               VALUES (%s, %s, %s, %s, %s)""",
+            (d["roll_no"], d["name"], d.get("class_name", ""), d.get("father", ""), d.get("parent_contact", "")))
+        flash("✅ Student added successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("students"))
+
+
+# ---------------- BILLS & FEES ----------------
+@app.route("/bills")
+@login_required
+def bills():
+    month = request.args.get("month", current_month())
+    try:
+        rows = db_all("SELECT * FROM bills WHERE month=%s ORDER BY roll_no", (month,))
+    except Exception:
+        rows = []
+    return render_template("fees/bills.html", bills=rows, month=month)
+
+@app.route("/bills/generate", methods=["POST"])
+@login_required
+def generate_bills():
+    month = request.form["month"]
+    students_list = db_all("SELECT roll_no, name FROM students")
+    created = skipped = 0
+    
+    for s in students_list:
+        roll = s["roll_no"]
+        ex = one("SELECT id FROM bills WHERE roll_no=%s AND month=%s", (roll, month))
+        if ex:
+            skipped += 1
+            continue
+            
+        fs = one("SELECT * FROM student_fees WHERE roll_no=%s", (roll,))
+        if not fs:
+            skipped += 1
+            continue
+            
+        t = fs["tuition_fee"] or 0
+        tr = fs["transport_fee"] or 0
+        ho = fs["hostel_fee"] or 0
+        adm_paid = fs["admission_paid"] or 0
+        
+        prev_added = one("SELECT COALESCE(SUM(admission),0) a FROM bills WHERE roll_no=%s", (roll,))["a"]
+        adm = 0 if (adm_paid or prev_added > 0) else (fs["admission_fee"] or 0)
+        dr = 0 if prev_added > 0 else (fs["dress_fee"] or 0)
+        ex_f = 0 if prev_added > 0 else (fs["exam_fee"] or 0)
+        bk = 0 if prev_added > 0 else (fs["book_fee"] or 0)
+        nb = 0 if prev_added > 0 else (fs["notebook_fee"] or 0)
+        ms = fs["misc_fee"] or 0
+        
+        prev_due = one("SELECT COALESCE(SUM(balance),0) d FROM bills WHERE roll_no=%s AND balance>0", (roll,))["d"]
+        
+        total = t + tr + ho + adm + dr + ex_f + bk + nb + ms + prev_due
+        bill_no = f"B{month.replace('-','')}{roll}"
+
+        run("""INSERT INTO bills
+            (bill_no,roll_no,month,bill_date,tuition,transport,hostel,
+             admission,dress,exam,book,notebook,misc,prev_due,total,paid,balance,status)
+            VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (bill_no, roll, month, today(), t, tr, ho, adm, dr, ex_f, bk, nb, ms, prev_due, total, 0, total, "Unpaid"))
+        created += 1
+        
+    flash(f"✅ Bills generated: {created} | Skipped: {skipped}", "success")
+    return redirect(url_for("bills", month=month))
+
+@app.route("/collect/<roll_no>", methods=["GET", "POST"])
+@login_required
+def collect(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("Student not found", "error")
+        return redirect(url_for("students"))
+
+    if request.method == "POST":
+        amount = float(request.form.get("amount") or 0)
+        mode = request.form.get("mode", "Cash")
+        remark = request.form.get("remark", "")
+        
+        if amount <= 0:
+            flash("Amount must be greater than 0", "error")
+            return redirect(url_for("collect", roll_no=roll_no))
+
+        try:
+            receipt_no = f"RCP{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            
+            # 1. Payment insert
+            run("""INSERT INTO payments (receipt_no, roll_no, amount, mode, pay_date, remark)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (receipt_no, roll_no, amount, mode, today(), remark))
+            
+            # 2. Distribute amount to bills
+            bills_list = db_all("SELECT id, balance, paid, total FROM bills WHERE roll_no=%s AND balance>0 ORDER BY month ASC", (roll_no,))
+            rem = amount
+            for b in bills_list:
+                if rem <= 0:
+                    break
+                deduct = min(rem, float(b['balance']))
+                new_paid = float(b['paid']) + deduct
+                new_bal = float(b['total']) - new_paid
+                status = "Paid" if new_bal <= 0 else "Partial"
+                
+                run("UPDATE bills SET paid=%s, balance=%s, status=%s WHERE id=%s",
+                    (new_paid, new_bal, status, b['id']))
+                rem -= deduct
+                
+            flash(f"✅ ₹{amount} collected successfully!", "success")
+            return redirect(url_for("receipt", roll_no=roll_no, receipt_no=receipt_no))
+        except Exception as e:
+            flash(f"❌ Error: {e}", "error")
+            
+    # GET Request: Fetch pending bills
+    bills_list = db_all("SELECT * FROM bills WHERE roll_no=%s AND balance>0 ORDER BY month ASC", (roll_no,))
+    total_due = sum(float(b['balance']) for b in bills_list)
+    
+    return render_template("fees/collect.html", student=student, bills=bills_list, total_due=total_due)
+
+@app.route("/receipt/<roll_no>/<receipt_no>")
+@login_required
+def receipt(roll_no, receipt_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    payment = one("SELECT * FROM payments WHERE receipt_no=%s", (receipt_no,))
+    if not student or not payment:
+        flash("Receipt not found", "error")
+        return redirect(url_for("students"))
+    
+    return render_template("fees/receipt.html", student=student, payment=payment, now=datetime.now())
+
+@app.route("/defaulters")
+@login_required
+def defaulters():
+    try:
+        rows = db_all("""SELECT s.roll_no, s.name, s.class_name, s.section,
+                         s.parent_contact, b.month, b.balance
+                         FROM bills b JOIN students s ON b.roll_no = s.roll_no
+                         WHERE b.balance > 0 ORDER BY b.balance DESC""")
+        total = sum(float(r["balance"]) for r in rows)
+    except Exception:
+        rows = []
+        total = 0
+    return render_template("fees/defaulters.html", defaulters=rows, total=total)
+
+
+# ---------------- ATTENDANCE ----------------
+@app.route("/attendance", methods=["GET", "POST"])
+@login_required
+def attendance():
+    if request.method == "POST":
+        att_date = request.form.get("att_date")
+        class_name = request.form.get("class_name")
+        
+        run("""DELETE FROM attendance WHERE att_date=%s AND roll_no IN 
+               (SELECT roll_no FROM students WHERE class_name=%s)""", (att_date, class_name))
+        
+        present_count = 0
+        for key, value in request.form.items():
+            if key.startswith("status_"):
+                roll_no = key.replace("status_", "")
+                run("INSERT INTO attendance (roll_no, att_date, status) VALUES (%s, %s, %s)", 
+                    (roll_no, att_date, value))
+                if value == "Present":
+                    present_count += 1
+                
+        flash(f"✅ Attendance marked for {class_name}! Present: {present_count}", "success")
+        return redirect(url_for("attendance", date=att_date, class_name=class_name))
+
+    att_date = request.args.get("date", today())
+    class_name = request.args.get("class_name", "")
+    
+    students_list = []
+    existing_att = {}
+    
+    if class_name:
+        students_list = db_all("SELECT * FROM students WHERE class_name=%s ORDER BY roll_no", (class_name,))
+        att_records = db_all("SELECT roll_no, status FROM attendance WHERE att_date=%s", (att_date,))
+        existing_att = {a['roll_no']: a['status'] for a in att_records}
+
+    classes = db_all("SELECT DISTINCT class_name FROM students WHERE class_name IS NOT NULL ORDER BY class_name")
+    
+    return render_template("attendance/attendance.html", 
+                           students=students_list, classes=classes, 
+                           att_date=att_date, class_name=class_name, existing_att=existing_att)
+
+
+# ---------------- NOTICES ----------------
+@app.route("/notices", methods=["GET", "POST"])
+@login_required
+def notices():
+    if request.method == "POST":
+        d = request.form
+        run("""INSERT INTO notices (title, content, category, posted_by, posted_date, priority) 
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (d["title"], d["content"], "General", session.get("name", "Admin"), today(), "Normal"))
+        flash("✅ Notice posted successfully!", "success")
+        return redirect(url_for("notices"))
+        
+    notices_list = db_all("SELECT * FROM notices ORDER BY posted_date DESC, id DESC")
+    return render_template("communication/notices.html", notices=notices_list)
+
+
+# ---------------- AI ASSISTANT ----------------
+@app.route("/ai-assistant")
+@login_required
+def ai_assistant():
+    return render_template("ai/ai_assistant.html")
+
+@app.route("/api/ai-chat", methods=["POST"])
+@login_required
+def api_ai_chat():
+    if not ai_model:
+        return jsonify({"reply": "⚠️ AI Configure nahi hai. Render me GEMINI_API_KEY daalein."})
+        
+    data = request.get_json() or {}
+    user_msg = data.get("message", "").strip()
+    if not user_msg:
+        return jsonify({"reply": "Kuch toh likho bhai!"})
+        
+    try:
+        students_count = one("SELECT COUNT(*) c FROM students")["c"]
+        total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE balance > 0")["t"]
+        today_collection = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE pay_date = %s", (today(),))["t"]
+        
+        prompt = f"""
+        Aap ek School Management System ke AI Assistant hain.
+        Aapko Hinglish (Hindi + English) me short aur helpful jawab dena hai.
+        
+        Live School Data:
+        - Total Students: {students_count}
+        - Total Pending Fees: Rs {total_due}
+        - Today's Collection: Rs {today_collection}
+        
+        User ka Sawaal: {user_msg}
+        """
+        
+        response = ai_model.generate_content(prompt)
+        return jsonify({"reply": response.text})
+    except Exception as e:
+        return jsonify({"reply": f"❌ AI Error: {str(e)}"})
+
+
+# ---------------- EXAMS & MARKS ----------------
+def calc_grade(pct):
+    if pct >= 90: return "A+"
+    if pct >= 80: return "A"
+    if pct >= 70: return "B"
+    if pct >= 60: return "C"
+    if pct >= 50: return "D"
+    return "F"
+
+@app.route("/result", methods=["GET", "POST"])
+@login_required
+def result():
+    if request.method == "POST":
+        d = request.form
+        try:
+            existing = one("SELECT id FROM marks WHERE roll_no=%s AND subject=%s AND exam=%s", 
+                           (d["roll_no"], d["subject"], d["exam"]))
+            if existing:
+                run("UPDATE marks SET marks=%s, total=%s WHERE id=%s", 
+                    (d["marks"], d["total"], existing["id"]))
+                flash("✏️ Marks updated successfully!", "success")
+            else:
+                run("INSERT INTO marks (roll_no, subject, exam, marks, total) VALUES (%s,%s,%s,%s,%s)",
+                    (d["roll_no"], d["subject"], d["exam"], d["marks"], d["total"]))
+                flash("✅ Marks added successfully!", "success")
+        except Exception as e:
+            flash(f"❌ Error: {e}", "error")
+        return redirect(url_for("result", roll_no=d["roll_no"]))
+
+    roll = request.args.get("roll_no", "")
+    marks_data = []
+    student = None
+    if roll:
+        student = one("SELECT * FROM students WHERE roll_no=%s", (roll,))
+        marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll,))
+        
+    students_list = db_all("SELECT roll_no, name FROM students ORDER BY roll_no")
+    return render_template("exams/result.html", students=students_list, marks=marks_data, student=student, roll=roll)
+
+@app.route("/report-card/<roll_no>")
+@login_required
+def report_card(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("Student not found!", "error")
+        return redirect(url_for("students"))
+        
+    marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
+    
+    total_obtained = sum(float(m['marks'] or 0) for m in marks_data)
+    total_max = sum(float(m['total'] or 0) for m in marks_data)
+    percentage = (total_obtained / total_max * 100) if total_max > 0 else 0
+    overall_grade = calc_grade(percentage)
+    
+    return render_template("exams/report_card.html", 
+                           student=student, marks=marks_data, 
+                           total_obtained=total_obtained, total_max=total_max,
+                           percentage=round(percentage, 2), overall_grade=overall_grade,
+                           today_date=today())
+    # ---------------- NOTICES ----------------
+@app.route("/notices", methods=["GET", "POST"])
+@login_required
+def notices():
+    if request.method == "POST":
+        title = request.form.get("title")
+        content = request.form.get("content")
+        priority = request.form.get("priority", "Normal")
+        
+        if title and content:
+            run("INSERT INTO notices (title, content, priority, posted_date) VALUES (%s,%s,%s,%s)", 
+                (title, content, priority, today()))
+            flash("✅ Notice posted successfully!", "success")
+        return redirect(url_for("notices"))
+        
+    notice_list = db_all("SELECT * FROM notices WHERE is_active = TRUE ORDER BY id DESC")
+    return render_template("communication/notices.html", notices=notice_list)
+
+@app.route("/notice/delete/<int:nid>")
+@login_required
+def delete_notice(nid):
+    run("UPDATE notices SET is_active = FALSE WHERE id = %s", (nid,))
+    flash("🗑️ Notice removed", "success")
+    return redirect(url_for("notices"))
+    # ---------------- STAFF MANAGEMENT ----------------
+@app.route("/staff")
+@login_required
+def staff():
+    try:
+        rows = db_all("SELECT * FROM staff WHERE is_active = TRUE ORDER BY name")
+        # Total monthly salary expense
+        total_salary = sum(float(s['salary'] or 0) for s in rows)
+    except:
+        rows = []
+        total_salary = 0
+    return render_template("management/staff.html", staff=rows, total_salary=total_salary)
+
+@app.route("/staff/add", methods=["POST"])
+@login_required
+def add_staff():
+    d = request.form
+    try:
+        run("""INSERT INTO staff (emp_id, name, designation, subject, phone, email, salary, joining_date) 
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (d["emp_id"], d["name"], d.get("designation"), d.get("subject"), 
+             d.get("phone"), d.get("email"), d.get("salary") or 0, d.get("joining_date")))
+        flash("✅ Staff member added successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e} (Make sure Employee ID is unique)", "error")
+    return redirect(url_for("staff"))
+
+@app.route("/staff/delete/<int:sid>")
+@login_required
+def delete_staff(sid):
+    try:
+        # Soft delete (record rehne do, bas deactivate kar do)
+        run("UPDATE staff SET is_active = FALSE WHERE id = %s", (sid,))
+        flash("🗑️ Staff member removed", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("staff"))
+    # ---------------- TRANSPORT MANAGEMENT ----------------
+@app.route("/transport")
+@login_required
+def transport():
+    try:
+        routes = db_all("SELECT * FROM transport_routes WHERE is_active = TRUE ORDER BY route_number")
+    except:
+        routes = []
+    return render_template("facilities/transport.html", routes=routes)
+
+@app.route("/transport/add", methods=["POST"])
+@login_required
+def add_transport():
+    d = request.form
+    try:
+        run("""INSERT INTO transport_routes (route_number, route_name, driver_name, driver_phone, vehicle_no, capacity) 
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (d["route_number"], d["route_name"], d.get("driver_name"), d.get("driver_phone"), d.get("vehicle_no"), d.get("capacity") or 40))
+        flash("✅ Transport route added successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e} (Route number must be unique)", "error")
+    return redirect(url_for("transport"))
+
+@app.route("/transport/delete/<int:rid>")
+@login_required
+def delete_transport(rid):
+    try:
+        run("UPDATE transport_routes SET is_active = FALSE WHERE id = %s", (rid,))
+        flash("🗑️ Route removed", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("transport"))
+    # -
