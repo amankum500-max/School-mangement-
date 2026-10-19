@@ -429,6 +429,91 @@
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') closeSidebar();
     });
+   {% extends "base.html" %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Chart.js CDN (Head me add karein ya yahan) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Leaflet Map CSS/JS (Map ke liye) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<!-- 1. REVENUE CHART -->
+<div class="card">
+    <h3>Revenue Flow</h3>
+    <div style="height: 300px; width: 100%;">
+        <canvas id="revenueChart"></canvas>
+    </div>
+</div>
+
+<!-- 2. LIVE RADAR MAP -->
+<div class="card">
+    <h3>Live Radar</h3>
+    <div id="map" style="height: 300px; width: 100%;"></div>
+</div>
+
+<!-- 3. WHATSAPP FORM -->
+<div class="card">
+    <h3>WhatsApp Message</h3>
+    <form action="/send-whatsapp" method="POST">
+        <textarea name="whatsapp_msg" placeholder="Type broadcast message..." required></textarea>
+        <button type="submit">SEND BROADCAST</button>
+    </form>
+</div>
+
+<!-- 4. EMAIL FORM -->
+<div class="card">
+    <h3>Email Message</h3>
+    <form action="/send-email" method="POST">
+        <input type="text" name="email_subject" placeholder="Subject..." required>
+        <textarea name="email_body" placeholder="Message..." required></textarea>
+        <button type="submit">SEND EMAIL</button>
+    </form>
+</div>
+
+<!-- 5. JAVASCRIPT LOGIC (Charts, Map, Weather, Window Buttons) -->
+<script>
+    // --- Chart JS ---
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ labels | tojson }}, 
+            datasets: [{
+                label: 'Revenue (₹)',
+                data: {{ data | tojson }},
+                borderColor: '#6366f1',
+                backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                fill: true
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // --- Map JS ---
+    var map = L.map('map').setView([28.6139, 77.2090], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    // --- Weather API ---
+    fetch('https://api.openweathermap.org/data/2.5/weather?q=Delhi&appid=YOUR_API_KEY&units=metric')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('weather-temp').innerText = Math.round(data.main.temp) + '°C';
+        });
+
+    // --- Window Control Buttons (Red/Green/Yellow) ---
+    function closeCard(btn) {
+        btn.closest('.card').style.display = 'none';
+    }
+    function maximizeCard(btn) {
+        let card = btn.closest('.card');
+        if (card.requestFullscreen) card.requestFullscreen();
+    }
+</script>
+{% endblock %} 
   </script>
 </body>
 </html>
