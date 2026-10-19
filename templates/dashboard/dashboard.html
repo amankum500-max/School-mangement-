@@ -50,7 +50,7 @@
 
   /* States */
   .hud-card.is-minimized .card-content { display: none; } 
-  .hud-card.is-minimized { padding-bottom: 20px; height: auto; }
+  .hud-card.is-minimized { padding-bottom: 20px; }
   .hud-card.is-maximized { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 99999; border-radius: 0; border: none; background: #030308; padding: 40px; margin: 0; box-shadow: none; animation: none; }
   .hud-card.is-maximized .card-content { height: calc(100vh - 100px); overflow-y: auto; }
 
@@ -115,7 +115,6 @@
   .hud-btn-email:hover { background: #00f3ff; color: #000; box-shadow: 0 0 30px #00f3ff; transform: translateY(-2px); }
 
   .hud-terminal { background: rgba(0,0,0,0.95); border: 1px solid #00f3ff; padding: 12px; border-radius: 8px; font-family: 'Courier New', monospace; color: #39ff14; font-size: 12px; height: 100%; min-height: 100px; overflow-y: auto; line-height: 1.6; box-shadow: inset 0 0 20px rgba(0,243,255,0.1); }
-  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 </style>
 
 <div class="hud-bg"><div class="hud-grid-bg"></div></div>
@@ -168,8 +167,8 @@
         <div class="card-content">
           <div class="hud-label">WEATHER SYSTEM</div>
           <div class="weather-hud">
-            <div><div class="weather-temp" id="temp">28°C</div><div class="weather-cond" id="weather-desc">CLEAR SKY</div></div>
-            <div class="weather-icon" id="weather-icon">☀️</div>
+            <div><div class="weather-temp" id="temp">--°C</div><div class="weather-cond" id="weather-desc">Loading...</div></div>
+            <div class="weather-icon" id="weather-icon">🌤️</div>
           </div>
         </div>
       </div>
@@ -280,7 +279,7 @@
         </div>
       </div>
 
-      <!-- Email Form -->
+      <!-- Email Form (COMPLETED) -->
       <div class="hud-card col-2">
         <div class="win-controls"><button class="win-btn win-min" onclick="minimizeCard(this)"></button><button class="win-btn win-max" onclick="maximizeCard(this)"></button><button class="win-btn win-close" onclick="closeCard(this)"></button></div>
         <div class="card-content">
@@ -295,67 +294,145 @@
     </div>
 </div>
 
+<!-- JAVASCRIPT FOR DASHBOARD FUNCTIONALITY -->
 <script>
-  // 1. Clock & Date
-  function updateClock() {
-    const now = new Date();
-    document.getElementById('hud-time').innerText = now.toLocaleTimeString('en-US', { hour12: false });
-    document.getElementById('hud-date').innerText = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
-  }
-  setInterval(updateClock, 1000);
-  updateClock();
-
-  // 2. Window Controls
-  function minimizeCard(btn) {
-    const card = btn.closest('.hud-card');
-    card.classList.toggle('is-minimized');
-  }
-
-  function maximizeCard(btn) {
-    const card = btn.closest('.hud-card');
-    card.classList.toggle('is-maximized');
-  }
-
-  function closeCard(btn) {
-    const card = btn.closest('.hud-card');
-    card.style.display = 'none';
-  }
-
-  function toggleFullScreen() {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
+    // 1. Live Clock
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('hud-time').innerText = now.toLocaleTimeString('en-US', { hour12: false });
+        document.getElementById('hud-date').innerText = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
     }
-  }
+    setInterval(updateClock, 1000);
+    updateClock();
 
-  // 3. Counter Animation
-  document.querySelectorAll('.counter').forEach(counter => {
-    const target = +counter.getAttribute('data-target');
-    let count = 0;
-    const speed = target / 50;
-    const updateCount = () => {
-      count += speed;
-      if (count < target) {
-        counter.innerText = Math.ceil(count).toLocaleString('en-IN');
-        setTimeout(updateCount, 30);
-      } else {
-        counter.innerText = target.toLocaleString('en-IN');
-      }
-    };
-    updateCount();
-  });
-
-  // 4. Vanilla Tilt
-  if (typeof VanillaTilt !== 'undefined') {
-    VanillaTilt.init(document.querySelectorAll(".tilt-card"), {
-      max: 10,
-      speed: 400,
-      glare: true,
-      "max-glare": 0.2,
+    // 2. Animated Counters
+    document.querySelectorAll('.counter').forEach(counter => {
+        const target = +counter.getAttribute('data-target');
+        const increment = target / 50; // Speed
+        let current = 0;
+        const updateCounter = () => {
+            current += increment;
+            if (current < target) {
+                counter.innerText = Math.ceil(current).toLocaleString();
+                requestAnimationFrame(updateCounter);
+            } else {
+                counter.innerText = target.toLocaleString();
+            }
+        };
+        updateCounter();
     });
-  }
 
-  // 5.
+    // 3. Window Controls (Min/Max/Close)
+    function minimizeCard(btn) {
+        const card = btn.closest('.hud-card');
+        card.classList.toggle('is-minimized');
+    }
+    function maximizeCard(btn) {
+        const card = btn.closest('.hud-card');
+        card.classList.toggle('is-maximized');
+    }
+    function closeCard(btn) {
+        const card = btn.closest('.hud-card');
+        card.style.display = 'none';
+    }
+
+    // 4. Fullscreen Mode
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    }
+
+    // 5. Vanilla Tilt (3D effect on cards)
+    VanillaTilt.init(document.querySelectorAll(".tilt-card"), {
+        max: 10,
+        speed: 400,
+        glare: true,
+        "max-glare": 0.2,
+    });
+
+    // 6. Weather API (Simulated for now - you can connect to OpenWeather)
+    setTimeout(() => {
+        document.getElementById('temp').innerText = "32°C";
+        document.getElementById('weather-desc').innerText = "Clear Sky";
+        document.getElementById('weather-icon').innerText = "☀️";
+    }, 1500);
+
+    // 7. Revenue Chart
+    const revCtx = document.getElementById('revenueChart').getContext('2d');
+    let revGradient = revCtx.createLinearGradient(0, 0, 0, 400);
+    revGradient.addColorStop(0, 'rgba(0, 243, 255, 0.5)');
+    revGradient.addColorStop(1, 'rgba(0, 243, 255, 0.0)');
+
+    new Chart(revCtx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+                label: 'Revenue',
+                data: [15000, 25000, 20000, 35000, 45000, 40000], // Dummy data
+                borderColor: '#00f3ff',
+                backgroundColor: revGradient,
+                borderWidth: 3,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: '#00f3ff',
+                pointRadius: 4,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#00f3ff' } },
+                x: { grid: { display: false }, ticks: { color: '#00f3ff' } }
+            }
+        }
+    });
+
+    // 8. Fee Distribution Chart
+    const feeCtx = document.getElementById('feeChart').getContext('2d');
+    new Chart(feeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Paid', 'Pending'],
+            datasets: [{
+                data: [75, 25], // Dummy data
+                backgroundColor: ['#39ff14', '#ff0055'],
+                borderWidth: 0,
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '75%',
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // 9. Live Map (Leaflet)
+    var map = L.map('map').setView([28.6139, 77.2090], 12); // Delhi coordinates
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: 'abcd',
+        maxZoom: 20
+    }).addTo(map);
+    
+    // Add a glowing marker
+    var myIcon = L.divIcon({
+        className: 'custom-div-icon',
+        html: "<div style='background-color:#ff0055; width:15px; height:15px; border-radius:50%; box-shadow:0 0 15px #ff0055;'></div>",
+        iconSize: [15, 15],
+        iconAnchor: [7, 7]
+    });
+    L.marker([28.6139, 77.2090], {icon: myIcon}).addTo(map);
+
+</script>
+{% endblock %}
