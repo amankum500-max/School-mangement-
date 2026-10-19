@@ -1,118 +1,141 @@
 {% extends "shared/base.html" %}
 {% block title %}AI Assistant{% endblock %}
-{% block page_title %}🤖 AI School Assistant{% endblock %}
+{% block page_title %}Jarvis AI Assistant{% endblock %}
 
 {% block content %}
-<div class="card" style="height: calc(100vh - 160px); display: flex; flex-direction: column; padding: 0; overflow: hidden;">
-  
-  <!-- Chat Header -->
-  <div style="padding: 15px 20px; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px;">
-    <div style="width: 40px; height: 40px; background: var(--primary-grad); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px;">🤖</div>
-    <div>
-      <h3 style="font-size: 16px; margin: 0;">Gemini AI Assistant</h3>
-      <p style="font-size: 12px; color: #64748b; margin: 0;">Live school data se connected</p>
-    </div>
-  </div>
-
-  <!-- Chat Messages -->
-  <div id="chatContainer" style="flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; background: var(--card);">
+<style>
+    /* Jarvis style Dark HUD UI */
+    .chat-container { height: 65vh; overflow-y: auto; padding: 20px; background: #0f172a; border-radius: 16px; border: 1px solid #334155; margin-bottom: 20px; box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.05); }
     
-    <!-- Welcome Message -->
-    <div style="display: flex; gap: 10px; max-width: 80%;">
-      <div style="width: 32px; height: 32px; background: var(--primary-grad); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;">🤖</div>
-      <div style="background: var(--bg); padding: 12px 16px; border-radius: 12px; border-top-left-radius: 0; font-size: 14px; line-height: 1.5; border: 1px solid var(--border);">
-        Namaste! 🙏 Main aapka AI Assistant hu. <br><br>
-        Aap mujhse school ke data ke baare me kuch bhi pooch sakte ho. Jaise:<br>
-        • "Total kitne students hain?"<br>
-        • "Aaj ka collection batao"<br>
-        • "Pending fees kitni hai?"
-      </div>
+    /* Scrollbar */
+    .chat-container::-webkit-scrollbar { width: 6px; }
+    .chat-container::-webkit-scrollbar-thumb { background: #38bdf8; border-radius: 10px; }
+    
+    .msg-user { background: rgba(14, 165, 233, 0.2); border: 1px solid #0ea5e9; color: white; padding: 12px 18px; border-radius: 20px 20px 0 20px; margin-bottom: 15px; max-width: 80%; margin-left: auto; box-shadow: 0 0 15px rgba(14, 165, 233, 0.2); }
+    .msg-ai { background: rgba(30, 41, 59, 0.8); color: #e2e8f0; padding: 12px 18px; border-radius: 20px 20px 20px 0; margin-bottom: 15px; max-width: 80%; border: 1px solid #334155; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+    
+    /* Jarvis Mic Button */
+    .mic-btn { width: 60px; height: 60px; border-radius: 50%; background: #ef4444; color: white; border: none; font-size: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); transition: 0.3s; flex-shrink: 0; }
+    .mic-btn:hover { transform: scale(1.1); background: #dc2626; }
+    .mic-btn.recording { animation: pulse-red 1.5s infinite; }
+    
+    @keyframes pulse-red { 
+        0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); } 
+        70% { box-shadow: 0 0 0 25px rgba(239,68,68,0); } 
+        100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } 
+    }
+
+    /* 3D Holographic AI Sphere */
+    .ai-orb { width: 80px; height: 80px; margin: 10px auto; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #38bdf8, #0ea5e9, #1e293b); box-shadow: 0 0 30px #38bdf8, inset 0 0 20px #0ea5e9; animation: spin 4s linear infinite, pulse-glow 2s ease-in-out infinite alternate; position: relative; display: none; }
+    .ai-orb::after { content: ''; position: absolute; top: -10px; left: -10px; right: -10px; bottom: -10px; border-radius: 50%; border: 2px dashed rgba(56, 189, 248, 0.5); animation: spin 8s linear infinite reverse; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    @keyframes pulse-glow { 0% { box-shadow: 0 0 20px #38bdf8, inset 0 0 10px #0ea5e9; } 100% { box-shadow: 0 0 60px #38bdf8, inset 0 0 30px #0ea5e9; } }
+</style>
+
+<div class="container py-4">
+    <h2 class="text-white fw-bold mb-4"><i class="bi bi-robot text-info"></i> Jarvis AI Command Center</h2>
+    
+    <div class="chat-container" id="chatBox">
+        <div class="msg-ai">
+            <strong>🤖 AI:</strong> Namaste! Main aapka smart school assistant hu. Aap type karke ya mic button daba kar bol kar sawaal pooch sakte hain.<br><br>
+            <i>Aap pooch sakte hain:</i><br>
+            • "Total kitne students hain?"<br>
+            • "Aaj ka collection batao"<br>
+            • "Pending fees kitni hai?"
+        </div>
+        <!-- Loading Orb -->
+        <div class="ai-orb" id="aiOrb"></div>
     </div>
 
-  </div>
-
-  <!-- Input Area -->
-  <div style="padding: 15px; border-top: 1px solid var(--border); background: var(--bg);">
-    <form onsubmit="sendMessage(event)" style="display: flex; gap: 10px;">
-      <input type="text" id="chatInput" placeholder="Type your question here..." autocomplete="off" style="flex: 1; padding: 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 15px; background: var(--card); color: var(--text);">
-      <button type="submit" id="sendBtn" class="btn" style="padding: 0 25px; font-size: 16px;">Send</button>
-    </form>
-  </div>
+    <div class="d-flex gap-3 align-items-center">
+        <button class="mic-btn" id="micBtn" onclick="startVoice()"><i class="bi bi-mic-fill"></i></button>
+        <input type="text" id="userInput" class="form-control bg-dark text-white border-secondary p-3" placeholder="Type your question here..." onkeypress="if(event.key==='Enter') sendMessage()" style="border-radius: 12px;">
+        <button class="btn btn-info p-3 px-4 fw-bold" onclick="sendMessage()" style="border-radius: 12px;">Send <i class="bi bi-send"></i></button>
+    </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
 <script>
-  const chatContainer = document.getElementById('chatContainer');
-  const chatInput = document.getElementById('chatInput');
-  const sendBtn = document.getElementById('sendBtn');
+    const chatBox = document.getElementById('chatBox');
+    const userInput = document.getElementById('userInput');
+    const micBtn = document.getElementById('micBtn');
+    const aiOrb = document.getElementById('aiOrb');
 
-  function addMessage(text, isUser) {
-    const msgDiv = document.createElement('div');
-    msgDiv.style.display = 'flex';
-    msgDiv.style.gap = '10px';
-    msgDiv.style.maxWidth = '80%';
-    if (isUser) {
-      msgDiv.style.marginLeft = 'auto';
-      msgDiv.style.flexDirection = 'row-reverse';
-    }
-    
-    const avatar = isUser ? '👤' : '🤖';
-    const bgColor = isUser ? 'var(--primary-grad)' : 'var(--bg)';
-    const textColor = isUser ? 'white' : 'var(--text)';
-    const radius = isUser ? '12px 12px 0 12px' : '12px 12px 12px 0';
-    
-    const formattedText = text.replace(/\n/g, '<br>');
-
-    msgDiv.innerHTML = `
-      <div style="width: 32px; height: 32px; background: ${bgColor}; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; border: ${isUser?'none':'1px solid var(--border)'};">${avatar}</div>
-      <div style="background: ${isUser ? '#6366f1' : 'var(--bg)'}; color: ${textColor}; padding: 12px 16px; border-radius: ${radius}; font-size: 14px; line-height: 1.5; border: ${isUser?'none':'1px solid var(--border)'};">
-        ${formattedText}
-      </div>
-    `;
-    
-    chatContainer.appendChild(msgDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-  }
-
-  async function sendMessage(e) {
-    e.preventDefault();
-    const message = chatInput.value.trim();
-    if (!message) return;
-
-    addMessage(message, true);
-    chatInput.value = '';
-    
-    sendBtn.innerText = '...';
-    sendBtn.disabled = true;
-
-    const loadingDiv = document.createElement('div');
-    loadingDiv.id = 'loadingMsg';
-    loadingDiv.style.display = 'flex';
-    loadingDiv.style.gap = '10px';
-    loadingDiv.innerHTML = `<div style="width: 32px; height: 32px; background: var(--primary-grad); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">🤖</div><div style="background: var(--bg); padding: 12px 16px; border-radius: 12px; border-top-left-radius: 0; font-size: 14px; border: 1px solid var(--border);">Typing... ⏳</div>`;
-    chatContainer.appendChild(loadingDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-
-    try {
-      const res = await fetch('/api/ai-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: message })
-      });
-      const data = await res.json();
-      
-      document.getElementById('loadingMsg').remove();
-      addMessage(data.reply, false);
-      
-    } catch (err) {
-      document.getElementById('loadingMsg').remove();
-      addMessage("❌ Network error. Please try again.", false);
+    // 1. Voice to Text (Speech Recognition)
+    function startVoice() {
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            alert("Aapka browser voice support nahi karta. Please Chrome use karein.");
+            return;
+        }
+        
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'hi-IN'; // Hindi/English mix
+        recognition.interimResults = false;
+        
+        micBtn.classList.add('recording');
+        micBtn.innerHTML = '<i class="bi bi-mic-mute-fill"></i>';
+        
+        recognition.start();
+        
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            userInput.value = transcript;
+            sendMessage();
+        };
+        
+        recognition.onend = function() {
+            micBtn.classList.remove('recording');
+            micBtn.innerHTML = '<i class="bi bi-mic-fill"></i>';
+        };
     }
 
-    sendBtn.innerText = 'Send';
-    sendBtn.disabled = false;
-    chatInput.focus();
-  }
+    // 2. Text to Voice (Speech Synthesis)
+    function speakText(text) {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel(); // Stop previous speech
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'hi-IN';
+            utterance.rate = 1;
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    // 3. Send Message to AI
+    async function sendMessage() {
+        const query = userInput.value.trim();
+        if (!query) return;
+
+        chatBox.innerHTML += `<div class="msg-user"><strong>👤 You:</strong> ${query}</div>`;
+        userInput.value = '';
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        // Show 3D Orb
+        aiOrb.style.display = 'block';
+        
+        try {
+            const res = await fetch('/api/ai-chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message: query})
+            });
+            const data = await res.json();
+            
+            const replyText = data.reply;
+            
+            chatBox.innerHTML += `<div class="msg-ai"><strong>🤖 AI:</strong> ${replyText}</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+            
+            // Hide Orb
+            aiOrb.style.display = 'none';
+            
+            // AI bol kar jawab dega!
+            speakText(replyText);
+            
+        } catch(e) {
+            aiOrb.style.display = 'none';
+            chatBox.innerHTML += `<div class="msg-ai text-danger"><strong>❌ Error:</strong> ${e.message}</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    }
 </script>
 {% endblock %}
