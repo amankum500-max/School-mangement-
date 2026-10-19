@@ -166,6 +166,117 @@ def api_ai_chat():
         return jsonify({"reply": response.text})
     except Exception as e:
         return jsonify({"reply": f"❌ AI Error: {str(e)}"})
+        # ---------------- STUDENTS (ADVANCED MODULE) ----------------
+@app.route("/students")
+@login_required
+def students():
+    search_query = request.args.get("search", "").strip()
+    class_filter = request.args.get("class_name", "").strip()
+    
+    query = "SELECT * FROM students WHERE 1=1"
+    params = []
+    
+    if search_query:
+        query += " AND (name LIKE %s OR roll_no LIKE %s OR father LIKE %s)"
+        params.extend([f"%{search_query}%", f"%{search_query}%", f"%{search_query}%"])
+        
+    if class_filter:
+        query += " AND class_name = %s"
+        params.append(class_filter)
+        
+    query += " ORDER BY roll_no ASC"
+    
+    try:
+        students_list = db_all(query, tuple(params))
+    except Exception as e:
+        print("Error fetching students:", e)
+        students_list = []
+        
+    classes = db_all("SELECT DISTINCT class_name FROM students WHERE class_name IS NOT NULL ORDER BY class_name")
+    
+    return render_template("students/students.html", students=students_list, classes=classes, search_query=search_query, class_filter=class_filter)
+
+@app.route("/student/add", methods=["POST"])
+@login_required
+def add_student():
+    d = request.form
+    try:
+        run("""INSERT INTO students (roll_no, name, class_name, father, parent_contact) 
+               VALUES (%s, %s, %s, %s, %s)""",
+            (d["roll_no"], d["name"], d.get("class_name", ""), d.get("father", ""), d.get("parent_contact", "")))
+        flash("✅ Student added successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e} (Roll No might already exist)", "error")
+    return redirect(url_for("students"))
+
+@app.route("/student/profile/<roll_no>")
+@login_required
+def student_profile(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("❌ Student not found!", "error")
+        return redirect(url_for("students"))
+    
+    # Advanced: Fetch student's fee status and attendance summary
+    try:
+        total_paid = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE roll_no=%s", (roll_no,))["t"]
+        total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE roll_no=%s AND balance>0", (roll_no,))["t"]
+        
+        # Attendance Summary
+        total_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s", (roll_no,))["c"]
+        present_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s AND status='Present'", (roll_no,))["c"]
+        attendance_pct = round((present_days / total_days * 100), 2) if total_days > 0 else 0
+    except:
+        total_paid, total_due, total_days, present_days, attendance_pct = 0, 0, 0, 0, 0
+
+    return render_template("students/student_profile.html", 
+                           student=student, total_paid=total_paid, total_due=total_due,
+                           total_days=total_days, present_days=present_days, attendance_pct=attendance_pct)
+
+@app.route("/student/edit/<roll_no>", methods=["GET", "POST"])
+@login_required
+def edit_student(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("❌ Student not found!", "error")
+        return redirect(url_for("students"))
+
+    if request.method == "POST":
+        d = request.form
+        try:
+            run("""UPDATE students SET name=%s, class_name=%s, father=%s, parent_contact=%s 
+                   WHERE roll_no=%s""",
+                (d["name"], d.get("class_name", ""), d.get("father", ""), d.get("parent_contact", ""), roll_no))
+            flash("✅ Student updated successfully!", "success")
+            return redirect(url_for("student_profile", roll_no=roll_no))
+        except Exception as e:
+            flash(f"❌ Error: {e}", "error")
+            
+    return render_template("students/students.html", student_to_edit=student) # We'll use a modal for edit in students.html
+
+@app.route("/student/delete/<roll_no>")
+@login_required
+def delete_student(roll_no):
+    try:
+        # First delete related data (Marks, Attendance, Bills, Payments) to avoid foreign key errors
+        run("DELETE FROM marks WHERE roll_no=%s", (roll_no,))
+        run("DELETE FROM attendance WHERE roll_no=%s", (roll_no,))
+        run("DELETE FROM payments WHERE roll_no=%s", (roll_no,))
+        run("DELETE FROM bills WHERE roll_no=%s", (roll_no,))
+        run("DELETE FROM students WHERE roll_no=%s", (roll_no,))
+        flash("🗑️ Student and all related records deleted!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("students"))
+
+@app.route("/student/id_card/<roll_no>")
+@login_required
+def student_id_card(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("❌ Student not found!", "error")
+        return redirect(url_for("students"))
+    return render_template("students/id_card.html", student=student)
 
 
 # ---------------- BAAKI ROUTES (Students, Bills, Fees, Attendance etc.) ----------------
