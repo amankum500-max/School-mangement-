@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultra Security Transfer Certificate - {{ student.roll_no }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Montserrat:wght@400;500;600;700;800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
+
+        :root {
+            --royal-navy: #030f26;
+            --deep-gold: #b8860b;
+            --bright-gold: #ffd700;
+            --gold-gradient: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
+            --charcoal: #1e293b;
+            --border-frame: #334155;
+            --bg-canvas: #060a12;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: radial-gradient(circle at center, #0f172a, var(--bg-canvas));
+            margin: 0;
+            padding: 30px 15px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            perspective: 2000px;
+            color: var(--charcoal);
+        }
+
+        /* Top Modern Floating Bar */
+        .action-toolbar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            z-index: 500;
+        }
+
+        .btn-luxury {
+            padding: 14px 30px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            text-decoration: none;
+            border-radius: 50px;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .btn-gold {
+            background: var(--gold-gradient);
+            color: #000;
+            box-shadow: 0 10px 25px rgba(184, 134, 11, 0.4);
+        }
+
+        .btn-gold:hover {
+            transform: translateY(-4px) scale(1.04);
+            box-shadow: 0 15px 35px rgba(255, 215, 0, 0.6);
+        }
+
+        .btn-glass {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* 3D Master Certificate Board */
+        .certificate-container {
+            width: 100%;
+            max-width: 950px;
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 25px;
+            position: relative;
+            transform-style: preserve-3d;
+            box-shadow: 
+                0 40px 100px -20px rgba(0, 0, 0, 0.9),
+                0 0 0 1px rgba(255, 215, 0, 0.4);
+            transition: transform 0.15s ease-out;
+            background-image: 
+                radial-gradient(var(--deep-gold) 0.5px, transparent 0.5px), 
+                radial-gradient(var(--royal-navy) 0.5px, #ffffff 0.5px);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            background-opacity: 0.02;
+        }
+
+        /* Outer Double Guilloche Border */
+        .guilloche-border {
+            border: 5px double var(--deep-gold);
+            outline: 3px solid var(--royal-navy);
+            outline-offset: -12px;
+            padding: 30px;
+            position: relative;
+            background: #ffffff;
+        }
+
+        /* Micro-Text Anti-Forgery Inner Border */
+        .microtext-line {
+            font-size: 6px;
+            letter-spacing: 2px;
+            color: rgba(0,0,0,0.3);
+            text-align: center;
+            text-transform: uppercase;
+            user-select: none;
+            overflow: hidden;
+            white-space: nowrap;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 4px;
+        }
+
+        /* Top Security Hologram Foil Badge */
+        .hologram-seal {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #e6007e, #00f3ff, #ffef5a, #00ff66, #e6007e);
+            background-size: 400% 400%;
+            animation: holoAnimation 8s ease infinite;
+            opacity: 0.85;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 12px rgba(255,255,255,0.9), 0 6px 15px rgba(0,0,0,0.2);
+            border: 2px solid rgba(255,255,255,0.8);
+        }
+
+        .hologram-seal::before {
+            content: "ORIGINAL";
+            font-size: 8px;
+            font-weight: 900;
+            color: #050f26;
+            letter-spacing: 1px;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+        }
+
+        @keyframes holoAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Top Administrative Metadata Header */
+        .admin-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+
+        .serial-badge {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            border: 1px stroke #fca5a5;
+        }
+
+        /* School Main Header */
+        .school-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .school-header h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 34px;
+            font-weight: 900;
+            color: var(--royal-navy);
+            margin: 0;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .school-header p {
+            margin: 4px 0;
+            font-size: 12px;
+            color: #475569;
+        }
+
+        .cert-banner {
+            margin-top: 20px;
+            display: inline-block;
+            position: relative;
+        }
+
+        .cert-banner h2 {
+            font-family: 'Cinzel', serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--royal-navy);
+            margin: 0;
+            padding: 8px 45px;
+            letter-spacing: 5px;
+            border-top: 2px dashed var(--deep-gold);
+            border-bottom: 2px dashed var(--deep-gold);
+            background: linear-gradient(90deg, transparent, #fffbeb, transparent);
+        }
+
+        /* Narrative Content */
+        .cert-narrative {
+            font-family: 'Libre Baskerville', serif;
+            font-size: 15px;
+            line-height: 2.1;
+            color: #1e293b;
+            text-align: justify;
+            margin-top: 25px;
+        }
+
+        .highlight-field {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            color: var(--royal-navy);
+            border-bottom: 1.5px solid var(--royal-navy);
+            padding: 0 8px;
+            display: inline-block;
+        }
+
+        /* Structured Matrix Box */
+        .info-matrix {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px 25px;
+            margin: 25px 0;
+            padding: 22px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-left: 5px solid var(--deep-gold);
+            border-radius: 4px;
+        }
+
+        .matrix-item {
+            display: flex;
+            font-size: 13px;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .matrix-key {
+            width: 48%;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .matrix-val {
+            width: 52%;
+            color: var(--royal-navy);
+            font-weight: 800;
+        }
+
+        /* Floating 3D Gold Ribbon Medal Stamp */
+        .stamp-center-wrapper {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            margin-top: -10px;
+            margin-bottom: 10px;
+        }
+
+        .gold-ribbon-medal {
+            width: 100px;
+            height: 100px;
+            position: relative;
+            filter: drop-shadow(0 10px 15px rgba(184, 134, 11, 0.4));
+        }
+
+        /* Footer & Signatures Block */
+        .signatures-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 30px;
+        }
+
+        .qr-block {
+            text-align: center;
+        }
+
+        .qr-box {
+            width: 80px;
+            height: 80px;
+            border: 1px solid #cbd5e1;
+            padding: 4px;
+            background: #fff;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .qr-box img {
+            width: 100%;
+            height: 100%;
+        }
+
+        .sig-box {
+            text-align: center;
+            width: 160px;
+        }
+
+        .sig-line {
+            border-top: 1.5px solid var(--royal-navy);
+            margin-top: 45px;
+            padding-top: 6px;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--royal-navy);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* DIRECT PDF PRINT STYLING OVERRIDES */
+        @media print {
+            body {
+                background: #fff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .action-toolbar {
+                display: none !important;
+            }
+
+            .certificate-container {
+                box-shadow: none !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                transform: none !important;
+                background-image: none !important;
+            }
+
+            .guilloche-border {
+                border-color: #000 !important;
+                outline-color: #000 !important;
+            }
+
+            .hologram-seal {
+                background: #fff !important;
+                border: 1px solid #000 !important;
+                box-shadow: none !important;
+            }
+
+            .hologram-seal::before {
+                content: "SEAL";
+            }
+
+            .gold-ribbon-medal {
+                filter: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    {% if not is_pdf %}
+    <div class="action-toolbar">
+        <a href="/student/profile/{{ student.roll_no }}" class="btn-luxury btn-glass">⬅️ Return to Profile</a>
+        <a href="/student/tc_pdf/{{ student.roll_no }}" class="btn-luxury btn-gold">⬇️ Download Official PDF</a>
+    </div>
+    {% endif %}
+
+    <div class="certificate-container" id="certContainer">
+        <div class="guilloche-border">
+            
+            <!-- Anti-Forgery Microtext Line -->
+            <div class="microtext-line">
+                * OFFICIAL TRANSFER CERTIFICATE * SCHOOL BOARD REGISTRATION RECORD * GENUINE ACADEMIC TRANSCRIPT * VERIFIED DOCUMENT *
+            </div>
+
+            <!-- Top Security Hologram -->
+            <div class="hologram-seal"></div>
+
+            <!-- Tracking & Admin Metadata -->
+            <div class="admin-meta">
+                <span>SERIAL NO: <strong class="serial-badge">TC/2026/0{{ student.roll_no }}</strong></span>
+                <!-- Automated Barcode Placeholder -->
+                <div>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x30&data=TC-{{ student.roll_no }}" alt="Barcode" style="height: 25px; opacity: 0.7;">
+                </div>
+                <span>ROLL NO: <strong>{{ student.roll_no }}</strong></span>
+            </div>
+
+            <!-- School Branding Header -->
+            <div class="school-header">
+                <h1>YOUR SCHOOL NAME</h1>
+                <p><strong>Senior Secondary Institution | Affiliated to CBSE Board</strong></p>
+                <p>Campus Address Line 1, District City - Pin Code | Phone: +91-XXXXXXXXXX</p>
+                <div class="cert-banner">
+                    <h2>TRANSFER CERTIFICATE</h2>
+                </div>
+            </div>
+
+            <!-- Main Narrative -->
+            <div class="cert-narrative">
+                This is to certify that <span class="highlight-field">{{ student.name }}</span>, 
+                Son / Daughter of Shri <span class="highlight-field">{{ student.father }}</span>, 
+                was a student of this school in Class <span class="highlight-field">{{ student.class_name }}</span>. 
+                His / Her academic and extra-curricular credentials have been verified from official registers.
+            </div>
+
+            <!-- Detailed Information Matrix -->
+            <div class="info-matrix">
+                <div class="matrix-item">
+                    <span class="matrix-key">Admission Number:</span>
+                    <span class="matrix-val">ADM-{{ student.roll_no }}</span>
+                </div>
+                <div class="matrix-item">
+                    <span class="matrix-key">Academic Session:</span>
+                    <span class="matrix-val">2025 - 2026</span>
+                </div>
+                <div class="matrix-item">
+                    <span class="matrix-key">General Conduct:</span>
+                    <span class="matrix-val" style="color: #16a34a;">EXCELLENT</span>
+                </div>
+                <div class="matrix-item">
+                    <span class="matrix-key">School Fee Dues:</span>
+                    <span class="matrix-val">FULLY CLEARED</span>
+                </div>
+                <div class="matrix-item">
+                    <span class="matrix-key">Date of Application:</span>
+                    <span class="matrix-val">{{ today }}</span>
+                </div>
+                <div class="matrix-item">
+                    <span class="matrix-key">Reason for Leaving:</span>
+                    <span class="matrix-val">HIGHER STUDIES</span>
+                </div>
+            </div>
+
+            <!-- Center 3D Gold Seal Stamp -->
+            <div class="stamp-center-wrapper">
+                <svg class="gold-ribbon-medal" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <radialGradient id="goldGradient3D" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="#fffbeb"/>
+                            <stop offset="60%" stop-color="#d97706"/>
+                            <stop offset="100%" stop-color="#78350f"/>
+                        </radialGradient>
+                    </defs>
+                    <path d="M35 70 L20 98 L35 90 L50 98 L45 70 Z" fill="#b91c1c"/>
+                    <path d="M65 70 L50 98 L65 90 L80 98 L75 70 Z" fill="#991b1b"/>
+                    <circle cx="50" cy="45" r="38" fill="url(#goldGradient3D)"/>
+                    <circle cx="50" cy="45" r="32" fill="#030f26"/>
+                    <circle cx="50" cy="45" r="28" fill="none" stroke="#fef08a" stroke-width="1.5" stroke-dasharray="2,2"/>
+                    <text x="50" y="42" font-size="7" fill="#fef08a" text-anchor="middle" font-weight="bold">OFFICIAL</text>
+                    <text x="50" y="52" font-size="8" fill="#ffffff" text-anchor="middle" font-weight="bold">SEAL</text>
+                </svg>
+            </div>
+
+            <!-- Signatures & QR Code Section -->
+            <div class="signatures-wrapper">
+                
+                <div class="qr-block">
+                    <div class="qr-box">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=VERIFIED_STUDENT_{{ student.roll_no }}" alt="QR Code">
+                    </div>
+                    <span style="font-size: 8px; color: #64748b; font-weight: 700; margin-top: 4px; display: block;">SCAN TO VERIFY</span>
+                </div>
+
+                <div class="sig-box">
+                    <div class="sig-line">Prepared By</div>
+                </div>
+
+                <div class="sig-box">
+                    <div class="sig-line">Checked By</div>
+                </div>
+
+                <div class="sig-box">
+                    <div class="sig-line">Principal (Sign & Stamp)</div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Smooth 3D Cursor Physics Engine -->
+    <script>
+        const container = document.getElementById('certContainer');
+        if (container && window.matchMedia("(pointer: fine)").matches) {
+            document.addEventListener('mousemove', (e) => {
+                const x = (window.innerWidth / 2 - e.pageX) / 60;
+                const y = (window.innerHeight / 2 - e.pageY) / 60;
+                container.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+            });
+
+            document.addEventListener('mouseleave', () => {
+                container.style.transform = `rotateY(0deg) rotateX(0deg)`;
+                container.style.transition = 'transform 0.6s ease';
+            });
+
+            document.addEventListener('mouseenter', () => {
+                container.style.transition = 'none';
+            });
+        }
+    </script>
+</body>
+</html>
