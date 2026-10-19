@@ -1,9 +1,17 @@
 import os
+import io
+import csv
+import json
+import hashlib
+import razorpay
+import requests
 from datetime import datetime
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from werkzeug.utils import secure_filename
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response, make_response
+from flask_socketio import SocketIO, emit
+from xhtml2pdf import pisa
 import google.generativeai as genai
-import requests
 
 # Local Database Functions
 from database import init_db, run, all as db_all, one, current_month, today
@@ -11,7 +19,11 @@ from database import init_db, run, all as db_all, one, current_month, today
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "school-secret-key-2026")
 
-# Setup Gemini AI
+# ---------------- SETUPS ----------------
+# 1. WebSockets (Live Dashboard)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+
+# 2. Gemini AI
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
 if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
@@ -19,7 +31,17 @@ if GEMINI_KEY:
 else:
     ai_model = None
 
-# ---------------- AUTH DECORATOR & ROUTES ----------------
+# 3. Razorpay Payment Gateway
+RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "rzp_test_dummy")
+RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "dummy_secret")
+rzp_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+
+# 4. File Uploads (Photos & Documents)
+UPLOAD_FOLDER = 'static/uploads/students'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# ---------------- AUTH DECORATOR ----------------
 def login_required(f):
     @wraps(f)
     def wrapper(*a, **kw):
@@ -28,16 +50,30 @@ def login_required(f):
         return f(*a, **kw)
     return wrapper
 
+# ==========================================
+# 🔐 AUTH & LOGIN (Admin & Parent)
+# ==========================================
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         u = request.form.get("username", "").strip()
         p = request.form.get("password", "").strip()
+        
+        # Admin Login
         if u == "admin" and p == "admin123":
             session["user"] = u
             session["role"] = "admin"
             session["name"] = "System Admin"
             return redirect(url_for("dashboard"))
+        
+        # Parent Login
+        student = one("SELECT * FROM students WHERE roll_no=%s AND parent_contact=%s", (u, p))
+        if student:
+            session["user"] = student["roll_no"]
+            session["role"] = "parent"
+            session["name"] = student["father"]
+            return redirect(url_for("parent_dashboard"))
+            
         flash("Invalid credentials!", "error")
     return render_template("auth/login.html")
 
@@ -47,58 +83,26 @@ def logout():
     return redirect(url_for("login"))
 
 
-# ---------------- DASHBOARD ----------------
+# ==========================================
+# 📊 DASHBOARD & LIVE APIS
+# ==========================================
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    # Dashboard load hote waqt initial data fetch karna
+    if session.get("role") == "parent":
+        return redirect(url_for("parent_dashboard"))
     try:
         students_count = one("SELECT COUNT(*) c FROM students")["c"]
         total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE balance > 0")["t"]
         today_collection = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE pay_date = %s", (today(),))["t"]
         
-        # Fee Status Data for Chart
-        paid = one("SELECT COUNT(*) c FROM bills WHERE status='Paid'")["c"]
-        partial = one("SELECT COUNT(*) c FROM bills WHERE status='Partial'")["c"]
-        unpaid = one("SELECT COUNT(*) c FROM bills WHERE status='Unpaid' OR status IS NULL")["c"]
-        fee_status = [paid, partial, unpaid]
-
-        # Monthly Trend Data for Chart (Last 6 Months)
-        trend = db_all("""
-            SELECT substr(pay_date, 1, 7) as month, SUM(amount) as total
-            FROM payments GROUP BY substr(pay_date, 1, 7)
-            ORDER BY month DESC LIMIT 6
-        """)
-        trend.reverse() 
-        trend_labels = [t['month'] for t in trend]
-        trend_data = [float(t['total']) for t in trend]
-
-        # Live Payment Feed Initial Data
-        recent_payments = db_all("""
-            SELECT s.name, p.amount, p.pay_date 
-            FROM payments p JOIN students s ON p.roll_no = s.roll_no 
-            ORDER BY p.id DESC LIMIT 5
-        """)
+        recent_payments = db_all("SELECT s.name, p.amount, p.pay_date FROM payments p JOIN students s ON p.roll_no = s.roll_no ORDER BY p.id DESC LIMIT 5")
         payment_feed = [{"name": r["name"], "amount": float(r["amount"]), "date": str(r["pay_date"])} for r in recent_payments]
-
     except Exception as e:
-        print("Dashboard Error:", e)
-        students_count, total_due, today_collection = 0, 0, 0
-        fee_status = [0, 0, 0]
-        trend_labels, trend_data, payment_feed = [], [], []
+        students_count, total_due, today_collection, payment_feed = 0, 0, 0, []
 
-    return render_template(
-        "dashboard/dashboard.html",
-        students_count=students_count,
-        pending_dues=total_due,
-        today_collection=today_collection,
-        fee_status=fee_status,
-        trend_labels=trend_labels,
-        trend_data=trend_data,
-        payment_feed=payment_feed
-    )
+    return render_template("dashboard/dashboard.html", students_count=students_count, pending_dues=total_due, today_collection=today_collection, payment_feed=payment_feed)
 
-# 🔥 Live Data API (Har 5 sec me refresh hone ke liye)
 @app.route("/api/dashboard-live")
 @login_required
 def api_dashboard_live():
@@ -106,103 +110,67 @@ def api_dashboard_live():
         students_count = one("SELECT COUNT(*) c FROM students")["c"]
         total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE balance > 0")["t"]
         today_collection = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE pay_date = %s", (today(),))["t"]
-        
-        recent_payments = db_all("""
-            SELECT s.name, p.amount, p.pay_date 
-            FROM payments p JOIN students s ON p.roll_no = s.roll_no 
-            ORDER BY p.id DESC LIMIT 5
-        """)
-        payment_feed = [{"name": r["name"], "amount": float(r["amount"]), "date": str(r["pay_date"])} for r in recent_payments]
-
+        recent_payments = db_all("SELECT s.name, p.amount, p.pay_date FROM payments p JOIN students s ON p.roll_no = s.roll_no ORDER BY p.id DESC LIMIT 5")
         return jsonify({
-            "status": "success",
-            "students_count": students_count,
-            "total_due": float(total_due),
-            "today_collection": float(today_collection),
-            "payment_feed": payment_feed
+            "status": "success", "students_count": students_count, "total_due": float(total_due), "today_collection": float(today_collection),
+            "payment_feed": [{"name": r["name"], "amount": float(r["amount"]), "date": str(r["pay_date"])} for r in recent_payments]
         })
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+        return jsonify({"status": "error"})
 
-@app.route("/api/weather")
+# 🔥 Global Search (Dashboard ke liye)
+@app.route("/api/global-search")
 @login_required
-def api_weather():
-    return jsonify({"temp": "32°C", "condition": "Clear Sky", "icon": "☀️"})
+def api_global_search():
+    q = request.args.get("q", "").strip()
+    if not q: return jsonify([])
+    students = db_all("SELECT roll_no, name, class_name, father, parent_contact, photo_url FROM students WHERE roll_no LIKE %s OR name LIKE %s LIMIT 10", (f"%{q}%", f"%{q}%"))
+    results = []
+    for s in students:
+        s_dict = dict(s)
+        if not s_dict.get('photo_url'):
+            s_dict['photo_url'] = f"https://api.dicebear.com/7.x/initials/svg?seed={s_dict['name']}&backgroundColor=00f3ff"
+        results.append(s_dict)
+    return jsonify(results)
 
 
-# 🔥 Form Routes (HTML matching)
-@app.route("/send-whatsapp", methods=["POST"])
+# ==========================================
+# 👨‍👩‍👦 PARENT PORTAL
+# ==========================================
+@app.route("/parent/dashboard")
 @login_required
-def send_whatsapp():
-    msg = request.form.get("whatsapp_msg")
-    if msg:
-        flash("✅ WhatsApp Broadcast Sent Successfully!", "success")
-    return redirect(url_for("dashboard"))
-
-@app.route("/send-email", methods=["POST"])
-@login_required
-def send_email():
-    subject = request.form.get("email_subject")
-    if subject:
-        flash("✅ Email Sent Successfully!", "success")
-    return redirect(url_for("dashboard"))
+def parent_dashboard():
+    if session.get("role") != "parent":
+        return redirect(url_for("dashboard"))
+    roll_no = session.get("user")
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE roll_no=%s AND balance>0", (roll_no,))["t"]
+    recent_payments = db_all("SELECT * FROM payments WHERE roll_no=%s ORDER BY id DESC LIMIT 5", (roll_no,))
+    return render_template("parent_portal.html", student=student, total_due=total_due, recent_payments=recent_payments)
 
 
-# ---------------- AI ASSISTANT ----------------
-@app.route("/ai-assistant")
-@login_required
-def ai_assistant():
-    return render_template("ai_assistant.html")
-
-@app.route("/api/ai-chat", methods=["POST"])
-@login_required
-def api_ai_chat():
-    if not ai_model:
-        return jsonify({"reply": "⚠️ AI Configure nahi hai."})
-    data = request.get_json() or {}
-    user_msg = data.get("message", "").strip()
-    try:
-        response = ai_model.generate_content(user_msg)
-        return jsonify({"reply": response.text})
-    except Exception as e:
-        return jsonify({"reply": f"❌ AI Error: {str(e)}"})
-        # ---------------- STUDENTS (ADVANCED MODULE) ----------------
+# ==========================================
+# 👨‍🎓 STUDENTS MODULE
+# ==========================================
 @app.route("/students")
 @login_required
 def students():
     search_query = request.args.get("search", "").strip()
-    class_filter = request.args.get("class_name", "").strip()
-    
     query = "SELECT * FROM students WHERE 1=1"
     params = []
-    
     if search_query:
-        query += " AND (name LIKE %s OR roll_no LIKE %s OR father LIKE %s)"
-        params.extend([f"%{search_query}%", f"%{search_query}%", f"%{search_query}%"])
-        
-    if class_filter:
-        query += " AND class_name = %s"
-        params.append(class_filter)
-        
-    query += " ORDER BY roll_no ASC"
-    
-    try:
-        students_list = db_all(query, tuple(params))
-    except Exception as e:
-        print("Error fetching students:", e)
-        students_list = []
-        
-    classes = db_all("SELECT DISTINCT class_name FROM students WHERE class_name IS NOT NULL ORDER BY class_name")
-    
-    return render_template("students/students.html", students=students_list, classes=classes, search_query=search_query, class_filter=class_filter)
+        query += " AND (name LIKE %s OR roll_no LIKE %s)"
+        params.extend([f"%{search_query}%", f"%{search_query}%"])
+    query += " ORDER BY LENGTH(roll_no), roll_no ASC"
+    students_list = db_all(query, tuple(params))
+    return render_template("students/students.html", students=students_list, search_query=search_query)
 
 @app.route("/student/add", methods=["POST"])
 @login_required
 def add_student():
     d = request.form
     try:
-        run("""INSERT INTO students (roll_no, name, class_name, father, parent_contact) 
-               VALUES (%s, %s, %s, %s, %s)""",
+        run("INSERT INTO students (roll_no, name, class_name, father, parent_contact) VALUES (%s, %s, %s, %s, %s)",
             (d["roll_no"], d["name"], d.get("class_name", ""), d.get("father", ""), d.get("parent_contact", "")))
         flash("✅ Student added successfully!", "success")
     except Exception as e:
@@ -213,58 +181,55 @@ def add_student():
 @login_required
 def student_profile(roll_no):
     student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
-    if not student:
-        flash("❌ Student not found!", "error")
-        return redirect(url_for("students"))
+    if not student: return redirect(url_for("students"))
     
-    # Advanced: Fetch student's fee status and attendance summary
+    if not student.get('photo_url'):
+        student['photo_url'] = f"https://api.dicebear.com/7.x/initials/svg?seed={student['name']}&backgroundColor=00f3ff"
+
+    total_paid = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE roll_no=%s", (roll_no,))["t"]
+    total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE roll_no=%s AND balance>0", (roll_no,))["t"]
+    marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
+    recent_payments = db_all("SELECT * FROM payments WHERE roll_no=%s ORDER BY id DESC LIMIT 5", (roll_no,))
+    
+    # Heatmap & Attendance
+    total_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s", (roll_no,))["c"]
+    present_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s AND status='Present'", (roll_no,))["c"]
+    attendance_pct = round((present_days / total_days * 100), 2) if total_days > 0 else 0
+    
+    att_records = db_all("SELECT att_date, status FROM attendance WHERE roll_no=%s ORDER BY att_date ASC", (roll_no,))
+    heatmap_data = {r['att_date']: r['status'] for r in att_records}
+
+    # Documents
     try:
-        total_paid = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE roll_no=%s", (roll_no,))["t"]
-        total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE roll_no=%s AND balance>0", (roll_no,))["t"]
-        
-        # Attendance Summary
-        total_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s", (roll_no,))["c"]
-        present_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s AND status='Present'", (roll_no,))["c"]
-        attendance_pct = round((present_days / total_days * 100), 2) if total_days > 0 else 0
+        documents = db_all("SELECT * FROM student_documents WHERE roll_no=%s ORDER BY id DESC", (roll_no,))
     except:
-        total_paid, total_due, total_days, present_days, attendance_pct = 0, 0, 0, 0, 0
+        documents = []
 
-    return render_template("students/student_profile.html", 
-                           student=student, total_paid=total_paid, total_due=total_due,
-                           total_days=total_days, present_days=present_days, attendance_pct=attendance_pct)
+    return render_template("students/student_profile.html", student=student, total_paid=total_paid, total_due=total_due, 
+                           marks_data=marks_data, recent_payments=recent_payments, heatmap_data=heatmap_data,
+                           total_days=total_days, present_days=present_days, attendance_pct=attendance_pct, documents=documents)
 
-@app.route("/student/edit/<roll_no>", methods=["GET", "POST"])
+@app.route("/student/edit/<roll_no>", methods=["POST"])
 @login_required
 def edit_student(roll_no):
-    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
-    if not student:
-        flash("❌ Student not found!", "error")
-        return redirect(url_for("students"))
-
-    if request.method == "POST":
-        d = request.form
-        try:
-            run("""UPDATE students SET name=%s, class_name=%s, father=%s, parent_contact=%s 
-                   WHERE roll_no=%s""",
-                (d["name"], d.get("class_name", ""), d.get("father", ""), d.get("parent_contact", ""), roll_no))
-            flash("✅ Student updated successfully!", "success")
-            return redirect(url_for("student_profile", roll_no=roll_no))
-        except Exception as e:
-            flash(f"❌ Error: {e}", "error")
-            
-    return render_template("students/students.html", student_to_edit=student) # We'll use a modal for edit in students.html
+    d = request.form
+    try:
+        run("UPDATE students SET name=%s, class_name=%s, father=%s, parent_contact=%s WHERE roll_no=%s",
+            (d["name"], d.get("class_name", ""), d.get("father", ""), d.get("parent_contact", ""), roll_no))
+        return jsonify({"status": "success", "message": "Student updated successfully!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
 
 @app.route("/student/delete/<roll_no>")
 @login_required
 def delete_student(roll_no):
     try:
-        # First delete related data (Marks, Attendance, Bills, Payments) to avoid foreign key errors
         run("DELETE FROM marks WHERE roll_no=%s", (roll_no,))
         run("DELETE FROM attendance WHERE roll_no=%s", (roll_no,))
         run("DELETE FROM payments WHERE roll_no=%s", (roll_no,))
         run("DELETE FROM bills WHERE roll_no=%s", (roll_no,))
         run("DELETE FROM students WHERE roll_no=%s", (roll_no,))
-        flash("🗑️ Student and all related records deleted!", "success")
+        flash("🗑️ Student deleted successfully!", "success")
     except Exception as e:
         flash(f"❌ Error: {e}", "error")
     return redirect(url_for("students"))
@@ -273,14 +238,195 @@ def delete_student(roll_no):
 @login_required
 def student_id_card(roll_no):
     student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
-    if not student:
-        flash("❌ Student not found!", "error")
-        return redirect(url_for("students"))
+    if not student.get('photo_url'):
+        student['photo_url'] = f"https://api.dicebear.com/7.x/initials/svg?seed={student['name']}&backgroundColor=00f3ff"
     return render_template("students/id_card.html", student=student)
 
+# 🔥 ID Card PDF Download
+@app.route("/student/id_card/pdf/<roll_no>")
+@login_required
+def id_card_pdf(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student.get('photo_url'):
+        student['photo_url'] = f"https://api.dicebear.com/7.x/initials/svg?seed={student['name']}&backgroundColor=00f3ff"
+    html = render_template("students/id_card.html", student=student, is_pdf=True)
+    pdf = io.BytesIO()
+    pisa.CreatePDF(html, dest=pdf)
+    pdf.seek(0)
+    response = make_response(pdf.read())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename=ID_{roll_no}.pdf'
+    return response
 
-# ---------------- BAAKI ROUTES (Students, Bills, Fees, Attendance etc.) ----------------
-# (Inme koi change nahi karna hai, aapke purane routes yahan aayenge)
-# ... [Yahan aap apne purane code se /students, /bills, /collect, /attendance, /notices, /result, /staff, /transport ke routes paste kar sakte hain, ya jo maine pichli baar diye the] ...
+# 🔥 Upload Photo & Documents
+@app.route("/student/upload_photo/<roll_no>", methods=["POST"])
+@login_required
+def upload_photo(roll_no):
+    if 'photo' not in request.files: return jsonify({"status": "error"})
+    file = request.files['photo']
+    if file:
+        filename = secure_filename(f"student_{roll_no}_{file.filename}")
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        db_path = f"/static/uploads/students/{filename}"
+        run("UPDATE students SET photo_url=%s WHERE roll_no=%s", (db_path, roll_no))
+        return jsonify({"status": "success", "url": db_path})
 
-# NOTE: Agar aapke paas ye routes pehle se kaam kar rahe hain, toh unhe waisa hi rakhein.
+@app.route("/api/upload-document/<roll_no>", methods=["POST"])
+@login_required
+def upload_document(roll_no):
+    if 'document' not in request.files: return jsonify({"status": "error"})
+    file = request.files['document']
+    doc_type = request.form.get("doc_type", "Other")
+    if file:
+        filename = secure_filename(f"{roll_no}_{doc_type}_{file.filename}")
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        db_path = f"/static/uploads/students/{filename}"
+        run("INSERT INTO student_documents (roll_no, doc_type, file_path, upload_date) VALUES (%s, %s, %s, %s)", (roll_no, doc_type, db_path, today()))
+        return jsonify({"status": "success", "message": "Document uploaded!"})
+
+
+# ==========================================
+# 💰 FEES, PAYMENTS & WEBSOCKETS
+# ==========================================
+@app.route("/collect/<roll_no>", methods=["GET", "POST"])
+@login_required
+def collect(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if request.method == "POST":
+        amount = float(request.form.get("amount") or 0)
+        receipt_no = f"RCP{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        run("INSERT INTO payments (receipt_no, roll_no, amount, mode, pay_date, remark) VALUES (%s, %s, %s, %s, %s, %s)",
+            (receipt_no, roll_no, amount, request.form.get("mode", "Cash"), today(), request.form.get("remark", "")))
+        
+        bills_list = db_all("SELECT id, balance, paid, total FROM bills WHERE roll_no=%s AND balance>0 ORDER BY month ASC", (roll_no,))
+        rem = amount
+        for b in bills_list:
+            if rem <= 0: break
+            deduct = min(rem, float(b['balance']))
+            new_paid = float(b['paid']) + deduct
+            new_bal = float(b['total']) - new_paid
+            status = "Paid" if new_bal <= 0 else "Partial"
+            run("UPDATE bills SET paid=%s, balance=%s, status=%s WHERE id=%s", (new_paid, new_bal, status, b['id']))
+            rem -= deduct
+            
+        # 🔥 Live WebSocket Alert
+        socketio.emit('new_payment_alert', {
+            'name': student['name'],
+            'amount': amount,
+            'msg': f"₹{amount} paid by {student['name']}"
+        })
+        
+        flash(f"✅ ₹{amount} collected successfully!", "success")
+        return redirect(url_for("student_profile", roll_no=roll_no))
+        
+    bills_list = db_all("SELECT * FROM bills WHERE roll_no=%s AND balance>0 ORDER BY month ASC", (roll_no,))
+    total_due = sum(float(b['balance']) for b in bills_list)
+    return render_template("fees/collect.html", student=student, bills=bills_list, total_due=total_due)
+
+@app.route("/api/create-payment-order", methods=["POST"])
+@login_required
+def create_payment_order():
+    amount = float(request.json.get("amount")) * 100
+    try:
+        order = rzp_client.order.create({'amount': amount, 'currency': 'INR', 'receipt': f'rcpt_{session.get("user")}', 'payment_capture': 1})
+        return jsonify({"status": "success", "order_id": order['id'], "key": RAZORPAY_KEY_ID})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+
+# ==========================================
+# 📸 QR ATTENDANCE SCANNER
+# ==========================================
+@app.route("/attendance/scanner")
+@login_required
+def attendance_scanner():
+    return render_template("attendance/scanner.html")
+
+@app.route("/api/scan-attendance", methods=["POST"])
+@login_required
+def api_scan_attendance():
+    roll_no = request.json.get("roll_no")
+    if not roll_no: return jsonify({"status": "error", "message": "Invalid QR"})
+    student = one("SELECT name FROM students WHERE roll_no=%s", (roll_no,))
+    if not student: return jsonify({"status": "error", "message": "Student not found!"})
+    
+    existing = one("SELECT id FROM attendance WHERE roll_no=%s AND att_date=%s", (roll_no, today()))
+    if existing:
+        run("UPDATE attendance SET status='Present' WHERE id=%s", (existing['id'],))
+    else:
+        run("INSERT INTO attendance (roll_no, att_date, status) VALUES (%s, %s, 'Present')", (roll_no, today()))
+    return jsonify({"status": "success", "message": f"Present marked for {student['name']}"})
+
+
+# ==========================================
+# 🧠 AI FEATURES
+# ==========================================
+@app.route("/ai-assistant")
+@login_required
+def ai_assistant():
+    return render_template("ai_assistant.html")
+
+@app.route("/api/ai-chat", methods=["POST"])
+@login_required
+def api_ai_chat():
+    if not ai_model: return jsonify({"reply": "⚠️ AI Configure nahi hai."})
+    user_msg = request.json.get("message", "")
+    try:
+        response = ai_model.generate_content(user_msg)
+        return jsonify({"reply": response.text})
+    except Exception as e:
+        return jsonify({"reply": f"❌ AI Error: {str(e)}"})
+
+# 🔥 AI Career Counselor
+@app.route("/api/ai-career-counselor/<roll_no>")
+@login_required
+def ai_career_counselor(roll_no):
+    if not ai_model: return jsonify({"reply": "AI Offline"})
+    student = one("SELECT name FROM students WHERE roll_no=%s", (roll_no,))
+    marks = db_all("SELECT subject, marks, total FROM marks WHERE roll_no=%s", (roll_no,))
+    marks_summary = ", ".join([f"{m['subject']}: {(float(m['marks'])/float(m['total']))*100}%" for m in marks if m['total'] > 0])
+    prompt = f"Act as an expert Career Counselor. Student: {student['name']}. Marks: {marks_summary}. Suggest best stream (Science/Commerce/Arts), top 3 careers, and a short motivational message in Hinglish."
+    try:
+        response = ai_model.generate_content(prompt)
+        return jsonify({"reply": response.text})
+    except:
+        return jsonify({"reply": "Error fetching career advice."})
+
+# 🔥 AI Fee Predictor
+@app.route("/api/ai-fee-predictor")
+@login_required
+def ai_fee_predictor():
+    if not ai_model: return jsonify({"risk_students": []})
+    pending_students = db_all("SELECT s.name, s.roll_no, SUM(b.balance) as total_due, (SELECT COUNT(*) FROM attendance a WHERE a.roll_no = s.roll_no AND a.status='Absent') as absent_days FROM students s JOIN bills b ON s.roll_no = b.roll_no WHERE b.balance > 0 GROUP BY s.roll_no ORDER BY total_due DESC LIMIT 5")
+    if not pending_students: return jsonify({"risk_students": []})
+    prompt = f"Analyze these pending fee students: {pending_students}. Output ONLY a JSON array: 'name', 'roll_no', 'risk_score' (0-100), 'reason', 'action'."
+    try:
+        response = ai_model.generate_content(prompt)
+        text = response.text.replace('```json', '').replace('```', '').strip()
+        return jsonify({"risk_students": json.loads(text)})
+    except:
+        return jsonify({"risk_students": []})
+
+
+# ==========================================
+# 📱 COMMUNICATION ROUTES
+# ==========================================
+@app.route("/send-whatsapp", methods=["POST"])
+@login_required
+def send_whatsapp():
+    msg = request.form.get("whatsapp_msg")
+    if msg: flash("✅ WhatsApp Broadcast Sent Successfully!", "success")
+    return redirect(url_for("dashboard"))
+
+@app.route("/send-email", methods=["POST"])
+@login_required
+def send_email():
+    subject = request.form.get("email_subject")
+    if subject: flash("✅ Email Sent Successfully!", "success")
+    return redirect(url_for("dashboard"))
+
+
+# ---------------- APP RUN (SocketIO) ----------------
+if __name__ == '__main__':
+    socketio.run(app, debug=True)
