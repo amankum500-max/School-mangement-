@@ -274,12 +274,14 @@
         </div>
 
         <div class="profile-wrapper">
-          {% if student.photo %}
-              <img src="{{ student.photo }}" alt="Photo">
-          {% else %}
-              <div class="initials">{{ student.name[:2] | upper }}</div>
-          {% endif %}
-          <div class="holo-badge">★</div>
+  <!-- Yahan student.photo ki jagah student.photo_url kar diya hai -->
+  {% if student.photo_url %}
+      <img src="{{ student.photo_url }}" alt="Photo">
+  {% else %}
+      <!-- Agar photo nahi hai toh initials dikhayega -->
+      <div class="initials">{{ student.name[:2] | upper }}</div>
+  {% endif %}
+  <div class="holo-badge">★</div>
         </div>
 
         <div class="student-name-area">
