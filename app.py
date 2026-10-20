@@ -440,15 +440,44 @@ def delete_student(roll_no):
 @app.route("/student/upload_photo/<roll_no>", methods=["POST"])
 @login_required
 def upload_photo(roll_no):
-    if 'photo' not in request.files: return jsonify({"status": "error"})
+    if 'photo' not in request.files:
+        flash("No file part", "error")
+        return redirect(url_for("student_profile", roll_no=roll_no))
+        
     file = request.files['photo']
-    if file:
-        filename = secure_filename(f"student_{roll_no}_{file.filename}")
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        db_path = f"/static/uploads/students/{filename}"
-        run("UPDATE students SET photo_url=%s WHERE roll_no=%s", (db_path, roll_no))
-        return jsonify({"status": "success", "url": db_path})
+    
+    if file.filename == '':
+        flash("No selected file", "error")
+        return redirect(url_for("student_profile", roll_no=roll_no))
 
+    if file:
+        # File ka naam unique banayein taaki purani photo overwrite na ho
+        filename = secure_filename(f"student_{roll_no}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}")
+        
+        try:
+            # File data read karein
+            file_data = file.read()
+            
+            # Supabase Storage mein upload karein (bucket name: 'student_photos')
+            supabase.storage.from_('student_photos').upload(
+                path=filename,
+                file=file_data,
+                file_options={"content-type": file.content_type}
+            )
+            
+            # Public URL generate karein
+            public_url = supabase.storage.from_('student_photos').get_public_url(filename)
+            
+            # Database mein URL update karein
+            run("UPDATE students SET photo_url=%s WHERE roll_no=%s", (public_url, roll_no))
+            
+            flash("✅ Photo uploaded successfully!", "success")
+            
+        except Exception as e:
+            print(f"Error uploading to Supabase: {e}")
+            flash(f"❌ Error uploading photo: {str(e)}", "error")
+            
+    return redirect(url_for("student_profile", roll_no=roll_no))
 # ==========================================
 # 💵 ULTIMATE FEE MANAGEMENT ENGINE
 # ==========================================
