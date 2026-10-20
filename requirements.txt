@@ -21,3 +21,4 @@ fastapi
 fpdf2
 fpdf
 eventlet==0.33.3
+0.31.1
