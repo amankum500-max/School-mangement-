@@ -198,6 +198,21 @@ def add_student():
     except Exception as e:
         flash(f"❌ Error: {e} (Roll No might already exist)", "error")
     return redirect(url_for("students"))
+    # ==========================================
+# 🪪 ID CARD GENERATION ROUTE
+# ==========================================
+@app.route("/student/id_card/<roll_no>")
+@login_required
+def student_id_card(roll_no):
+    # Aapke database se student ka data fetch kar raha hai
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    
+    if not student:
+        flash("Student not found for ID Card!", "error")
+        return redirect(url_for("students"))
+        
+    # HTML template render karega jisme student ka data jayega
+    return render_template("students/id_card.html", student=student)
 
 @app.route("/student/profile/<roll_no>")
 @login_required
