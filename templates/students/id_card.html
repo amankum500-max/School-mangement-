@@ -47,7 +47,7 @@
     box-shadow: 0 30px 60px rgba(0, 0, 0, 0.9), 0 0 0 2px rgba(251, 191, 36, 0.3), 0 0 50px rgba(251, 191, 36, 0.1);
   }
 
-  /* Guilloche Pattern Background (Security Feature) */
+  /* Guilloche Pattern Background */
   .card-front::before, .card-back::before {
     content: ''; position: absolute; inset: 0;
     background: 
@@ -57,7 +57,7 @@
     z-index: 0; opacity: 0.8;
   }
 
-  /* Micro-Text Border (Anti-Fake) */
+  /* Micro-Text Border */
   .micro-text-border {
     position: absolute; inset: 8px; border: 1px solid rgba(251,191,36,0.2); border-radius: 10px;
     z-index: 1; pointer-events: none;
@@ -91,7 +91,12 @@
   .card-header { 
     padding: 25px 15px 10px; text-align: center; position: relative; z-index: 2; 
     border-bottom: 1px solid rgba(251,191,36,0.2);
+    display: flex; flex-direction: column; align-items: center;
   }
+
+  /* Top Class Logo SVG */
+  .school-logo { width: 50px; height: 50px; margin-bottom: 5px; filter: drop-shadow(0 0 10px rgba(251,191,36,0.6)); }
+  .school-logo svg { width: 100%; height: 100%; fill: url(#goldGradient); }
 
   .card-header h1 { 
     font-family: 'Cinzel', serif; font-size: 20px; font-weight: 700; letter-spacing: 3px; 
@@ -110,10 +115,12 @@
   .status-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: pulseGreen 1.5s infinite; box-shadow: 0 0 8px #10b981; }
   @keyframes pulseGreen { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
 
-  /* Profile Image */
+  /* Profile Image - Premium Look */
   .profile-wrapper {
-    margin: 15px auto 0; position: relative; width: 100px; height: 120px; z-index: 5;
-    border-radius: 8px; border: 2px solid #fbbf24; box-shadow: 0 0 25px rgba(251,191,36,0.3); overflow: hidden;
+    margin: 15px auto 0; position: relative; width: 110px; height: 130px; z-index: 5;
+    border-radius: 12px; border: 3px solid #fbbf24; 
+    box-shadow: 0 0 30px rgba(251,191,36,0.5), inset 0 0 20px rgba(0,0,0,0.8); 
+    overflow: hidden; background: #111;
   }
   .profile-wrapper img { width: 100%; height: 100%; object-fit: cover; }
   .initials { font-family: 'Orbitron'; font-size: 40px; font-weight: 900; color: #fbbf24; display: flex; align-items: center; justify-content: center; height: 100%; background: #111; }
@@ -141,7 +148,7 @@
 
   /* Smart Chip */
   .smart-chip {
-    position: absolute; top: 125px; right: 25px; width: 45px; height: 35px; border-radius: 6px;
+    position: absolute; top: 135px; right: 25px; width: 45px; height: 35px; border-radius: 6px;
     background: linear-gradient(135deg, #fcf6ba 0%, #d4af37 25%, #aa771c 50%, #d4af37 75%, #fcf6ba 100%);
     z-index: 10; box-shadow: inset 0 1px 2px rgba(255,255,255,0.8), 0 3px 10px rgba(0,0,0,0.8); border: 1px solid #8a6914;
   }
@@ -180,9 +187,15 @@
   /* QR & Emergency Row */
   .qr-emergency-row { display: flex; gap: 10px; margin-bottom: 12px; }
   
-  .qr-container { position: relative; width: 75px; height: 75px; background: #fff; padding: 4px; border-radius: 6px; flex-shrink: 0; border: 1px solid #3b82f6; box-shadow: 0 0 10px rgba(59,130,246,0.3); overflow: hidden;}
-  .qr-container img { width: 100%; height: 100%; }
-  .qr-scanner { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #ff0055; box-shadow: 0 0 10px #ff0055; opacity: 0; }
+  /* Profile QR Code */
+  .qr-container { 
+    position: relative; width: 80px; height: 80px; background: #fff; padding: 4px; border-radius: 8px; 
+    flex-shrink: 0; border: 2px solid #3b82f6; box-shadow: 0 0 15px rgba(59,130,246,0.5); overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .qr-container img { width: 100%; height: 100%; border-radius: 4px; }
+  .qr-container span { font-size: 6px; font-weight: bold; color: #000; margin-top: 2px; position: absolute; bottom: 2px; background: #fff; padding: 0 2px;}
+  .qr-scanner { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #ff0055; box-shadow: 0 0 10px #ff0055; opacity: 0; z-index: 10;}
   .qr-container:hover .qr-scanner { opacity: 1; animation: scanQR 1.5s linear infinite; }
   @keyframes scanQR { 0% { top: 0; } 100% { top: 100%; } }
 
@@ -245,7 +258,7 @@
     .id-card-container { width: 100%; height: 100%; page-break-inside: avoid; }
     .id-card-inner { transform: none !important; }
     .card-front { display: block; }
-    .card-back { display: none; } /* Change to block to print back */
+    .card-back { display: none; } 
   }
 </style>
 </head>
@@ -269,19 +282,33 @@
 
         <div class="card-header">
           <div class="status-badge"><div class="status-dot"></div> ACTIVE</div>
+          
+          <!-- Top Class School Logo (Golden Graduation Cap & Star) -->
+          <div class="school-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <defs>
+                <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#fcf6ba" />
+                  <stop offset="50%" stop-color="#bf953f" />
+                  <stop offset="100%" stop-color="#aa771c" />
+                </linearGradient>
+              </defs>
+              <path d="M12 3L1 9L5 11.18V17.18L12 21L19 17.18V11.18L21 10.09V17H23V9L12 3ZM18.82 9L12 12.72L5.18 9L12 5.28L18.82 9ZM17 15.99L12 18.72L7 15.99V12.27L12 15L17 12.27V15.99Z"/>
+              <polygon points="12,0 13.5,2.5 16.5,3 14.5,5.5 15,8.5 12,7 9,8.5 9.5,5.5 7.5,3 10.5,2.5" fill="#fbbf24" transform="scale(0.4) translate(18, 10)"/>
+            </svg>
+          </div>
+
           <h1>ACME INTL SCHOOL</h1>
           <p>CBSE AFFILIATED | STUDENT IDENTITY</p>
         </div>
 
         <div class="profile-wrapper">
-  <!-- Yahan student.photo ki jagah student.photo_url kar diya hai -->
-  {% if student.photo_url %}
-      <img src="{{ student.photo_url }}" alt="Photo">
-  {% else %}
-      <!-- Agar photo nahi hai toh initials dikhayega -->
-      <div class="initials">{{ student.name[:2] | upper }}</div>
-  {% endif %}
-  <div class="holo-badge">★</div>
+          {% if student.photo_url %}
+              <img src="{{ student.photo_url }}" alt="Photo">
+          {% else %}
+              <div class="initials">{{ student.name[:2] | upper }}</div>
+          {% endif %}
+          <div class="holo-badge">★</div>
         </div>
 
         <div class="student-name-area">
@@ -299,7 +326,6 @@
 
         <div class="smart-chip"></div>
         
-        <!-- Digital Signature Stamp -->
         <div class="digital-stamp">
           <span>DIGITALLY<br>VERIFIED</span>
         </div>
@@ -327,14 +353,18 @@
           </div>
 
           <div class="qr-emergency-row">
-            <div class="qr-container">
-              <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://acme.edu/verify/{{ student.roll_no or '24' }}" alt="QR">
+            
+            <!-- UPDATED QR CODE: Links to Student Profile -->
+            <div class="qr-container" onclick="window.open('{{ url_for('student_profile', roll_no=student.roll_no, _external=True) }}', '_blank')" title="Scan to view profile">
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ url_for('student_profile', roll_no=student.roll_no, _external=True) }}" alt="Profile QR">
+              <span>Scan Profile</span>
               <div class="qr-scanner"></div>
             </div>
+
             <div class="emergency-box" onclick="triggerSOS()">
               <label>🚨 Emergency SOS</label>
               <span>Tap to Alert</span>
-              <small>Parent: {{ student.contact or '9876543210' }}</small>
+              <small>Parent: {{ student.parent_contact or '9876543210' }}</small>
             </div>
           </div>
 
@@ -377,7 +407,7 @@
   </div>
 
   <script>
-    // 1. Initialize 3D Tilt Effect (Glare enabled for Holographic feel)
+    // 1. Initialize 3D Tilt Effect
     VanillaTilt.init(document.querySelector(".id-card-container"), {
       max: 15, speed: 400, glare: true, "max-glare": 0.3, scale: 1.05
     });
@@ -415,7 +445,7 @@
         color: '#fff'
       }).then((result) => {
         if (result.isConfirmed) {
-            window.location.href = "tel:{{ student.contact or '9876543210' }}";
+            window.location.href = "tel:{{ student.parent_contact or '9876543210' }}";
         }
       });
     }
