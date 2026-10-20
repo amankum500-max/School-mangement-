@@ -1,5 +1,5 @@
 Flask==3.0.0
-psycopg2-binary==2.9.13
+psycopg2-binary==2.9.9
 python-dotenv==1.0.0
 gunicorn==21.2.0
 eventlet==0.33.3
@@ -8,17 +8,9 @@ google-generativeai==0.3.2
 qrcode[pil]==7.4.2
 Pillow>=11.0.0
 razorpay==1.4.2
-google-generativeai==0.3.2
-Flask
-google-generativeai
-requests
-flask-socketio
-eventlet
-razorpay
-werkzeug
+flask-socketio==5.3.6
+werkzeug>=3.0.0
 xhtml2pdf
 supabase
 fastapi
 fpdf2
-fpdf
-0.31.1
