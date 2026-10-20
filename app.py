@@ -466,32 +466,41 @@ def upload_photo(roll_no):
         flash("No selected file", "error")
         return redirect(url_for("student_profile", roll_no=roll_no))
 
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        flash("❌ Supabase is not configured properly.", "error")
+        return redirect(url_for("student_profile", roll_no=roll_no))
+
     if file:
-        # File ka naam unique banayein taaki purani photo overwrite na ho
         filename = secure_filename(f"student_{roll_no}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}")
+        bucket_name = 'student_photos'
         
         try:
-            # File data read karein
             file_data = file.read()
+            upload_url = f"{SUPABASE_URL}/storage/v1/object/{bucket_name}/{filename}"
             
-            # Supabase Storage mein upload karein (bucket name: 'student_photos')
-            supabase.storage.from_('student_photos').upload(
-                path=filename,
-                file=file_data,
-                file_options={"content-type": file.content_type}
-            )
+            headers = {
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Content-Type": file.content_type or "image/jpeg"
+            }
             
-            # Public URL generate karein
-            public_url = supabase.storage.from_('student_photos').get_public_url(filename)
+            response = requests.post(upload_url, headers=headers, data=file_data, timeout=30)
             
-            # Database mein URL update karein
-            run("UPDATE students SET photo_url=%s WHERE roll_no=%s", (public_url, roll_no))
-            
-            flash("✅ Photo uploaded successfully!", "success")
-            
+            if response.status_code == 200:
+                public_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{filename}"
+                run("UPDATE students SET photo_url=%s WHERE roll_no=%s", (public_url, roll_no))
+                flash("✅ Photo uploaded successfully!", "success")
+            else:
+                flash(f"❌ Error uploading photo: Server returned {response.status_code}", "error")
+                
+        except requests.exceptions.Timeout:
+            flash("❌ Error: Network timeout. Please try uploading again.", "error")
+        except requests.exceptions.ConnectionError:
+            flash("❌ Error: Could not connect to Supabase.", "error")
         except Exception as e:
-            print(f"Error uploading to Supabase: {e}")
             flash(f"❌ Error uploading photo: {str(e)}", "error")
+            
+    # Function ke end mein hamesha return hona chahiye
+    return redirect(url_for("student_profile", roll_no=roll_no))
 # ==========================================
 # 💵 ULTIMATE FEE MANAGEMENT ENGINE
 # ==========================================
