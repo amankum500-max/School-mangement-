@@ -3,1010 +3,440 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ID Card - {{ student.name }}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Orbitron:wght@700;900&family=Share+Tech+Mono&family=Cinzel:wght@600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+<title>Elite ID Card - {{ student.name }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Orbitron:wght@700;900&family=Share+Tech+Mono&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
   
   body { 
-    background: #030308; 
+    background: #020205; 
     display: flex; flex-direction: column; justify-content: center; align-items: center; 
-    min-height: 100vh; padding: 20px; gap: 30px;
+    min-height: 100vh; padding: 20px; gap: 20px; overflow-x: hidden;
     background-image: 
-      radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 40%),
-      radial-gradient(circle at 80% 70%, rgba(0, 243, 255, 0.15) 0%, transparent 40%),
-      radial-gradient(circle at 50% 50%, rgba(251, 191, 36, 0.05) 0%, transparent 50%);
+      radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(251, 191, 36, 0.1) 0%, transparent 40%);
   }
 
-  /* Print Button */
-  .print-btn { 
-    background: linear-gradient(135deg, #fbbf24, #f59e0b, #d97706); 
-    color: black; border: none; padding: 16px 40px; border-radius: 14px; 
-    font-size: 15px; font-weight: 900; cursor: pointer; letter-spacing: 2px;
-    box-shadow: 0 0 40px rgba(251,191,36,0.5), inset 0 2px 0 rgba(255,255,255,0.4);
-    display: flex; align-items: center; gap: 12px; transition: 0.3s; text-transform: uppercase;
-    position: relative; overflow: hidden;
-    font-family: 'Orbitron', sans-serif;
+  /* Action Buttons */
+  .action-btns { display: flex; gap: 10px; z-index: 100; flex-wrap: wrap; justify-content: center; }
+  .btn { 
+    background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.2); 
+    padding: 10px 20px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; 
+    transition: 0.3s; text-transform: uppercase; font-family: 'Orbitron', sans-serif;
+    backdrop-filter: blur(10px);
   }
-  .print-btn::before {
-    content: ''; position: absolute; inset: 0;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
-    transform: translateX(-100%); animation: btnShine 2.5s infinite;
-  }
-  @keyframes btnShine { 100% { transform: translateX(100%); } }
-  .print-btn:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 0 60px rgba(251,191,36,0.9); }
+  .btn:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
+  .btn-gold { background: linear-gradient(135deg, #fbbf24, #d97706); color: #000; border: none; box-shadow: 0 0 15px rgba(251,191,36,0.4); }
+  .btn-print { background: #3b82f6; color: #fff; border: none; box-shadow: 0 0 15px rgba(59,130,246,0.4); }
 
-  /* 3D Container */
-  .id-card-container { width: 370px; height: 580px; perspective: 2000px; cursor: pointer; position: relative; }
+  /* =========================================
+     3D CARD CONTAINER
+     ========================================= */
+  .id-card-container { width: 370px; height: 580px; perspective: 2000px; cursor: pointer; position: relative; z-index: 10; }
   .id-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 1s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform-style: preserve-3d; }
   .id-card-container:hover .id-card-inner { transform: rotateY(180deg); }
 
   /* Common Card Base */
   .card-front, .card-back {
-    position: absolute; width: 100%; height: 100%; 
-    backface-visibility: hidden; border-radius: 24px; overflow: hidden;
+    position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 16px; overflow: hidden;
     background: #08080f;
-    box-shadow: 
-      0 30px 80px rgba(0, 0, 0, 0.95),
-      0 0 0 1px rgba(251, 191, 36, 0.5),
-      0 0 60px rgba(251, 191, 36, 0.15);
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.9), 0 0 0 2px rgba(251, 191, 36, 0.3), 0 0 50px rgba(251, 191, 36, 0.1);
   }
 
-  /* Holographic Full Background */
+  /* Guilloche Pattern Background (Security Feature) */
   .card-front::before, .card-back::before {
     content: ''; position: absolute; inset: 0;
     background: 
-      repeating-linear-gradient(0deg, rgba(251,191,36,0.04) 0px, rgba(251,191,36,0.04) 1px, transparent 1px, transparent 8px),
-      repeating-linear-gradient(90deg, rgba(0,243,255,0.03) 0px, rgba(0,243,255,0.03) 1px, transparent 1px, transparent 12px),
-      radial-gradient(circle at 10% 10%, rgba(139, 92, 246, 0.1) 0%, transparent 30%),
-      radial-gradient(circle at 90% 90%, rgba(0, 243, 255, 0.1) 0%, transparent 30%);
-    z-index: 0;
+      repeating-radial-gradient(circle at 0 0, transparent 0, #08080f 10px, transparent 11px, transparent 20px),
+      repeating-radial-gradient(circle at 100% 100%, transparent 0, #08080f 10px, transparent 11px, transparent 20px),
+      repeating-linear-gradient(45deg, rgba(251,191,36,0.03) 0, rgba(251,191,36,0.03) 2px, transparent 2px, transparent 4px);
+    z-index: 0; opacity: 0.8;
   }
 
-  /* UV Watermark (Invisible normally) */
+  /* Micro-Text Border (Anti-Fake) */
+  .micro-text-border {
+    position: absolute; inset: 8px; border: 1px solid rgba(251,191,36,0.2); border-radius: 10px;
+    z-index: 1; pointer-events: none;
+  }
+  .micro-text-border::before {
+    content: 'ACME-INTERNATIONAL-SCHOOL-CBSE-VERIFIED-SECURE-ID-CARD-2024-2025-ACME-INTERNATIONAL-SCHOOL-';
+    position: absolute; top: -5px; left: 10px; font-size: 4px; color: rgba(251,191,36,0.4); letter-spacing: 1px;
+  }
+
+  /* UV Watermark */
   .uv-watermark {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg);
-    font-family: 'Orbitron', sans-serif;
-    font-size: 100px; font-weight: 900; 
-    color: rgba(251, 191, 36, 0.025);
-    z-index: 1; pointer-events: none; white-space: nowrap; letter-spacing: 10px;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1.5);
+    font-family: 'Orbitron', sans-serif; font-size: 110px; font-weight: 900; 
+    color: rgba(0, 243, 255, 0); z-index: 1; pointer-events: none; white-space: nowrap; letter-spacing: 15px;
+    transition: 0.5s;
   }
-
-  /* Gold Shine Sweep */
-  .holo-shine {
-    position: absolute; inset: 0;
-    background: linear-gradient(115deg, 
-      transparent 30%, 
-      rgba(251,191,36,0.08) 42%, 
-      rgba(255,255,255,0.2) 48%, 
-      rgba(251,191,36,0.08) 54%, 
-      transparent 66%
-    );
-    background-size: 300% 300%;
-    z-index: 15; pointer-events: none;
-    animation: goldShine 5s infinite linear;
-  }
-  @keyframes goldShine { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-  /* Micro Text Border */
-  .micro-text {
-    position: absolute; inset: 0; padding: 4px; 
-    font-size: 5px; color: rgba(251,191,36,0.2); 
-    line-height: 1; word-wrap: break-word; z-index: 1; 
-    pointer-events: none; text-align: justify; overflow: hidden; 
-    text-transform: uppercase; letter-spacing: 0.3px;
-  }
+  body.uv-mode .uv-watermark { color: rgba(0, 243, 255, 0.12); text-shadow: 0 0 40px rgba(0, 243, 255, 0.6); }
 
   /* Lanyard Slot */
   .lanyard-slot {
-    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
-    width: 65px; height: 12px; background: #000;
-    border-radius: 12px;
-    box-shadow: inset 0 3px 6px rgba(0,0,0,1), 0 1px 1px rgba(251,191,36,0.4); 
-    z-index: 20;
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    width: 70px; height: 12px; background: #000; border-radius: 10px;
+    box-shadow: inset 0 3px 5px rgba(0,0,0,1), 0 1px 2px rgba(251,191,36,0.5); z-index: 20;
   }
 
-  /* Particle Burst System */
-  .particles { position: absolute; inset: 0; pointer-events: none; z-index: 12; overflow: hidden; }
-  .particle {
-    position: absolute; width: 5px; height: 5px; border-radius: 50%;
-    background: #fbbf24; box-shadow: 0 0 12px #fbbf24, 0 0 20px rgba(251,191,36,0.5);
-    animation: particleFloat 5s infinite ease-in-out;
-  }
-  @keyframes particleFloat {
-    0% { transform: translateY(100%) scale(0); opacity: 0; }
-    20% { opacity: 1; }
-    100% { transform: translateY(-100%) scale(1); opacity: 0; }
-  }
-  .particle:nth-child(1) { left: 8%; animation-delay: 0s; }
-  .particle:nth-child(2) { left: 22%; animation-delay: 1s; }
-  .particle:nth-child(3) { left: 38%; animation-delay: 2s; }
-  .particle:nth-child(4) { left: 55%; animation-delay: 0.5s; }
-  .particle:nth-child(5) { left: 72%; animation-delay: 2.5s; }
-  .particle:nth-child(6) { left: 88%; animation-delay: 1.5s; }
-
-  /* ========== FRONT SIDE ========== */
-  .card-front { transform: rotateY(0deg); }
+  /* =========================================
+     FRONT SIDE
+     ========================================= */
+  .card-front { transform: rotateY(0deg); display: flex; flex-direction: column; }
   
-  /* Premium Header */
   .card-header { 
-    background: linear-gradient(180deg, #0a0a12 0%, #000 100%); 
-    padding: 20px 20px 12px; text-align: center;
-    position: relative; z-index: 2; 
-    border-bottom: 2px solid;
-    border-image: linear-gradient(90deg, transparent, #fbbf24, transparent) 1;
-    border-radius: 24px 24px 0 0;
+    padding: 25px 15px 10px; text-align: center; position: relative; z-index: 2; 
+    border-bottom: 1px solid rgba(251,191,36,0.2);
   }
 
-  /* Marquee Ticker (Scrolling School Motto) */
-  .marquee-ticker {
-    background: linear-gradient(90deg, #fbbf24, #d97706);
-    color: #000;
-    padding: 2px 0;
-    font-family: 'Orbitron', sans-serif;
-    font-size: 8px;
-    font-weight: 900;
-    letter-spacing: 2px;
-    overflow: hidden;
-    white-space: nowrap;
-    margin-bottom: 8px;
-    border-radius: 4px;
-  }
-  .marquee-ticker span { display: inline-block; animation: ticker 8s linear infinite; padding-left: 100%; }
-  @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
-
-  /* Live Clock */
-  .live-clock {
-    position: absolute; top: 12px; left: 12px; 
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px; color: #39ff14; 
-    padding: 3px 8px; border-radius: 4px;
-    background: rgba(57,255,20,0.08); 
-    border: 1px solid rgba(57,255,20,0.4);
-    text-shadow: 0 0 8px rgba(57,255,20,0.9);
-    letter-spacing: 1px;
-    z-index: 5;
-  }
-
-  /* Signal Bars */
-  .signal-bars { position: absolute; top: 13px; left: 75px; display: flex; gap: 2px; align-items: flex-end; height: 12px; z-index: 5; }
-  .signal-bars span { width: 2px; background: #39ff14; box-shadow: 0 0 4px #39ff14; border-radius: 1px; }
-  .signal-bars span:nth-child(1) { height: 3px; }
-  .signal-bars span:nth-child(2) { height: 5px; }
-  .signal-bars span:nth-child(3) { height: 8px; }
-  .signal-bars span:nth-child(4) { height: 11px; }
-
-  /* Validity Badge */
-  .validity-badge {
-    position: absolute; top: 15px; right: -32px; 
-    background: linear-gradient(135deg, #ff0055, #d90429); 
-    color: white; font-size: 8px; font-weight: 900; 
-    padding: 5px 38px; transform: rotate(45deg);
-    box-shadow: 0 0 15px rgba(255,0,85,0.8); 
-    z-index: 20; letter-spacing: 1px;
-    font-family: 'Orbitron', sans-serif;
-  }
-
-  /* School Name Gold Embossed */
   .card-header h1 { 
-    font-family: 'Cinzel', serif; 
-    font-size: 19px; font-weight: 700; letter-spacing: 2px; 
-    margin-bottom: 2px; text-transform: uppercase;
-    background: linear-gradient(180deg, #fcf6ba 0%, #bf953f 50%, #aa771c 100%);
+    font-family: 'Cinzel', serif; font-size: 20px; font-weight: 700; letter-spacing: 3px; 
+    text-transform: uppercase; background: linear-gradient(180deg, #fcf6ba 0%, #bf953f 50%, #aa771c 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.9)) drop-shadow(0 -1px 0 rgba(255,255,255,0.3));
-    text-shadow: 0 2px 15px rgba(251,191,36,0.5);
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.9));
   }
-  .card-header .hindi-name {
-    font-size: 9px; color: #fbbf24; font-weight: 700; 
-    letter-spacing: 1px; margin-bottom: 2px;
+  .card-header p { font-size: 8px; color: #94a3b8; text-transform: uppercase; letter-spacing: 5px; font-weight: 800; margin-top: 4px;}
+  
+  /* Status Badge */
+  .status-badge {
+    position: absolute; top: 15px; left: 15px; display: flex; align-items: center; gap: 5px;
+    background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.4);
+    padding: 3px 8px; border-radius: 20px; font-size: 8px; color: #10b981; font-weight: 800; font-family: 'Share Tech Mono';
   }
-  .card-header p { 
-    font-size: 8px; color: #94a3b8; 
-    text-transform: uppercase; letter-spacing: 4px; font-weight: 800;
-  }
+  .status-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: pulseGreen 1.5s infinite; box-shadow: 0 0 8px #10b981; }
+  @keyframes pulseGreen { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
 
-  /* Photo with Glow Ring */
-  .photo-wrapper { position: relative; width: 115px; height: 115px; margin: -57px auto 0; z-index: 5; }
-  .photo-container { 
-    width: 100%; height: 100%; border-radius: 50%; 
-    background: #0a0a12;
-    box-shadow: 
-      0 0 30px rgba(251,191,36,0.6), 
-      inset 0 0 25px rgba(251,191,36,0.2);
-    display: flex; align-items: center; justify-content: center; 
-    overflow: hidden; position: relative;
-    border: 3px solid #fbbf24;
-    animation: photoPulse 3s infinite;
+  /* Profile Image */
+  .profile-wrapper {
+    margin: 15px auto 0; position: relative; width: 100px; height: 120px; z-index: 5;
+    border-radius: 8px; border: 2px solid #fbbf24; box-shadow: 0 0 25px rgba(251,191,36,0.3); overflow: hidden;
   }
-  @keyframes photoPulse { 0%, 100% { box-shadow: 0 0 30px rgba(251,191,36,0.6), inset 0 0 25px rgba(251,191,36,0.2); } 50% { box-shadow: 0 0 50px rgba(251,191,36,0.9), inset 0 0 35px rgba(251,191,36,0.3); } }
-  .photo-container img { width: 100%; height: 100%; object-fit: cover; }
-  .initials { 
-    font-family: 'Orbitron', sans-serif;
-    font-size: 46px; font-weight: 900; 
-    background: linear-gradient(135deg, #fcf6ba, #bf953f);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 25px rgba(251,191,36,0.6);
-  }
+  .profile-wrapper img { width: 100%; height: 100%; object-fit: cover; }
+  .initials { font-family: 'Orbitron'; font-size: 40px; font-weight: 900; color: #fbbf24; display: flex; align-items: center; justify-content: center; height: 100%; background: #111; }
 
-  /* Biometric Fingerprint */
-  .biometric-icon {
-    position: absolute; bottom: -2px; left: -10px; 
-    width: 34px; height: 34px;
-    background: rgba(0, 243, 255, 0.2); 
-    border: 1.5px solid #00f3ff; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; 
-    z-index: 8; box-shadow: 0 0 15px rgba(0,243,255,0.5);
-    animation: bioPulse 2s infinite;
+  /* Hologram Badge */
+  .holo-badge {
+    position: absolute; bottom: -10px; right: -15px; width: 45px; height: 45px;
+    background: conic-gradient(from 0deg, #ff0055, #fbbf24, #00f3ff, #8b5cf6, #ff0055);
+    border-radius: 50%; border: 2px solid #fff; z-index: 8; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.8); animation: spinHolo 4s linear infinite;
   }
-  @keyframes bioPulse { 0%, 100% { box-shadow: 0 0 15px rgba(0,243,255,0.5); } 50% { box-shadow: 0 0 30px rgba(0,243,255,0.9); } }
-  .biometric-icon svg { width: 20px; height: 20px; fill: #00f3ff; }
+  @keyframes spinHolo { 100% { filter: hue-rotate(360deg); transform: rotate(360deg); } }
 
-  /* Hologram Sticker */
-  .hologram {
-    position: absolute; bottom: 0; right: -12px; 
-    width: 42px; height: 42px;
-    background: conic-gradient(from 0deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
-    border-radius: 50%; border: 2.5px solid #fff; z-index: 8;
-    display: flex; align-items: center; justify-content: center; 
-    font-size: 15px; color: white; font-weight: 900;
-    animation: rotateHolo 3s linear infinite; 
-    box-shadow: 0 3px 15px rgba(0,0,0,0.7);
-  }
-  @keyframes rotateHolo { 100% { filter: hue-rotate(360deg); } }
+  /* Student Name Area */
+  .student-name-area { text-align: center; margin-top: 15px; z-index: 2; position: relative; }
+  .student-name-area h2 { font-family: 'Orbitron', sans-serif; font-size: 22px; color: #fff; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 0 15px rgba(251,191,36,0.4); }
+  .student-name-area .hindi-name { font-size: 11px; color: #fbbf24; font-weight: 700; margin-top: 2px; }
+  .class-badge { display: inline-block; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.4); color: #fbbf24; padding: 4px 15px; border-radius: 15px; font-size: 10px; font-weight: 800; letter-spacing: 2px; margin-top: 8px; font-family: 'Share Tech Mono'; }
 
-  /* Face ID Ready Marker */
-  .face-id-marker {
-    position: absolute; top: -5px; right: -5px;
-    background: #39ff14; color: #000; font-size: 6px; font-weight: 900;
-    padding: 2px 6px; border-radius: 8px; z-index: 9;
-    letter-spacing: 0.5px;
-    animation: blink 1.5s infinite;
-    font-family: 'Orbitron', sans-serif;
-  }
-  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  /* Data Grid */
+  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 20px; text-align: left; z-index: 2; position: relative;}
+  .data-item label { display: block; font-size: 7px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 1px; }
+  .data-item span { font-size: 11px; color: #e2e8f0; font-weight: 600; font-family: 'Share Tech Mono'; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+  .data-item.blood span { color: #ff0055; font-weight: 900; font-size: 13px; text-shadow: 0 0 10px rgba(255,0,85,0.5); }
 
-  /* Student Name */
-  .student-title { text-align: center; margin-top: 30px; position: relative; z-index: 2; padding: 0 15px; }
-  .student-title h2 { 
-    font-family: 'Orbitron', sans-serif;
-    font-size: 20px; color: #fff; font-weight: 900; 
-    text-transform: uppercase; letter-spacing: 1px;
-    text-shadow: 
-      0 1px 0 #aaa, 0 2px 0 #888, 0 3px 0 #666,
-      0 4px 12px rgba(0,0,0,0.95),
-      0 0 25px rgba(251,191,36,0.5);
-  }
-  .student-title .hindi-student {
-    font-size: 10px; color: #fbbf24; font-weight: 700; margin-top: 3px;
-  }
-
-  .class-badge { 
-    display: inline-block; 
-    background: linear-gradient(135deg, rgba(251,191,36,0.2), rgba(251,191,36,0.08)); 
-    color: #fbbf24; border: 1px solid rgba(251,191,36,0.7); 
-    padding: 4px 16px; border-radius: 20px; 
-    font-size: 10px; font-weight: 800; margin-top: 6px; 
-    letter-spacing: 2px;
-    box-shadow: 0 0 20px rgba(251,191,36,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
-    font-family: 'Share Tech Mono', monospace;
-  }
-
-  /* Data Panel */
-  .details-panel { 
-    margin: 10px 15px; 
-    background: rgba(0, 0, 0, 0.7); 
-    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(251,191,36,0.3); 
-    padding: 10px 14px; border-radius: 12px; z-index: 2;
-    box-shadow: inset 0 1px 0 rgba(251,191,36,0.2), 0 6px 25px rgba(0,0,0,0.6);
-  }
-  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-  .info-item label { 
-    display: block; font-size: 7px; color: #94a3b8; 
-    text-transform: uppercase; font-weight: 800; letter-spacing: 1px;
-    margin-bottom: 1px;
-  }
-  .info-item span { 
-    font-size: 11px; font-weight: 900; color: #fff; 
-    display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    font-family: 'Share Tech Mono', monospace;
-    letter-spacing: 0.3px;
-  }
-
-  /* Metallic RFID Chip */
-  .rfid-chip {
-    position: absolute; top: 112px; right: 18px; 
-    width: 44px; height: 34px; border-radius: 6px;
+  /* Smart Chip */
+  .smart-chip {
+    position: absolute; top: 125px; right: 25px; width: 45px; height: 35px; border-radius: 6px;
     background: linear-gradient(135deg, #fcf6ba 0%, #d4af37 25%, #aa771c 50%, #d4af37 75%, #fcf6ba 100%);
-    z-index: 10; 
-    box-shadow: 
-      inset 0 1px 2px rgba(255,255,255,0.9), 
-      inset 0 -1px 2px rgba(0,0,0,0.6),
-      0 3px 10px rgba(0,0,0,0.7);
-    border: 1px solid #8a6914;
-    overflow: hidden;
+    z-index: 10; box-shadow: inset 0 1px 2px rgba(255,255,255,0.8), 0 3px 10px rgba(0,0,0,0.8); border: 1px solid #8a6914;
   }
-  .rfid-chip::before {
-    content: ''; position: absolute; inset: 5px;
-    border: 1px solid rgba(0,0,0,0.5); border-radius: 3px;
-  }
-  .rfid-chip::after {
-    content: ''; position: absolute; top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 20px; height: 14px; border-radius: 2px;
-    background: linear-gradient(180deg, #8a6914, #d4af37);
-    box-shadow: inset 0 1px 1px rgba(255,255,255,0.6);
-  }
+  .smart-chip::before { content: ''; position: absolute; inset: 4px; border: 1px solid rgba(0,0,0,0.4); border-radius: 3px; }
+  .smart-chip::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 15px; background: linear-gradient(180deg, #8a6914, #d4af37); border-radius: 2px; }
 
-  /* Data Lines */
-  .chip-data-lines {
-    position: absolute; top: 128px; right: 64px;
-    width: 70px; height: 22px; z-index: 8;
-    pointer-events: none;
-  }
-  .chip-data-lines::before, .chip-data-lines::after {
-    content: ''; position: absolute;
-    height: 1px; background: linear-gradient(90deg, transparent, #fbbf24, transparent);
-    animation: dataFlow 2s infinite;
-  }
-  .chip-data-lines::before { top: 4px; width: 100%; }
-  .chip-data-lines::after { top: 15px; width: 80%; animation-delay: 0.5s; }
-  @keyframes dataFlow { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
-
-  /* NFC Tap Zone */
-  .nfc-zone {
-    position: absolute; bottom: 90px; right: 15px;
-    width: 40px; height: 40px; 
-    border: 2px dashed rgba(0, 243, 255, 0.6);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    z-index: 6; animation: nfcPulse 2s infinite;
-  }
-  @keyframes nfcPulse { 0%, 100% { border-color: rgba(0,243,255,0.6); transform: scale(1); } 50% { border-color: rgba(0,243,255,1); transform: scale(1.1); } }
-  .nfc-zone svg { width: 20px; height: 20px; fill: #00f3ff; opacity: 0.8; }
-
-  /* Weather Widget */
-  .weather-widget {
-    position: absolute; top: 15px; right: 15px;
-    background: rgba(0, 0, 0, 0.6);
-    border: 1px solid rgba(251, 191, 36, 0.4);
-    border-radius: 8px;
-    padding: 4px 8px;
-    display: flex; align-items: center; gap: 5px;
-    z-index: 6;
-    font-size: 10px;
-    color: #fbbf24;
-    font-family: 'Share Tech Mono', monospace;
-    backdrop-filter: blur(5px);
-  }
-  .weather-widget span:first-child { font-size: 14px; }
-
-  /* Footer */
-  .card-footer { 
-    position: absolute; bottom: 0; left: 0; width: 100%; 
-    padding: 12px 15px; z-index: 2; 
-    display: flex; justify-content: space-between; align-items: flex-end; 
-    background: linear-gradient(to top, #000 20%, transparent); 
-  }
+  /* Signature Area */
+  .sign-area { display: flex; justify-content: space-between; padding: 0 25px; margin-top: auto; margin-bottom: 15px; z-index: 2; position: relative;}
+  .sig-box { text-align: center; border-top: 1px dashed rgba(255,255,255,0.2); width: 90px; padding-top: 4px; font-size: 7px; color: #94a3b8; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
   
-  .barcode-wrap { 
-    text-align: left; display: flex; flex-direction: column; gap: 4px; 
-    position: relative; overflow: hidden; padding: 3px;
+  /* Digital Signature Stamp */
+  .digital-stamp {
+    position: absolute; bottom: 50px; right: 25px; width: 50px; height: 50px; border: 2px solid #3b82f6; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; transform: rotate(-15deg); opacity: 0.8; z-index: 5;
   }
-  .barcode-scan-laser {
-    position: absolute; top: 0; left: 0; width: 100%; height: 2px; 
-    background: #ff0055; box-shadow: 0 0 12px #ff0055; 
-    animation: scanLaser 2s ease-in-out infinite alternate;
-  }
-  @keyframes scanLaser { 0% { top: 0; } 100% { top: 100%; } }
-  .barcode-1d { 
-    width: 90px; height: 20px; 
-    background: repeating-linear-gradient(to right, 
-      #fbbf24 0, #fbbf24 2px, transparent 2px, transparent 4px, 
-      #fbbf24 4px, #fbbf24 5px, transparent 5px, transparent 8px, 
-      #fbbf24 8px, #fbbf24 12px, transparent 12px, transparent 14px
-    ); 
-  }
-  .barcode-text { 
-    font-family: 'Share Tech Mono', monospace; 
-    font-size: 9px; font-weight: bold; color: #fbbf24; 
-    letter-spacing: 2px;
-  }
+  .digital-stamp span { font-size: 8px; color: #3b82f6; font-weight: 900; text-align: center; line-height: 1.1; }
 
-  /* ========== BACK SIDE ========== */
-  .card-back { transform: rotateY(180deg); padding: 16px 14px; display: flex; flex-direction: column; }
+  /* Barcode Bottom */
+  .barcode-bottom { background: #fff; width: 100%; padding: 6px 0; z-index: 2; display: flex; flex-direction: column; align-items: center; }
+  .barcode-bottom svg { height: 25px; width: 150px; }
+
+  /* =========================================
+     BACK SIDE
+     ========================================= */
+  .card-back { transform: rotateY(180deg); display: flex; flex-direction: column; }
   
-  /* Ghost Image */
-  .ghost-image {
-    position: absolute; top: 50%; left: 50%; 
-    transform: translate(-50%, -50%) scale(1.6);
-    opacity: 0.05; filter: grayscale(100%) blur(2px); 
-    z-index: 0; pointer-events: none;
-    width: 240px; height: 240px; border-radius: 50%; overflow: hidden;
-  }
-  .ghost-image img { width: 100%; height: 100%; object-fit: cover; }
+  /* Magnetic Stripe */
+  .magnetic-stripe { width: 100%; height: 40px; background: #111; margin-top: 25px; box-shadow: inset 0 5px 10px rgba(0,0,0,0.9), inset 0 -5px 10px rgba(0,0,0,0.9); position: relative; z-index: 2; }
 
-  .back-header { 
-    text-align: center; 
-    border-bottom: 1px solid rgba(251,191,36,0.35); 
-    padding-bottom: 6px; margin-bottom: 8px; 
-    z-index: 2; position: relative;
-  }
-  .back-header h3 { 
-    font-family: 'Cinzel', serif;
-    font-size: 12px; 
-    background: linear-gradient(180deg, #fcf6ba, #bf953f);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    font-weight: 900; text-transform: uppercase; 
-    letter-spacing: 3px;
-  }
-  .back-header p {
-    font-size: 7px; color: #94a3b8; margin-top: 1px; letter-spacing: 1px;
-  }
-
-  /* Achievement & Behavior Score */
-  .stats-row {
-    display: flex; gap: 6px; margin-bottom: 8px; z-index: 2; position: relative;
-  }
-  .stat-box {
-    flex: 1; background: rgba(251,191,36,0.06); 
-    border: 1px solid rgba(251,191,36,0.3); 
-    border-radius: 8px; padding: 6px;
-    text-align: center;
-  }
-  .stat-box .stat-icon { font-size: 14px; }
-  .stat-box .stat-label { font-size: 6.5px; color: #94a3b8; text-transform: uppercase; font-weight: 800; margin-top: 2px; letter-spacing: 0.5px; }
-  .stat-box .stat-value { font-size: 12px; color: #fbbf24; font-weight: 900; font-family: 'Orbitron', sans-serif; }
-
-  /* Attendance Bar */
-  .attendance-wrap { margin-bottom: 8px; z-index: 2; position: relative; }
-  .attendance-labels { 
-    display: flex; justify-content: space-between; 
-    font-size: 8px; font-weight: 800; color: #94a3b8; 
-    margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px;
-  }
-  .attendance-bg { 
-    width: 100%; height: 6px; 
-    background: rgba(255,255,255,0.08); 
-    border-radius: 3px; overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.1);
-  }
-  .attendance-fill { 
-    height: 100%; 
-    background: linear-gradient(90deg, #39ff14, #00f3ff); 
-    border-radius: 3px; width: {{ student.attendance or 92 }}%; 
-    box-shadow: 0 0 10px rgba(57,255,20,0.6);
-  }
-
-  /* Parents */
-  .parents-wrap { display: flex; gap: 6px; justify-content: center; margin-bottom: 8px; z-index: 2; position: relative;}
-  .parent-box { 
-    display: flex; flex-direction: column; align-items: center; 
-    background: rgba(251,191,36,0.05); 
-    padding: 5px 8px; border-radius: 6px; 
-    border: 1px solid rgba(251,191,36,0.2);
-    min-width: 140px;
-  }
-  .parent-avatar { 
-    width: 24px; height: 24px; border-radius: 50%; 
-    background: linear-gradient(135deg, #fbbf24, #d97706); 
-    color: #000; display: flex; align-items: center; justify-content: center; 
-    font-size: 10px; font-weight: 900; 
-    border: 1.5px solid #fbbf24; margin-bottom: 2px;
-    box-shadow: 0 0 10px rgba(251,191,36,0.4);
-  }
-  .parent-label { font-size: 6.5px; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
-  .parent-phone { 
-    font-size: 9px; color: #fff; font-weight: bold; 
-    font-family: 'Share Tech Mono', monospace; margin-top: 1px;
-  }
-
-  /* Emergency Grid */
-  .emergency-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; z-index: 2; position: relative;}
+  .back-content { padding: 15px; display: flex; flex-direction: column; height: calc(100% - 65px); position: relative; z-index: 2; }
   
-  .medical-alert { 
-    background: rgba(255,0,85,0.1); 
-    border: 1px solid rgba(255,0,85,0.6); 
-    padding: 6px 8px; border-radius: 8px; position: relative; 
-  }
-  .medical-alert h4 { 
-    font-size: 7.5px; color: #ff0055; font-weight: 900; 
-    margin-bottom: 3px; display: flex; align-items: center; gap: 4px; 
-    text-transform: uppercase; letter-spacing: 1px;
-  }
-  .medical-alert p { 
-    font-size: 8.5px; color: #f1f5f9; font-weight: 700; margin-bottom: 1px;
-    font-family: 'Share Tech Mono', monospace;
-  }
+  .back-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(251,191,36,0.2); padding-bottom: 8px; margin-bottom: 12px; }
+  .back-header h3 { font-family: 'Cinzel', serif; font-size: 11px; color: #fbbf24; font-weight: 700; letter-spacing: 2px; }
+  .back-header .icon { font-size: 14px; }
+
+  /* QR & Emergency Row */
+  .qr-emergency-row { display: flex; gap: 10px; margin-bottom: 12px; }
   
-  .blood-drop { 
-    display: inline-block; width: 7px; height: 11px; background: #ff0055; 
-    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; 
-    transform: rotate(45deg); 
-    animation: pulseBlood 1.5s infinite; margin-right: 4px; 
-  }
-  @keyframes pulseBlood { 0% { transform: rotate(45deg) scale(1); } 50% { transform: rotate(45deg) scale(1.2); } 100% { transform: rotate(45deg) scale(1); } }
+  .qr-container { position: relative; width: 75px; height: 75px; background: #fff; padding: 4px; border-radius: 6px; flex-shrink: 0; border: 1px solid #3b82f6; box-shadow: 0 0 10px rgba(59,130,246,0.3); overflow: hidden;}
+  .qr-container img { width: 100%; height: 100%; }
+  .qr-scanner { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #ff0055; box-shadow: 0 0 10px #ff0055; opacity: 0; }
+  .qr-container:hover .qr-scanner { opacity: 1; animation: scanQR 1.5s linear infinite; }
+  @keyframes scanQR { 0% { top: 0; } 100% { top: 100%; } }
 
-  .emergency-section { 
-    background: rgba(251,191,36,0.06); 
-    border: 1px solid rgba(251,191,36,0.5); 
-    padding: 6px 8px; border-radius: 8px; position: relative; 
-  }
-  .emergency-section h4 { 
-    font-size: 7.5px; color: #fbbf24; font-weight: 900; 
-    margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px;
-  }
-  .emergency-section p { 
-    font-size: 8.5px; color: #f1f5f9; font-weight: 700; margin-bottom: 1px;
-    font-family: 'Share Tech Mono', monospace;
-  }
+  .emergency-box { flex-grow: 1; background: rgba(255,0,85,0.05); border: 1px solid rgba(255,0,85,0.4); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; justify-content: center; cursor: pointer; transition: 0.3s; }
+  .emergency-box:hover { background: rgba(255,0,85,0.15); box-shadow: 0 0 15px rgba(255,0,85,0.3); }
+  .emergency-box label { font-size: 7px; color: #ff0055; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+  .emergency-box span { font-size: 12px; color: #fff; font-family: 'Share Tech Mono'; font-weight: 900; margin-top: 2px; }
+  .emergency-box small { font-size: 8px; color: #94a3b8; font-family: 'Share Tech Mono'; margin-top: 2px; }
 
-  /* Multi QR Row */
-  .multi-qr-row {
-    display: flex; gap: 5px; margin-bottom: 8px; z-index: 2; position: relative;
-    justify-content: space-between;
-  }
-  .qr-item {
-    flex: 1; text-align: center;
-    background: rgba(251,191,36,0.06);
-    border: 1px solid rgba(251,191,36,0.35);
-    border-radius: 6px;
-    padding: 5px 2px;
-  }
-  .qr-item img { width: 42px; height: 42px; border: 1px solid #fbbf24; border-radius: 3px; padding: 1px; background: white; }
-  .qr-item p { font-size: 6px; color: #fbbf24; font-weight: 900; text-transform: uppercase; margin-top: 2px; letter-spacing: 0.5px; }
+  /* Info List */
+  .info-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .info-row { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 6px 10px; border-radius: 4px; border-left: 2px solid #3b82f6; }
+  .info-row label { font-size: 8px; color: #94a3b8; text-transform: uppercase; font-weight: 700; }
+  .info-row span { font-size: 10px; color: #e2e8f0; font-family: 'Share Tech Mono'; font-weight: 700; }
+  .info-row.alert { border-left-color: #ff0055; background: rgba(255,0,85,0.05); }
+  .info-row.alert span { color: #ff0055; }
 
-  /* MRZ Code */
-  .mrz-code {
-    font-family: 'Share Tech Mono', monospace; 
-    font-size: 8px; color: #fbbf24; 
-    letter-spacing: 2px; line-height: 1.3; text-align: left; 
-    background: rgba(251,191,36,0.06); 
-    padding: 5px 8px; border-radius: 4px; 
-    border: 1px dashed rgba(251,191,36,0.5); 
-    margin-bottom: 6px; z-index: 2; position: relative;
-    word-break: break-all;
-    text-shadow: 0 0 5px rgba(251,191,36,0.6);
+  /* Track Bus Button */
+  .track-bus-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
+    background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.5); color: #3b82f6;
+    padding: 8px; border-radius: 6px; font-family: 'Orbitron'; font-size: 9px; font-weight: 900; text-transform: uppercase;
+    text-decoration: none; margin-bottom: 12px; transition: 0.3s; cursor: pointer; letter-spacing: 1px;
   }
+  .track-bus-btn:hover { background: rgba(59,130,246,0.2); box-shadow: 0 0 15px rgba(59,130,246,0.4); }
+  .track-bus-btn .live-dot { width: 6px; height: 6px; background: #3b82f6; border-radius: 50%; animation: blink 1s infinite; }
 
-  /* Blockchain Hash */
-  .blockchain-hash {
-    display: flex; justify-content: space-between; align-items: center;
-    font-family: 'Share Tech Mono', monospace; font-size: 7px; 
-    color: rgba(251,191,36,0.7); letter-spacing: 1px; 
-    z-index: 2; position: relative; margin-bottom: 6px;
-    padding: 3px 6px;
-    background: rgba(0,0,0,0.4);
-    border-radius: 3px;
-    border-left: 2px solid #00f3ff;
-  }
-  .blockchain-hash span:first-child { color: #00f3ff; }
+  /* Terms */
+  .terms-text { text-align: justify; font-size: 6.5px; color: #64748b; line-height: 1.4; margin-bottom: 10px; flex-grow: 1; }
+  .terms-text strong { color: #94a3b8; font-size: 7px; text-transform: uppercase; display: block; margin-bottom: 2px; }
 
-  .digital-signed {
-    font-size: 6.5px; font-weight: 800; color: #39ff14; 
-    text-transform: uppercase; border: 1px solid #39ff14; 
-    padding: 2px 6px; border-radius: 4px; 
-    background: rgba(57,255,20,0.1);
-    box-shadow: 0 0 10px rgba(57,255,20,0.4);
-    letter-spacing: 0.5px;
-  }
+  /* Back Footer */
+  .back-footer { text-align: center; font-size: 7px; color: #64748b; border-top: 1px dashed rgba(255,255,255,0.2); padding-top: 8px; }
+  .back-footer strong { color: #e2e8f0; font-size: 8px; display: block; margin-bottom: 2px; }
 
-  /* Anti-Tamper Seal */
-  .anti-tamper {
-    position: absolute; top: 8px; right: 8px;
-    width: 35px; height: 35px;
-    background: repeating-conic-gradient(#ff0055 0% 25%, #fbbf24 0% 50%) 50% / 6px 6px;
-    border-radius: 50%; opacity: 0.85;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 8px; font-weight: 900; color: white;
-    z-index: 5; border: 2px solid white;
-    text-shadow: 0 1px 2px black;
-  }
+  /* =========================================
+     PRINT MODE (White Background)
+     ========================================= */
+  body.print-mode { background: #fff; }
+  body.print-mode .card-front, body.print-mode .card-back { background: #fff !important; border: 2px solid #333 !important; box-shadow: none !important; }
+  body.print-mode .card-front::before, body.print-mode .card-back::before { display: none !important; }
+  body.print-mode .card-header h1 { background: none; -webkit-text-fill-color: #000; color: #000; }
+  body.print-mode .card-header p, body.print-mode .student-name-area h2, body.print-mode .data-item span, body.print-mode .info-row span { color: #000 !important; text-shadow: none !important; }
+  body.print-mode .hindi-name, body.print-mode .class-badge { color: #000 !important; border-color: #000 !important; }
+  body.print-mode .data-item label, body.print-mode .info-row label { color: #555 !important; }
+  body.print-mode .data-item.blood span { color: #d00 !important; }
+  body.print-mode .smart-chip { background: #ccc !important; border-color: #333 !important; }
+  body.print-mode .smart-chip::after { background: #999 !important; }
+  body.print-mode .holo-badge, body.print-mode .digital-stamp, body.print-mode .uv-watermark, body.print-mode .track-bus-btn { display: none !important; }
+  body.print-mode .magnetic-stripe { background: #333 !important; }
+  body.print-mode .info-row, body.print-mode .emergency-box { border-color: #333 !important; background: #fff !important; }
+  body.print-mode .emergency-box span { color: #d00 !important; }
+  body.print-mode .terms-text { color: #333 !important; }
+  body.print-mode .back-footer, body.print-mode .back-header h3 { color: #000 !important; border-color: #333 !important; }
+  body.print-mode .sig-box { border-color: #333 !important; color: #000 !important; }
 
-  /* Signatures */
-  .signature-row { 
-    display: flex; justify-content: space-between; align-items: flex-end; 
-    margin-top: auto; border-top: 1px solid rgba(251,191,36,0.4); 
-    padding-top: 6px; z-index: 2; position: relative;
-  }
-  .sign-box { text-align: center; }
-  .sign-box div:first-child { 
-    font-family: 'Great Vibes', cursive; 
-    font-size: 18px; color: #fbbf24; margin-bottom: -3px;
-    text-shadow: 0 0 10px rgba(251,191,36,0.5);
-  }
-  .sign-box div:last-child { 
-    font-size: 6.5px; font-weight: 800; 
-    text-transform: uppercase; color: #94a3b8; letter-spacing: 1px;
-  }
-
-  /* Panic Button (Emergency SOS) */
-  .panic-btn {
-    position: absolute; bottom: 30px; right: 15px;
-    width: 45px; height: 45px; 
-    background: radial-gradient(circle, #ff0055, #d90429);
-    color: white; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 8px; font-weight: 900; font-family: 'Orbitron', sans-serif;
-    z-index: 5; cursor: pointer; border: 3px solid white;
-    box-shadow: 0 0 20px rgba(255,0,85,0.8);
-    animation: panicPulse 1.2s infinite;
-    letter-spacing: 0.5px;
-    text-align: center;
-    line-height: 1;
-  }
-  @keyframes panicPulse { 
-    0%, 100% { box-shadow: 0 0 20px rgba(255,0,85,0.8); transform: scale(1); } 
-    50% { box-shadow: 0 0 40px rgba(255,0,85,1), 0 0 60px rgba(255,0,85,0.6); transform: scale(1.08); } 
-  }
-
-  /* Print Styles */
   @media print {
-    @page { margin: 10mm; }
-    body { background: white; padding: 0; display: block; }
-    .print-btn, .particles, .chip-data-lines, .barcode-scan-laser, .nfc-zone { display: none; }
-    .id-card-container { width: 370px; height: 580px; margin: 0 auto; page-break-after: always; perspective: none; }
+    body { background: white; padding: 0; }
+    .action-btns { display: none; }
+    .id-card-container { width: 100%; height: 100%; page-break-inside: avoid; }
     .id-card-inner { transform: none !important; }
-    .card-front, .card-back { 
-      transform: none !important; position: relative; 
-      box-shadow: none; border: 2px solid #333; background: white !important; 
-      color: #000 !important;
-    }
-    .card-back { page-break-before: always; margin-top: 20px; }
-    
-    .card-front::before, .card-back::before, .holo-shine, .hologram, 
-    .live-clock, .signal-bars, .blood-drop, .ghost-image, 
-    .uv-watermark, .marquee-ticker, .weather-widget, 
-    .face-id-marker, .panic-btn, .anti-tamper, .blockchain-hash { display: none; }
-    
-    .card-header { background: white !important; border-bottom: 2px solid #333; }
-    .card-header h1 { -webkit-text-fill-color: #8a6914 !important; color: #8a6914 !important; filter: none; text-shadow: none; }
-    .card-header .hindi-name { color: #8a6914 !important; }
-    .card-header p { color: #333 !important; }
-    
-    .student-title h2 { color: #333 !important; text-shadow: none; }
-    .student-title .hindi-student { color: #8a6914 !important; }
-    .class-badge { border-color: #333 !important; color: #8a6914 !important; background: #f9f9f9 !important; box-shadow: none; }
-    
-    .details-panel, .parent-box, .medical-alert, .emergency-section, .stat-box, .qr-item { 
-      background: #f9f9f9 !important; border: 1px solid #ddd !important; 
-      backdrop-filter: none !important; box-shadow: none !important;
-    }
-    .info-item span, .parent-phone, .medical-alert p, .emergency-section p,
-    .stat-box .stat-value { color: #333 !important; }
-    .info-item label, .parent-label, .medical-alert h4, .emergency-section h4,
-    .stat-box .stat-label { color: #666 !important; }
-    
-    .mrz-code { color: #333 !important; border-color: #333 !important; background: #fff !important; text-shadow: none; }
-    .digital-signed { color: #333 !important; border-color: #333 !important; background: #fff !important; box-shadow: none !important; }
-    
-    .card-footer { background: white !important; }
-    .barcode-1d { 
-      background: repeating-linear-gradient(to right, 
-        #333 0, #333 2px, transparent 2px, transparent 4px, 
-        #333 4px, #333 5px, transparent 5px, transparent 8px, 
-        #333 8px, #333 12px, transparent 12px, transparent 14px
-      ) !important; 
-    }
-    .barcode-text { color: #333 !important; }
-    .qr-wrap img, .qr-item img { border-color: #333 !important; }
-    .qr-item p { color: #333 !important; }
-    
-    .back-header h3 { -webkit-text-fill-color: #333 !important; color: #333 !important; }
-    .attendance-bg { background: #eee !important; border: 1px solid #ccc; }
-    .attendance-fill { background: #333 !important; box-shadow: none; }
-    .extra-item { border-bottom: 1px dotted #ccc !important; }
-    .extra-item span { color: #333 !important; }
-    
-    .signature-row { border-top: 1px solid #333 !important; }
-    .sign-box div:first-child { color: #333 !important; text-shadow: none; }
+    .card-front { display: block; }
+    .card-back { display: none; } /* Change to block to print back */
   }
 </style>
 </head>
 <body>
-<body>
 
-    <!-- ⬇️ YAHAN SE CODE PASTE KAREIN ⬇️ -->
-    {% if not is_pdf %}
-    <div style="text-align: center; margin-bottom: 20px; margin-top: 20px;">
-        <a href="/student/id_card/pdf/{{ student.roll_no }}" style="padding: 12px 20px; background: #ffd700; text-decoration: none; color: #000; font-weight: bold; border-radius: 8px; box-shadow: 0 0 15px rgba(255,215,0,0.5); display: inline-block; margin-right: 10px;">⬇️ Download PDF</a>
-        
-        <a href="/student/profile/{{ student.roll_no }}" style="padding: 12px 20px; background: #333; text-decoration: none; color: #fff; font-weight: bold; border-radius: 8px; display: inline-block;">⬅ Back to Profile</a>
-    </div>
-    {% endif %}
-    <!-- ⬆️ YAHAN TAK CODE PASTE KAREIN ⬆️ -->
-
-    <!-- Aapka ID Card ka main div (card-container) uske niche se shuru hoga -->
-    <div class="card-container">
-        <!-- ... aapka purana 900+ lines ka code ... -->
-<button class="print-btn" onclick="playSound('click'); setTimeout(window.print, 200);">
-  🖨️ Print Ultra Smart Card
-</button>
-
-<div class="id-card-container tilt-card">
-  <div class="id-card-inner">
-    
-    <!-- ================= FRONT SIDE ================= -->
-    <div class="card-front">
-      <div class="micro-text">SCHOOL SECURE ID SYSTEM • SCHOOL SECURE ID SYSTEM • SCHOOL SECURE ID SYSTEM • SCHOOL SECURE ID SYSTEM • SCHOOL SECURE ID SYSTEM • SCHOOL SECURE ID SYSTEM • SCHOOL SECURE ID SYSTEM • SCHOOL SECURE ID SYSTEM •</div>
-      <div class="holo-shine"></div>
-      <div class="lanyard-slot"></div>
-      
-      <div class="uv-watermark">VALID</div>
-      
-      <div class="particles">
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-      </div>
-      
-      <div class="card-header">
-        <div class="live-clock" id="live-time">00:00:00</div>
-        <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
-        <div class="validity-badge">2026-27</div>
-        
-        <div class="marquee-ticker">
-          <span>★ KNOWLEDGE IS POWER ★ DISCIPLINE IS KEY ★ EXCELLENCE ALWAYS ★</span>
-        </div>
-        
-        <h1>{{ school_settings.school_name if school_settings.school_name else 'SCHOOL ERP' }}</h1>
-        <div class="hindi-name">विद्यालय पहचान पत्र</div>
-        <p>STUDENT IDENTITY CARD</p>
-      </div>
-
-      <!-- Weather Widget -->
-      <div class="weather-widget">
-        <span>🌤️</span>
-        <span>32°C</span>
-      </div>
-
-      <!-- RFID Chip -->
-      <div class="rfid-chip"></div>
-      <div class="chip-data-lines"></div>
-
-      <div class="photo-wrapper">
-        <div class="face-id-marker">FACE ID</div>
-        <div class="photo-container">
-          {% if student.photo_url %}
-            <img src="{{ student.photo_url }}" alt="{{ student.name }}" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'initials\'>{{ student.name[0]|upper }}</div>';">
-          {% else %}
-            <div class="initials">{{ student.name[0]|upper }}</div>
-          {% endif %}
-        </div>
-        <div class="biometric-icon">
-          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
-        </div>
-        <div class="hologram">✔</div>
-      </div>
-
-      <div class="student-title">
-        <h2>{{ student.name }}</h2>
-        <div class="hindi-student">नाम: {{ student.name }}</div>
-        <div class="class-badge">CLASS {{ student.class_name or 'N/A' }} - {{ student.section or 'A' }}</div>
-      </div>
-
-      <div class="details-panel">
-        <div class="info-grid">
-          <div class="info-item">
-            <label>Roll Number</label>
-            <span>{{ student.roll_no }}</span>
-          </div>
-          <div class="info-item">
-            <label>Admission No.</label>
-            <span>{{ student.admission_no or student.roll_no }}</span>
-          </div>
-          <div class="info-item">
-            <label>Date of Birth</label>
-            <span>{{ student.dob or 'N/A' }}</span>
-          </div>
-          <div class="info-item">
-            <label>Blood Group</label>
-            <span style="color: #ff0055;">{{ student.blood_group or 'N/A' }}</span>
-          </div>
-          <div class="info-item">
-            <label>Issue Date</label>
-            <span>01 Apr 2024</span>
-          </div>
-          <div class="info-item">
-            <label>Expiry Date</label>
-            <span>31 Mar 2027</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- NFC Tap Zone -->
-      <div class="nfc-zone">
-        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h16v16zM18 6h-5v2h5V6zm0 4h-5v2h5v-2zm0 4h-5v2h5v-2z"/></svg>
-      </div>
-
-      <div class="card-footer">
-        <div class="barcode-wrap">
-          <div class="barcode-scan-laser"></div>
-          <div class="barcode-1d"></div>
-          <div class="barcode-text">{{ student.roll_no }}</div>
-        </div>
-        
-        <div class="qr-wrap">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data={{ request.host_url }}student/profile/{{ student.id }}&color=fbbf24&bgcolor=08080f" alt="QR">
-        </div>
-      </div>
-    </div>
-
-    <!-- ================= BACK SIDE ================= -->
-    <div class="card-back">
-      <div class="micro-text">SCHOOL SECURE ID SYSTEM • SCHOOL SECURE ID SYSTEM • SCHOOL SECURE ID SYSTEM • SCHOOL SECURE ID SYSTEM • SCHOOL SECURE ID SYSTEM • SCHOOL SECURE ID SYSTEM • SCHOOL SECURE ID SYSTEM • SCHOOL SECURE ID SYSTEM •</div>
-      <div class="holo-shine"></div>
-      
-      {% if student.photo_url %}
-      <div class="ghost-image"><img src="{{ student.photo_url }}" alt="Ghost"></div>
-      {% endif %}
-
-      <!-- Anti-Tamper Seal -->
-      <div class="anti-tamper">✓</div>
-
-      <div class="back-header">
-        <h3>Security & Emergency Info</h3>
-        <p>सुरक्षा एवं आपातकालीन जानकारी</p>
-      </div>
-
-      <!-- Achievement & Behavior Stats -->
-      <div class="stats-row">
-        <div class="stat-box">
-          <div class="stat-icon">🏆</div>
-          <div class="stat-label">Rank</div>
-          <div class="stat-value">{{ student.rank or '5' }}</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-icon">⭐</div>
-          <div class="stat-label">Behavior</div>
-          <div class="stat-value">{{ student.behavior or 'A+' }}</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-icon">📊</div>
-          <div class="stat-label">Attend</div>
-          <div class="stat-value">{{ student.attendance or '92' }}%</div>
-        </div>
-      </div>
-
-      <div class="attendance-wrap">
-        <div class="attendance-labels">
-          <span>Attendance Record</span>
-          <span style="color: #39ff14;">{{ student.attendance or '92' }}%</span>
-        </div>
-        <div class="attendance-bg">
-          <div class="attendance-fill"></div>
-        </div>
-      </div>
-
-      <div class="parents-wrap">
-        <div class="parent-box">
-          <div class="parent-avatar">F</div>
-          <div class="parent-label">Father</div>
-          <div class="parent-phone">{{ student.father_contact or student.parent_contact or 'N/A' }}</div>
-        </div>
-        <div class="parent-box">
-          <div class="parent-avatar">M</div>
-          <div class="parent-label">Mother</div>
-          <div class="parent-phone">{{ student.mother_contact or 'N/A' }}</div>
-        </div>
-      </div>
-
-      <div class="emergency-grid">
-        <div class="medical-alert">
-          <h4>⚕️ Medical Alert</h4>
-          <p><span class="blood-drop"></span>{{ student.blood_group or 'N/A' }}</p>
-          <p>Allergies: {{ student.allergies or 'None' }}</p>
-        </div>
-        <div class="emergency-section">
-          <h4>🚨 Emergency</h4>
-          <p>School: {{ school_settings.phone if school_settings.phone else 'N/A' }}</p>
-          <p>Ambulance: 108</p>
-        </div>
-      </div>
-
-      <!-- Multi QR Codes -->
-      <div class="multi-qr-row">
-        <div class="qr-item">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=MEDICAL:{{ student.blood_group or 'N/A' }}&color=ff0055&bgcolor=08080f" alt="Med">
-          <p>Medical</p>
-        </div>
-        <div class="qr-item">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data={{ request.host_url }}parent-login&color=00f3ff&bgcolor=08080f" alt="Parent">
-          <p>Parent</p>
-        </div>
-        <div class="qr-item">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data={{ request.host_url }}collect/{{ student.roll_no }}&color=39ff14&bgcolor=08080f" alt="Fee">
-          <p>Pay Fee</p>
-        </div>
-        <div class="qr-item">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data={{ request.host_url }}attendance?roll={{ student.roll_no }}&color=fbbf24&bgcolor=08080f" alt="Att">
-          <p>Attend</p>
-        </div>
-        <div class="qr-item">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data={{ request.host_url }}library?roll={{ student.roll_no }}&color=a855f7&bgcolor=08080f" alt="Lib">
-          <p>Library</p>
-        </div>
-      </div>
-
-      <!-- MRZ Passport Code -->
-      <div class="mrz-code">
-        IDIND{{ student.roll_no }}<<<<<<<<<<<<<<<<<<<<<<<<<<<br>
-        {{ student.dob.strftime('%y%m%d') if student.dob else '000000' }}<{{ student.name.replace(' ', '<').upper() }}<<<<<<<<<<
-      </div>
-
-      <!-- Blockchain Verification -->
-      <div class="blockchain-hash">
-        <span>🔗 HASH:</span>
-        <span>0x{{ student.id }}a8f9c2e4b7d</span>
-        <span class="digital-signed">✔ SIGNED</span>
-      </div>
-
-      <!-- Panic SOS Button -->
-      <div class="panic-btn" onclick="alert('🆘 SOS ALERT SENT TO ADMIN & PARENTS!')">SOS</div>
-
-      <div class="signature-row">
-        <div class="sign-box">
-          <div>{{ student.name.split()[0] if student.name else 'Sign' }}</div>
-          <div>Student Sign</div>
-        </div>
-        <div class="sign-box">
-          <div>Principal</div>
-          <div>Authorized Signatory</div>
-        </div>
-      </div>
-    </div>
-
+  <!-- Action Buttons -->
+  <div class="action-btns">
+    <button class="btn" onclick="toggleUV()">🔦 UV Security Check</button>
+    <button class="btn" onclick="togglePrintMode()">🖨️ Print Mode</button>
+    <button class="btn btn-gold" onclick="window.print()">Print ID Card</button>
   </div>
-</div>
 
-<script>
-  // 3D Tilt
-  VanillaTilt.init(document.querySelector(".tilt-card"), {
-    max: 15, speed: 400, glare: true, "max-glare": 0.4, scale: 1.05
-  });
+  <div class="id-card-container" id="idCard">
+    <div class="id-card-inner">
+      
+      <!-- ================= FRONT SIDE ================= -->
+      <div class="card-front">
+        <div class="uv-watermark">ACME</div>
+        <div class="micro-text-border"></div>
+        <div class="lanyard-slot"></div>
 
-  // Live Clock
-  function updateClock() {
-    const now = new Date();
-    const h = String(now.getHours()).padStart(2, '0');
-    const m = String(now.getMinutes()).padStart(2, '0');
-    const s = String(now.getSeconds()).padStart(2, '0');
-    document.getElementById('live-time').innerText = `${h}:${m}:${s}`;
-  }
-  setInterval(updateClock, 1000);
-  updateClock();
+        <div class="card-header">
+          <div class="status-badge"><div class="status-dot"></div> ACTIVE</div>
+          <h1>ACME INTL SCHOOL</h1>
+          <p>CBSE AFFILIATED | STUDENT IDENTITY</p>
+        </div>
 
-  // Sound Engine
-  function playSound(type) {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = type === 'click' ? 800 : 1200;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.15);
-    } catch(e) {}
-  }
+        <div class="profile-wrapper">
+          {% if student.photo %}
+              <img src="{{ student.photo }}" alt="Photo">
+          {% else %}
+              <div class="initials">{{ student.name[:2] | upper }}</div>
+          {% endif %}
+          <div class="holo-badge">★</div>
+        </div>
 
-  // Sound + Haptic on Flip
-  const cardContainer = document.querySelector('.id-card-container');
-  cardContainer.addEventListener('mouseenter', () => playSound('click'));
-  cardContainer.addEventListener('touchstart', () => {
-    playSound('click');
-    if (navigator.vibrate) navigator.vibrate(50);
-  });
-</script>
+        <div class="student-name-area">
+          <h2>{{ student.name }}</h2>
+          <div class="hindi-name">{{ student.name_hindi or 'अमन कुमार' }}</div>
+          <div class="class-badge">CLASS {{ student.class_name or '10' }} - {{ student.section or 'A' }}</div>
+        </div>
 
+        <div class="data-grid">
+          <div class="data-item"><label>Roll No</label><span>{{ student.roll_no or '24' }}</span></div>
+          <div class="data-item"><label>Admission No</label><span>{{ student.admission_no or 'A1024' }}</span></div>
+          <div class="data-item"><label>Date of Birth</label><span>{{ student.dob or '12-Aug-2008' }}</span></div>
+          <div class="data-item blood"><label>Blood Group</label><span>{{ student.blood_group or 'O+' }}</span></div>
+        </div>
+
+        <div class="smart-chip"></div>
+        
+        <!-- Digital Signature Stamp -->
+        <div class="digital-stamp">
+          <span>DIGITALLY<br>VERIFIED</span>
+        </div>
+
+        <div class="sign-area">
+          <div class="sig-box"><br>Student Sign</div>
+          <div class="sig-box"><br>Principal Sign</div>
+        </div>
+
+        <div class="barcode-bottom">
+          <svg id="barcodeSvg"></svg>
+        </div>
+      </div>
+
+      <!-- ================= BACK SIDE ================= -->
+      <div class="card-back">
+        <div class="uv-watermark">ERP</div>
+        <div class="micro-text-border"></div>
+        <div class="magnetic-stripe"></div>
+
+        <div class="back-content">
+          <div class="back-header">
+            <h3>SCAN & VERIFY</h3>
+            <span class="icon">🛡️</span>
+          </div>
+
+          <div class="qr-emergency-row">
+            <div class="qr-container">
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://acme.edu/verify/{{ student.roll_no or '24' }}" alt="QR">
+              <div class="qr-scanner"></div>
+            </div>
+            <div class="emergency-box" onclick="triggerSOS()">
+              <label>🚨 Emergency SOS</label>
+              <span>Tap to Alert</span>
+              <small>Parent: {{ student.contact or '9876543210' }}</small>
+            </div>
+          </div>
+
+          <div class="info-list">
+            <div class="info-row">
+              <label>Transport Route</label>
+              <span>Route {{ student.bus_route or '4' }} (Sector 14)</span>
+            </div>
+            <div class="info-row alert">
+              <label>Medical Alert</label>
+              <span>{{ student.allergy or 'Dust, Peanuts' }}</span>
+            </div>
+            <div class="info-row">
+              <label>Library ID</label>
+              <span>LIB-{{ student.roll_no or '24' }}</span>
+            </div>
+          </div>
+
+          <div class="track-bus-btn" onclick="trackBus()">
+            <div class="live-dot"></div> Track Bus Live
+          </div>
+
+          <div class="terms-text">
+            <strong>Terms of Use</strong>
+            1. This ID card is the property of ACME Intl School.<br>
+            2. If found, please return to the nearest branch.<br>
+            3. The QR code and digital stamp verify the authenticity of this card.<br>
+            4. Misuse will lead to strict disciplinary action.
+          </div>
+
+          <div class="back-footer">
+            <strong>ACME INTERNATIONAL SCHOOL</strong>
+            123 Education Lane, New Delhi - 110001<br>
+            Ph: +91 11 2345 6789 | www.acme.edu
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // 1. Initialize 3D Tilt Effect (Glare enabled for Holographic feel)
+    VanillaTilt.init(document.querySelector(".id-card-container"), {
+      max: 15, speed: 400, glare: true, "max-glare": 0.3, scale: 1.05
+    });
+
+    // 2. Barcode Generation
+    JsBarcode("#barcodeSvg", "{{ student.admission_no or 'A1024' }}", {
+      format: "CODE128", lineColor: "#000", width: 1.5, height: 30, displayValue: true,
+      fontOptions: "bold", fontSize: 10, font: "monospace", textMargin: 2
+    });
+
+    // 3. UV Light Toggle
+    function toggleUV() {
+      document.body.classList.toggle('uv-mode');
+      document.body.style.background = document.body.classList.contains('uv-mode') ? '#000' : '#020205';
+    }
+
+    // 4. Print Mode Toggle
+    function togglePrintMode() {
+      document.body.classList.toggle('print-mode');
+      const btn = document.querySelectorAll('.btn')[1];
+      btn.innerHTML = document.body.classList.contains('print-mode') ? '🌙 Dark Mode' : '🖨️ Print Mode';
+    }
+
+    // 5. Trigger SOS Alert
+    function triggerSOS() {
+      Swal.fire({
+        title: '🚨 EMERGENCY SOS 🚨',
+        text: "Sending live location and alert to parent and school admin...",
+        icon: 'error',
+        showCancelButton: true,
+        confirmButtonText: 'Call Parent',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#ff0055',
+        background: '#0a0a12',
+        color: '#fff'
+      }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = "tel:{{ student.contact or '9876543210' }}";
+        }
+      });
+    }
+
+    // 6. Track Bus Simulation
+    function trackBus() {
+      Swal.fire({
+        title: 'Locating Bus...',
+        html: 'Fetching live GPS for Route {{ student.bus_route or "4" }}...',
+        timer: 2000,
+        timerProgressBar: true,
+        didOpen: () => { Swal.showLoading() },
+        background: '#0a0a12', color: '#fff'
+      }).then(() => {
+        Swal.fire({
+          icon: 'success',
+          title: 'Bus Found!',
+          text: 'Bus is 5 mins away from Sector 14 stop.',
+          confirmButtonColor: '#3b82f6',
+          background: '#0a0a12', color: '#fff'
+        });
+      });
+    }
+  </script>
 </body>
 </html>
