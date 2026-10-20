@@ -464,31 +464,48 @@ def upload_photo(roll_no):
         flash("No selected file", "error")
         return redirect(url_for("student_profile", roll_no=roll_no))
 
+    # Check karein ki Supabase credentials majood hain
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        flash("❌ Supabase is not configured properly. Photo upload failed.", "error")
+        return redirect(url_for("student_profile", roll_no=roll_no))
+
     if file:
-        # File ka naam unique banayein taaki purani photo overwrite na ho
+        # File ka naam unique banayein
         filename = secure_filename(f"student_{roll_no}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}")
+        bucket_name = 'student_photos'
         
         try:
             # File data read karein
             file_data = file.read()
             
-            # Supabase Storage mein upload karein (bucket name: 'student_photos')
-            supabase.storage.from_('student_photos').upload(
-                path=filename,
-                file=file_data,
-                file_options={"content-type": file.content_type}
-            )
+            # Supabase Storage API endpoint for upload
+            upload_url = f"{SUPABASE_URL}/storage/v1/object/{bucket_name}/{filename}"
             
-            # Public URL generate karein
-            public_url = supabase.storage.from_('student_photos').get_public_url(filename)
+            headers = {
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Content-Type": file.content_type or "image/jpeg"
+            }
             
-            # Database mein URL update karein
-            run("UPDATE students SET photo_url=%s WHERE roll_no=%s", (public_url, roll_no))
+            # Direct requests use karke upload karein
+            response = requests.post(upload_url, headers=headers, data=file_data, timeout=30)
             
-            flash("✅ Photo uploaded successfully!", "success")
-            
+            if response.status_code == 200:
+                # Public URL generate karein
+                public_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{filename}"
+                
+                # Database mein URL update karein
+                run("UPDATE students SET photo_url=%s WHERE roll_no=%s", (public_url, roll_no))
+                flash("✅ Photo uploaded successfully!", "success")
+            else:
+                print(f"Supabase API Error: {response.text}")
+                flash(f"❌ Error uploading photo: Server returned {response.status_code}", "error")
+                
+        except requests.exceptions.Timeout:
+            flash("❌ Error: Network timeout. Please try uploading again.", "error")
+        except requests.exceptions.ConnectionError:
+            flash("❌ Error: Could not connect to Supabase. Please check your network.", "error")
         except Exception as e:
-            print(f"Error uploading to Supabase: {e}")
+            print(f"General Error uploading to Supabase: {e}")
             flash(f"❌ Error uploading photo: {str(e)}", "error")
             
     return redirect(url_for("student_profile", roll_no=roll_no))
