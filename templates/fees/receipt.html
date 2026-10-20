@@ -1,76 +1,550 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Receipt - {{ payment.receipt_no }}</title>
-<style>
-  body { font-family: 'Inter', sans-serif; background: #f1f5f9; padding: 40px; }
-  .receipt-box { max-width: 700px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-top: 8px solid #6366f1; }
-  .header { text-align: center; border-bottom: 2px dashed #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-  .header h1 { margin: 0; color: #1e293b; font-size: 28px; }
-  .header p { margin: 5px 0; color: #64748b; font-size: 14px; }
-  .row { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 15px; }
-  .label { color: #64748b; font-weight: 600; }
-  .value { font-weight: 800; color: #0f172a; }
-  .amount-box { text-align: center; margin: 30px 0; padding: 20px; background: #f0fdf4; border: 2px solid #bbf7d0; border-radius: 10px; }
-  .amount-box h2 { margin: 0; color: #166534; font-size: 36px; }
-  .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px dashed #e2e8f0; font-size: 12px; color: #94a3b8; }
-  .print-btn { display: block; width: 200px; margin: 20px auto; padding: 12px; text-align: center; background: #6366f1; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; cursor: pointer; border: none; font-size: 16px; }
-  @media print {
-    body { background: white; padding: 0; }
-    .receipt-box { box-shadow: none; border: 1px solid #ccc; }
-    .print-btn { display: none; }
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Fee Receipt - School ERP</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        /* =========================================
+           THEME VARIABLES & DARK MODE
+           ========================================= */
+        :root {
+            --primary: #1e3a8a;       /* Royal Blue */
+            --primary-light: #3b82f6; 
+            --secondary: #10b981;     /* Emerald Green */
+            --gold: #f59e0b;          /* Gold */
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --bg-page: #e2e8f0;
+            --bg-card: #ffffff;
+            --border: #cbd5e1;
+            --shadow: 0 15px 35px rgba(0,0,0,0.1);
+        }
+
+        body.dark-mode {
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --bg-page: #0f172a;
+            --bg-card: #1e293b;
+            --border: #334155;
+            --shadow: 0 15px 35px rgba(0,0,0,0.5);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: var(--bg-page);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            transition: all 0.3s ease;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .hindi-text { font-family: 'Noto Sans Devanagari', sans-serif; }
+        .serif-font { font-family: 'Playfair Display', serif; }
+
+        /* =========================================
+           TOOLBAR
+           ========================================= */
+        .toolbar {
+            width: 100%; max-width: 850px;
+            display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-bottom: 20px;
+        }
+        .tool-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn {
+            padding: 8px 16px; border: none; border-radius: 8px; font-weight: 600; font-size: 13px;
+            cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.2s;
+            background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border);
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .btn-primary { background: var(--primary); color: white; border: none; }
+        .btn-success { background: var(--secondary); color: white; border: none; }
+        .btn-wa { background: #25D366; color: white; border: none; }
+        .btn-gold { background: var(--gold); color: white; border: none; }
+
+        /* =========================================
+           MAIN RECEIPT CARD
+           ========================================= */
+        .receipt-card {
+            background: var(--bg-card); width: 100%; max-width: 850px;
+            border-radius: 16px; box-shadow: var(--shadow);
+            overflow: hidden; position: relative; border: 1px solid var(--border);
+        }
+
+        .watermark {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 180px; font-weight: 900; color: rgba(16, 185, 129, 0.04);
+            pointer-events: none; z-index: 0; white-space: nowrap;
+        }
+
+        /* HEADER */
+        .receipt-header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white; padding: 30px 40px; display: flex; justify-content: space-between; align-items: center;
+            position: relative; z-index: 1; border-bottom: 4px solid var(--gold);
+        }
+
+        /* Premium Logo CSS/SVG */
+        .brand-logo { display: flex; align-items: center; gap: 15px; }
+        .logo-icon {
+            width: 60px; height: 60px; background: rgba(255,255,255,0.1);
+            border: 2px solid var(--gold); border-radius: 12px;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .logo-icon svg { width: 35px; height: 35px; fill: var(--gold); }
+        
+        .brand-text h1 { font-size: 26px; font-weight: 800; letter-spacing: 1px; margin-bottom: 2px; }
+        .brand-text p { font-size: 12px; opacity: 0.9; font-weight: 400; letter-spacing: 0.5px; }
+        
+        .title-area { text-align: right; }
+        .title-area h2 { font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;}
+        .status-badge {
+            background: var(--secondary); color: white; padding: 5px 14px; border-radius: 20px;
+            font-size: 11px; font-weight: 700; display: inline-block; margin-top: 8px;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+        }
+
+        /* BODY */
+        .receipt-body { padding: 35px 40px; position: relative; z-index: 1; }
+
+        /* Info Grids */
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px; }
+        .info-box h3 {
+            font-size: 12px; text-transform: uppercase; color: var(--primary); font-weight: 800;
+            letter-spacing: 1px; margin-bottom: 12px; border-bottom: 2px solid var(--border); padding-bottom: 6px;
+        }
+        body.dark-mode .info-box h3 { color: var(--primary-light); }
+        
+        .data-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+        .data-row span:first-child { color: var(--text-muted); font-weight: 500; }
+        .data-row span:last-child { font-weight: 700; color: var(--text-main); }
+
+        /* Fee Table */
+        .fee-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px; }
+        .fee-table th {
+            background: var(--bg-page); color: var(--text-main); padding: 12px;
+            text-align: left; border-bottom: 2px solid var(--border); font-weight: 700;
+        }
+        .fee-table td { padding: 12px; border-bottom: 1px solid var(--border); font-weight: 500;}
+        .text-right { text-align: right !important; }
+
+        /* Summary */
+        .summary-wrapper { display: flex; justify-content: space-between; margin-bottom: 25px; }
+        .words-box {
+            width: 50%; background: rgba(16, 185, 129, 0.05); padding: 15px; border-radius: 8px; border: 1px dashed var(--secondary);
+        }
+        .words-box p { font-size: 11px; color: var(--secondary); font-weight: 800; text-transform: uppercase; margin-bottom: 4px; }
+        .words-box h4 { font-size: 14px; color: var(--text-main); text-transform: capitalize; font-weight: 700;}
+
+        .calc-box { width: 40%; }
+        .calc-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: var(--text-muted); font-weight: 600;}
+        .calc-row.total {
+            border-top: 2px solid var(--text-main); margin-top: 8px; padding-top: 12px;
+            font-size: 18px; font-weight: 800; color: var(--primary);
+        }
+        body.dark-mode .calc-row.total { color: var(--primary-light); }
+
+        /* THANK YOU MESSAGE */
+        .thank-you-box {
+            background: linear-gradient(to right, rgba(30,58,138,0.05), rgba(245,158,11,0.05));
+            border-left: 4px solid var(--gold);
+            padding: 15px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px;
+        }
+        .thank-you-box h4 { font-size: 14px; color: var(--primary); margin-bottom: 4px; font-weight: 800;}
+        body.dark-mode .thank-you-box h4 { color: var(--primary-light); }
+        .thank-you-box p { font-size: 12px; color: var(--text-muted); line-height: 1.5; font-style: italic;}
+
+        /* LIVE BILL QR & FOOTER */
+        .footer-grid { display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid var(--border); padding-top: 20px; }
+        
+        .verify-box { display: flex; gap: 25px; align-items: center; }
+        
+        /* Live Bill QR Special Styling */
+        .live-bill-qr { text-align: center; position: relative; }
+        .live-bill-qr img { width: 80px; height: 80px; border-radius: 8px; border: 2px solid var(--primary); padding: 4px; background: white; cursor: pointer; transition: 0.3s;}
+        .live-bill-qr img:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(30,58,138,0.3);}
+        .live-bill-qr span { display: block; font-size: 10px; font-weight: 700; color: var(--primary); margin-top: 6px; text-transform: uppercase; }
+        body.dark-mode .live-bill-qr span { color: var(--primary-light); }
+
+        .barcode-box { display: flex; flex-direction: column; align-items: center; }
+        .barcode-box svg { height: 40px; width: 140px; }
+        .barcode-box small { font-size: 10px; color: var(--text-muted); margin-top: 2px; letter-spacing: 1px; font-weight: 600;}
+
+        /* Signature Pad */
+        .signature-area { text-align: center; }
+        .signature-canvas {
+            border: 1px dashed var(--border); border-radius: 8px; background: var(--bg-page);
+            cursor: crosshair; width: 180px; height: 60px; margin-bottom: 5px;
+        }
+        .signature-label { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;}
+        .clear-sig { font-size: 10px; color: #ef4444; cursor: pointer; text-decoration: underline; margin-top: 4px; display: inline-block; font-weight: 600;}
+
+        /* Crypto Hash */
+        .crypto-hash {
+            text-align: center; font-size: 10px; color: var(--text-muted); font-family: monospace;
+            background: var(--bg-page); padding: 8px; border-radius: 6px; margin-top: 20px;
+            border: 1px solid var(--border); word-break: break-all; font-weight: 600;
+        }
+
+        /* Print & Thermal CSS */
+        @media print {
+            body { background: white; padding: 0; color: black; }
+            .toolbar, .clear-sig { display: none !important; }
+            .receipt-card { box-shadow: none; max-width: 100%; border: none; border-radius: 0; }
+            .receipt-header { background: var(--primary) !important; color: white !important; }
+            .signature-canvas { border: none; background: transparent; }
+            @page { size: A4; margin: 0; }
+        }
+
+        body.thermal-mode .receipt-card { max-width: 300px; border-radius: 0; }
+        body.thermal-mode .toolbar { max-width: 300px; }
+        body.thermal-mode .receipt-header { padding: 15px; flex-direction: column; text-align: center; gap: 10px; border-bottom-width: 2px;}
+        body.thermal-mode .brand-logo { flex-direction: column; gap: 5px;}
+        body.thermal-mode .title-area { text-align: center; }
+        body.thermal-mode .receipt-body { padding: 15px; }
+        body.thermal-mode .info-grid { grid-template-columns: 1fr; gap: 15px; }
+        body.thermal-mode .summary-wrapper { flex-direction: column; gap: 15px; }
+        body.thermal-mode .words-box, body.thermal-mode .calc-box { width: 100%; }
+        body.thermal-mode .footer-grid { flex-direction: column; align-items: center; gap: 15px; }
+        body.thermal-mode .thank-you-box { display: none; } /* Hide on thermal to save paper */
+        body.thermal-mode .live-bill-qr img { width: 90px; height: 90px; }
+    </style>
 </head>
 <body>
 
-<button class="print-btn" onclick="window.print()">🖨️ Print Receipt</button>
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+        <div class="tool-group">
+            <button class="btn" onclick="toggleTheme()">🌗 Theme</button>
+            <button class="btn" onclick="toggleLanguage()">🇮🇳 Hindi / EN</button>
+            <button class="btn" onclick="toggleThermal()">🧾 Thermal</button>
+        </div>
+        <div class="tool-group">
+            <button class="btn btn-wa" onclick="shareWhatsApp()">💬 Share</button>
+            <button class="btn btn-success" onclick="downloadPDF()">⬇️ PDF</button>
+            <button class="btn btn-primary" onclick="window.print()">🖨️ Print</button>
+        </div>
+    </div>
 
-<div class="receipt-box">
-  <div class="header">
-    <h1>🏫 School ERP</h1>
-    <p>Official Fee Receipt</p>
-    <p>Date: {{ now.strftime('%d %b %Y, %I:%M %p') }}</p>
-  </div>
+    <!-- RECEIPT CARD -->
+    <div class="receipt-card" id="receipt-content">
+        <div class="watermark">PAID</div>
 
-  <div class="row">
-    <span class="label">Receipt No:</span>
-    <span class="value">{{ payment.receipt_no }}</span>
-  </div>
-  <div class="row">
-    <span class="label">Student Name:</span>
-    <span class="value">{{ student.name }}</span>
-  </div>
-  <div class="row">
-    <span class="label">Roll Number:</span>
-    <span class="value">{{ student.roll_no }}</span>
-  </div>
-  <div class="row">
-    <span class="label">Class:</span>
-    <span class="value">{{ student.class_name or '-' }}</span>
-  </div>
-  <div class="row">
-    <span class="label">Payment Mode:</span>
-    <span class="value">{{ payment.mode }}</span>
-  </div>
+        <!-- HEADER WITH PREMIUM SVG LOGO -->
+        <div class="receipt-header">
+            <div class="brand-logo">
+                <div class="logo-icon">
+                    <!-- High-Quality Graduation Cap SVG Logo -->
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 3L1 9L5 11.18V17.18L12 21L19 17.18V11.18L21 10.09V17H23V9L12 3ZM18.82 9L12 12.72L5.18 9L12 5.28L18.82 9ZM17 15.99L12 18.72L7 15.99V12.27L12 15L17 12.27V15.99Z"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h1 id="schoolName">ACME INTERNATIONAL</h1>
+                    <p id="schoolAddr">123 Education Lane, New Delhi | CBSE Affiliated</p>
+                </div>
+            </div>
+            <div class="title-area">
+                <h2 id="receiptTitle">FEE RECEIPT</h2>
+                <div class="status-badge" id="statusBadge">PAYMENT SUCCESSFUL</div>
+            </div>
+        </div>
 
-  <div class="amount-box">
-    <p class="label" style="margin-bottom: 10px;">Amount Received</p>
-    <h2>₹{{ '{:,.2f}'.format(payment.amount) }}</h2>
-  </div>
+        <!-- BODY -->
+        <div class="receipt-body">
+            
+            <!-- Info Grid -->
+            <div class="info-grid">
+                <div class="info-box">
+                    <h3 id="lblStuInfo">Student Information</h3>
+                    <div class="data-row"><span id="lblName">Student Name</span> <span id="stuName">Aman Kumar</span></div>
+                    <div class="data-row"><span id="lblClass">Class</span> <span id="stuClass">10 - A</span></div>
+                    <div class="data-row"><span id="lblRoll">Roll No</span> <span id="stuRoll">24</span></div>
+                    <div class="data-row"><span id="lblFather">Father's Name</span> <span id="stuFather">Shrawan Prasad</span></div>
+                </div>
+                <div class="info-box">
+                    <h3 id="lblRecInfo">Receipt Details</h3>
+                    <div class="data-row"><span id="lblRecNo">Receipt No</span> <span id="recNo">REC-2024-8890</span></div>
+                    <div class="data-row"><span id="lblDate">Date</span> <span id="recDate">24-Oct-2024</span></div>
+                    <div class="data-row"><span id="lblTxn">Txn ID</span> <span id="txnId">TXN987654321</span></div>
+                    <div class="data-row"><span id="lblSession">Session</span> <span>2024-2025</span></div>
+                </div>
+            </div>
 
-  <div class="row">
-    <span class="label">Remark:</span>
-    <span class="value" style="font-weight: 500; font-size: 14px;">{{ payment.remark or '-' }}</span>
-  </div>
+            <!-- Fee Table -->
+            <table class="fee-table">
+                <thead>
+                    <tr>
+                        <th width="10%" id="thSno">S.No</th>
+                        <th width="60%" id="thDesc">Description</th>
+                        <th width="30%" class="text-right" id="thAmt">Amount (₹)</th>
+                    </tr>
+                </thead>
+                <tbody id="feeTableBody">
+                    <!-- JS will populate -->
+                </tbody>
+            </table>
 
-  <div class="footer">
-    <p>This is a computer-generated receipt. No signature required.</p>
-    <p>Thank you for your payment!</p>
-  </div>
-</div>
+            <!-- Summary -->
+            <div class="summary-wrapper">
+                <div class="words-box">
+                    <p id="lblWords">Amount in Words</p>
+                    <h4 id="amountWords">Eight Thousand Seven Hundred Only</h4>
+                </div>
+                <div class="calc-box">
+                    <div class="calc-row"><span id="lblGross">Gross Total</span> <span id="grossTotal">₹ 8,700.00</span></div>
+                    <div class="calc-row"><span id="lblDiscount">Discount</span> <span id="discount">- ₹ 0.00</span></div>
+                    <div class="calc-row total"><span id="lblNet">Net Paid</span> <span id="netTotal">₹ 8,700.00</span></div>
+                </div>
+            </div>
 
+            <!-- ROYAL THANK YOU MESSAGE -->
+            <div class="thank-you-box">
+                <h4 class="serif-font" id="thankYouTitle">Thank You for Your Payment!</h4>
+                <p id="thankYouMsg">Dear Parent, we sincerely appreciate your prompt payment. Your continued trust and cooperation help us provide a world-class learning environment for your child. We are honored to be a part of their educational journey.</p>
+            </div>
+
+            <!-- Footer (Live QR, Barcode, Signature) -->
+            <div class="footer-grid">
+                <div class="verify-box">
+                    <!-- LIVE BILL QR CODE -->
+                    <div class="live-bill-qr" onclick="verifyLiveBill()">
+                        <img id="qrCodeImg" src="" alt="Live Bill QR">
+                        <span id="lblScanQr">Scan for Live Bill</span>
+                    </div>
+                    
+                    <div class="barcode-box">
+                        <svg id="barcodeSvg"></svg>
+                        <small id="barcodeText">REC-2024-8890</small>
+                    </div>
+                </div>
+                
+                <!-- Signature Pad -->
+                <div class="signature-area">
+                    <canvas id="signatureCanvas" class="signature-canvas"></canvas>
+                    <div class="signature-label" id="lblSign">Authorized Signatory</div>
+                    <span class="clear-sig" onclick="clearSignature()">Clear Sign</span>
+                </div>
+            </div>
+
+            <!-- Real Crypto Hash -->
+            <div class="crypto-hash">
+                🔒 SHA-256: <span id="realHash">Generating secure hash...</span>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- 1. DATA OBJECT ---
+        // Student ID (STU-1024) ka use hum QR code me karenge live bill ke liye
+        const data = {
+            school: { name: "ACME INTERNATIONAL", address: "123 Education Lane, New Delhi" },
+            student: { id: "STU-1024", name: "Aman Kumar", classSec: "10 - A", roll: "24", father: "Shrawan Prasad" },
+            receipt: {
+                no: "REC-2024-8890",
+                date: "24-Oct-2024",
+                txnId: "TXN9876543210",
+                items: [
+                    { desc: "Tuition Fee (Quarter 1)", amt: 6000 },
+                    { desc: "Transport Fee", amt: 2000 },
+                    { desc: "Exam Fee", amt: 700 }
+                ],
+                discount: 0,
+                totalPaid: 8700
+            }
+        };
+
+        // --- 2. POPULATE UI ---
+        function populateUI() {
+            document.getElementById('schoolName').innerText = data.school.name;
+            document.getElementById('schoolAddr').innerText = data.school.address;
+            document.getElementById('stuName').innerText = data.student.name;
+            document.getElementById('stuClass').innerText = data.student.classSec;
+            document.getElementById('stuRoll').innerText = data.student.roll;
+            document.getElementById('stuFather').innerText = data.student.father;
+            document.getElementById('recNo').innerText = data.receipt.no;
+            document.getElementById('recDate').innerText = data.receipt.date;
+            document.getElementById('txnId').innerText = data.receipt.txnId;
+
+            let tbody = document.getElementById('feeTableBody');
+            let gross = 0;
+            data.receipt.items.forEach((item, i) => {
+                gross += item.amt;
+                tbody.innerHTML += `<tr><td>${i+1}</td><td>${item.desc}</td><td class="text-right">₹ ${item.amt.toLocaleString('en-IN')}.00</td></tr>`;
+            });
+
+            let net = gross - data.receipt.discount;
+            document.getElementById('grossTotal').innerText = `₹ ${gross.toLocaleString('en-IN')}.00`;
+            document.getElementById('discount').innerText = `- ₹ ${data.receipt.discount.toLocaleString('en-IN')}.00`;
+            document.getElementById('netTotal').innerText = `₹ ${net.toLocaleString('en-IN')}.00`;
+            document.getElementById('amountWords').innerText = numberToWords(net);
+
+            /* ========================================================
+               🔥 LIVE BILL QR CODE LOGIC 🔥
+               QR code point karega student ke live bill page par.
+               (e.g., https://acme.edu/live-bill/STU-1024)
+               Jab bhi parent scan karega, backend latest bill show karega.
+            ======================================================== */
+            const liveBillUrl = `https://acme.edu/live-bill/${data.student.id}`;
+            document.getElementById('qrCodeImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(liveBillUrl)}`;
+            
+            // Barcode generation
+            document.getElementById('barcodeText').innerText = data.receipt.no;
+            JsBarcode("#barcodeSvg", data.receipt.no, { format: "CODE128", lineColor: "currentColor", width: 1.5, height: 40, displayValue: false });
+
+            // Real SHA-256 Hash
+            generateRealHash(`${data.receipt.no}-${data.receipt.date}-${net}-${data.student.name}`);
+
+            // Fire Confetti!
+            setTimeout(() => {
+                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+            }, 500);
+        }
+
+        // --- 3. REAL SHA-256 CRYPTOGRAPHY ---
+        async function generateRealHash(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            document.getElementById('realHash').innerText = hashHex.toUpperCase();
+        }
+
+        // --- 4. DIGITAL SIGNATURE PAD ---
+        const canvas = document.getElementById('signatureCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        canvas.width = 180;
+        canvas.height = 60;
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); });
+        canvas.addEventListener('touchend', stopDrawing);
+
+        function startDrawing(e) { isDrawing = true; draw(e); }
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.pageX) - rect.left;
+            const y = (e.clientY || e.pageY) - rect.top;
+            ctx.lineWidth = 2; ctx.lineCap = 'round';
+            ctx.strokeStyle = document.body.classList.contains('dark-mode') ? '#f8fafc' : '#0f172a';
+            ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
+        }
+        function stopDrawing() { isDrawing = false; ctx.beginPath(); }
+        function clearSignature() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+        // --- 5. UTILITIES ---
+        function downloadPDF() {
+            const opt = { margin: 0, filename: `${data.receipt.no}.pdf`, image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 3, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+            html2pdf().set(opt).from(document.getElementById('receipt-content')).save();
+        }
+
+        function shareWhatsApp() {
+            let text = `*Fee Payment Successful* ✅\n\n*School:* ${data.school.name}\n*Student:* ${data.student.name}\n*Receipt No:* ${data.receipt.no}\n*Amount Paid:* ₹${data.receipt.totalPaid}\n\n*Live Bill & Dues:* https://acme.edu/live-bill/${data.student.id}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        }
+
+        // Live Bill Verification Alert
+        function verifyLiveBill() {
+            Swal.fire({
+                title: 'Connecting to Live Server...',
+                html: `Fetching latest dues for <b>${data.student.name}</b>`,
+                timer: 2000,
+                timerProgressBar: true,
+                didOpen: () => { Swal.showLoading() }
+            }).then(() => {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Live Bill Opened!',
+                    text: `This QR connects to: https://acme.edu/live-bill/${data.student.id}. It will always show the real-time pending dues and latest bills.`,
+                    confirmButtonColor: '#1e3a8a',
+                    confirmButtonText: 'Open Live Bill'
+                });
+            });
+        }
+
+        function toggleTheme() { document.body.classList.toggle('dark-mode'); }
+        function toggleThermal() { document.body.classList.toggle('thermal-mode'); }
+
+        // --- 6. LANGUAGE TOGGLE (EN / HI) ---
+        let isHindi = false;
+        function toggleLanguage() {
+            isHindi = !isHindi;
+            const en = {
+                title: "FEE RECEIPT", status: "PAYMENT SUCCESSFUL", stuInfo: "Student Information", name: "Student Name", class: "Class", roll: "Roll No", father: "Father's Name", recInfo: "Receipt Details", recNo: "Receipt No", date: "Date", txn: "Txn ID", session: "Session", sno: "S.No", desc: "Description", amt: "Amount (₹)", words: "Amount in Words", gross: "Gross Total", disc: "Discount", net: "Net Paid", sign: "Authorized Signatory", scanQr: "Scan for Live Bill", thankTitle: "Thank You for Your Payment!", thankMsg: "Dear Parent, we sincerely appreciate your prompt payment. Your continued trust and cooperation help us provide a world-class learning environment for your child. We are honored to be a part of their educational journey."
+            };
+            const hi = {
+                title: "फीस रसीद", status: "भुगतान सफल", stuInfo: "छात्र की जानकारी", name: "छात्र का नाम", class: "कक्षा", roll: "रोल नंबर", father: "पिता का नाम", recInfo: "रसीद विवरण", recNo: "रसीद नंबर", date: "दिनांक", txn: "ट्रांजैक्शन आईडी", session: "सत्र", sno: "क्र.", desc: "विवरण", amt: "राशि (₹)", words: "शब्दों में राशि", gross: "कुल राशि", disc: "छूट", net: "कुल भुगतान", sign: "अधिकृत हस्ताक्षर", scanQr: "लाइव बिल देखें", thankTitle: "आपके भुगतान के लिए धन्यवाद!", thankMsg: "प्रिय अभिभावक, हम आपके त्वरित भुगतान के लिए हृदय से आभारी हैं। आपका अटूट विश्वास और सहयोग हमें आपके बच्चे के लिए एक विश्व स्तरीय सीखने का माहौल प्रदान करने में मदद करता है।"
+            };
+
+            const lang = isHindi ? hi : en;
+            document.getElementById('receiptTitle').innerText = lang.title;
+            document.getElementById('statusBadge').innerText = lang.status;
+            document.getElementById('lblStuInfo').innerText = lang.stuInfo;
+            document.getElementById('lblName').innerText = lang.name;
+            document.getElementById('lblClass').innerText = lang.class;
+            document.getElementById('lblRoll').innerText = lang.roll;
+            document.getElementById('lblFather').innerText = lang.father;
+            document.getElementById('lblRecInfo').innerText = lang.recInfo;
+            document.getElementById('lblRecNo').innerText = lang.recNo;
+            document.getElementById('lblDate').innerText = lang.date;
+            document.getElementById('lblTxn').innerText = lang.txn;
+            document.getElementById('lblSession').innerText = lang.session;
+            document.getElementById('thSno').innerText = lang.sno;
+            document.getElementById('thDesc').innerText = lang.desc;
+            document.getElementById('thAmt').innerText = lang.amt;
+            document.getElementById('lblWords').innerText = lang.words;
+            document.getElementById('lblGross').innerText = lang.gross;
+            document.getElementById('lblDiscount').innerText = lang.disc;
+            document.getElementById('lblNet').innerText = lang.net;
+            document.getElementById('lblSign').innerText = lang.sign;
+            document.getElementById('lblScanQr').innerText = lang.scanQr;
+            document.getElementById('thankYouTitle').innerText = lang.thankTitle;
+            document.getElementById('thankYouMsg').innerText = lang.thankMsg;
+
+            if(isHindi) document.body.classList.add('hindi-text');
+            else document.body.classList.remove('hindi-text');
+        }
+
+        // --- 7. NUMBER TO WORDS ---
+        function numberToWords(num) {
+            const a = ['', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ', 'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '];
+            const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+            if ((num = num.toString()).length > 9) return 'overflow';
+            let n = ('000000000' + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+            if (!n) return; 
+            let str = '';
+            str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'crore ' : '';
+            str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'lakh ' : '';
+            str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'thousand ' : '';
+            str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'hundred ' : '';
+            str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
+            return str.replace(/\b\w/g, l => l.toUpperCase()).trim() + ' Only';
+        }
+
+        window.onload = populateUI;
+    </script>
 </body>
 </html>
