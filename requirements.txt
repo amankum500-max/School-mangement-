@@ -2,6 +2,7 @@ Flask==3.0.0
 psycopg2-binary==2.9.13
 python-dotenv==1.0.0
 gunicorn==21.2.0
+eventlet==0.33.3
 requests==2.31.0
 google-generativeai==0.3.2
 qrcode[pil]==7.4.2
@@ -20,5 +21,4 @@ supabase
 fastapi
 fpdf2
 fpdf
-eventlet==0.33.3
 0.31.1
