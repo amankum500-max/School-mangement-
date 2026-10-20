@@ -286,7 +286,7 @@
 
         <div class="student-name-area">
           <h2>{{ student.name }}</h2>
-          <div class="hindi-name">{{ student.name_hindi or 'अमन कुमार' }}</div>
+          <div class="hindi-name">{{ student.name_hindi or student.name }}</div>
           <div class="class-badge">CLASS {{ student.class_name or '10' }} - {{ student.section or 'A' }}</div>
         </div>
 
