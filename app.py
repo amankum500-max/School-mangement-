@@ -12,7 +12,8 @@ import json
 import hashlib
 import razorpay
 import requests
-requests.packages.urllib3.util.connection.HAS_IPV6 = False
+import urllib3
+urllib3.util.connection.HAS_IPV6 = False
 import qrcode
 import base64
 from datetime import datetime, date
