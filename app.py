@@ -456,13 +456,20 @@ def upload_photo(roll_no):
 @login_required
 def fees():
     rows = db_all("""
-        SELECT s.roll_no, s.name, s.class_name, s.section, s.parent_contact, s.father,
-               f.tuition_fee, f.transport_fee, f.hostel_fee, f.misc_fee, 
-               f.discount, f.late_fee, f.back_dues, f.due_date, f.wallet_balance
-        FROM students s 
-        LEFT JOIN student_fees f ON s.roll_no = f.roll_no
-        ORDER BY s.roll_no
-    """)
+    SELECT s.roll_no, s.name, s.class_name, s.section, s.parent_contact, s.father,
+           COALESCE(f.tuition_fee, 0) AS tuition_fee, 
+           COALESCE(f.transport_fee, 0) AS transport_fee, 
+           COALESCE(f.hostel_fee, 0) AS hostel_fee, 
+           COALESCE(f.misc_fee, 0) AS misc_fee,
+           COALESCE(f.discount, 0) AS discount, 
+           COALESCE(f.late_fee, 0) AS late_fee, 
+           COALESCE(f.back_dues, 0) AS back_dues, 
+           f.due_date, 
+           COALESCE(f.wallet_balance, 0) AS wallet_balance
+    FROM students s
+    LEFT JOIN student_fees f ON s.roll_no = f.roll_no
+    ORDER BY s.roll_no
+""")
     
     sibling_fathers = {}
     for r in rows:
