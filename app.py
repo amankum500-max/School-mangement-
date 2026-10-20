@@ -928,4 +928,5 @@ def notices():
 # ==========================================
 if __name__ == '__main__':
     init_db()
-    socketio.run(app, debug=True, port=5000)
+    # socketio.run ki jagah app.run use karein
+    app.run(debug=True, port=5000) 
