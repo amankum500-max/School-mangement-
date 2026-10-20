@@ -2,6 +2,7 @@
 # 🚨 CRITICAL: Eventlet Monkey Patch (Must be first)
 # ==========================================
 import eventlet
+eventlet.sleep(0)  # <--- YEH NAYI LINE ADD KAREIN
 eventlet.monkey_patch()
 
 import os
@@ -30,7 +31,14 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "school-secret-key-2026")
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+import signal
 
+# Gunicorn ke graceful shutdown ke liye signal handler
+def handle_sigterm(signum, frame):
+    print("SIGTERM received, shutting down gracefully...")
+    socketio.stop()
+
+signal.signal(signal.SIGTERM, handle_sigterm)
 # Gemini AI Setup
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
 if GEMINI_KEY:
