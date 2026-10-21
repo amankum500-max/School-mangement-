@@ -234,6 +234,156 @@ def add_student():
         flash(f"❌ Error: {e} (Roll No might already exist)", "error")
     return redirect(url_for("students"))
     # ==========================================
+# 🚀 SMART BULK IMPORT PIPELINE
+# ==========================================
+
+@app.route("/students/download-template")
+@login_required
+def download_import_template():
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Roll No', 'Student Name', 'Class', 'Father Name', 'Mobile Number'])
+    writer.writerow(['101', 'Rahul Sharma', '10-A', 'Ramesh Sharma', '9876543210'])
+    writer.writerow(['102', 'Priya Singh', '10-B', 'Suresh Singh', '8765432109'])
+    
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=Student_Import_Template.csv"}
+    )
+
+@app.route("/api/friendly-import/analyze", methods=["POST"])
+@login_required
+def friendly_import_analyze():
+    file = request.files.get("file")
+    if not file: return jsonify({"status": "error", "msg": "Please select a file first."})
+
+    filename = secure_filename(file.filename)
+    file_path = os.path.join(TEMP_UPLOAD_FOLDER, f"{uuid.uuid4()}_{filename}")
+    file.save(file_path)
+
+    try:
+        if filename.endswith(('.xlsx', '.xls')):
+            df = pd.read_excel(file_path, engine='openpyxl')
+        else:
+            df = pd.read_csv(file_path)
+            
+        df = df.fillna("")
+        
+        ai_mapping = {}
+        for col in df.columns:
+            c = str(col).lower().replace(" ", "")
+            if 'roll' in c or 'scholar' in c: ai_mapping[col] = 'roll_no'
+            elif 'name' in c and 'father' not in c: ai_mapping[col] = 'name'
+            elif 'class' in c or 'grade' in c: ai_mapping[col] = 'class_name'
+            elif 'contact' in c or 'mobile' in c or 'phone' in c: ai_mapping[col] = 'parent_contact'
+            elif 'father' in c or 'guardian' in c: ai_mapping[col] = 'father'
+
+        processed_data = []
+        for index, row in df.iterrows():
+            parsed_row = {"_original_row": index + 2}
+            
+            for csv_col, db_col in ai_mapping.items():
+                val = str(row.get(csv_col, '')).strip()
+                if db_col in ['name', 'father', 'class_name'] and val:
+                    val = val.title()
+                if db_col == 'parent_contact' and val:
+                    val = re.sub(r'\D', '', val)[-10:]
+                parsed_row[db_col] = val
+
+            errors = []
+            if not parsed_row.get('roll_no'): errors.append("Roll No is missing")
+            if not parsed_row.get('name'): errors.append("Name is missing")
+            
+            if parsed_row.get('roll_no') and one("SELECT roll_no FROM students WHERE roll_no=%s", (parsed_row['roll_no'],)):
+                errors.append("Roll No already exists")
+            
+            parsed_row['_status'] = 'error' if errors else 'valid'
+            parsed_row['_friendly_error'] = " and ".join(errors) if errors else "Ready to import"
+            processed_data.append(parsed_row)
+
+        staging_id = str(uuid.uuid4())
+        STAGING_CACHE[staging_id] = {"data": processed_data, "file_path": file_path}
+
+        return jsonify({
+            "status": "success",
+            "staging_id": staging_id,
+            "preview": processed_data[:150],
+            "total_rows": len(processed_data),
+            "valid_count": sum(1 for r in processed_data if r['_status'] == 'valid'),
+            "error_count": sum(1 for r in processed_data if r['_status'] == 'error')
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "msg": f"File error: {str(e)}"})
+
+def process_friendly_commit(staging_id, batch_id, task_id):
+    cache_data = STAGING_CACHE.get(staging_id)
+    if not cache_data: return
+    data = cache_data['data']
+    added, skipped = 0, 0
+    
+    for i, row in enumerate(data):
+        if row['_status'] == 'error':
+            skipped += 1
+            continue
+        try:
+            run("""INSERT INTO students (roll_no, name, class_name, father, parent_contact, import_batch_id) 
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (row.get('roll_no'), row.get('name'), row.get('class_name', ''), 
+                 row.get('father', ''), row.get('parent_contact', ''), batch_id))
+            added += 1
+        except Exception:
+            skipped += 1
+
+        if i % 5 == 0:
+            percent = int(((i + 1) / len(data)) * 100)
+            socketio.emit('friendly_progress', {'task_id': task_id, 'percent': percent, 'added': added})
+
+    try: os.remove(cache_data['file_path']) 
+    except: pass
+    
+    del STAGING_CACHE[staging_id]
+    socketio.emit('friendly_complete', {'task_id': task_id, 'added': added, 'skipped': skipped, 'batch_id': batch_id})
+
+@app.route("/api/friendly-import/commit", methods=["POST"])
+@login_required
+def friendly_import_commit():
+    staging_id = request.json.get("staging_id")
+    if staging_id not in STAGING_CACHE:
+        return jsonify({"status": "error", "msg": "Session expired. Please upload again."})
+
+    batch_id = f"BATCH-{datetime.now().strftime('%Y%m%d%H%M')}"
+    task_id = f"task_{int(time.time())}"
+    threading.Thread(target=process_friendly_commit, args=(staging_id, batch_id, task_id)).start()
+    return jsonify({"status": "success", "task_id": task_id})
+
+@app.route("/api/friendly-import/rollback/<batch_id>", methods=["DELETE"])
+@login_required
+def friendly_import_rollback(batch_id):
+    try:
+        run("DELETE FROM students WHERE import_batch_id=%s", (batch_id,))
+        return jsonify({"status": "success", "msg": "Import successfully undone."})
+    except Exception as e:
+        return jsonify({"status": "error", "msg": "Could not undo the import."})
+
+@app.route("/api/friendly-import/download-errors", methods=["POST"])
+@login_required
+def friendly_import_download_errors():
+    errors = request.json.get("errors", [])
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Excel Row", "Roll No", "Name", "Reason to Fix"])
+    for e in errors:
+        writer.writerow([e.get('_original_row'), e.get('roll_no'), e.get('name'), e.get('_friendly_error')])
+    
+    return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=Errors.csv"})
+
+# ==========================================
+# ID CARD GENERATION ROUTE (Ye aapka purana code hai, isko mat chhedna)
+# ==========================================
+@app.route("/student/id_card/<roll_no>")
+# ...
+    # ==========================================
 # 🪪 ID CARD GENERATION ROUTE
 # ==========================================
 @app.route("/student/id_card/<roll_no>")
