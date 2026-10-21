@@ -32,7 +32,13 @@ import uuid
 import re
 # Local Database Functions (Ensure database.py exists)
 from database import init_db, run, all as db_all, one, current_month, today
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+import signal
 
+# --- BULK IMPORT SETUP ---
+TEMP_UPLOAD_FOLDER = 'static/temp_imports'
+os.makedirs(TEMP_UPLOAD_FOLDER, exist_ok=True)
+STAGING_CACHE = {}
 # ---------------- APP SETUP ----------------
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "school-secret-key-2026")
