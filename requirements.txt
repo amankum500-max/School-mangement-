@@ -14,3 +14,5 @@ xhtml2pdf
 supabase
 fastapi
 fpdf2
+pandas
+openpyxl
