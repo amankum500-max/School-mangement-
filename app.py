@@ -43,7 +43,10 @@ from database import init_db, run, all as db_all, one, current_month, today
 # ==========================================
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "school-secret-key-2026")
-
+# --- SQLAlchemy Setup ---
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:///school_erp.db")
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 # App define hone ke BAAD SocketIO banega
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
@@ -58,7 +61,40 @@ signal.signal(signal.SIGTERM, handle_sigterm)
 TEMP_UPLOAD_FOLDER = 'static/temp_imports'
 os.makedirs(TEMP_UPLOAD_FOLDER, exist_ok=True)
 STAGING_CACHE = {}
+# ==========================================
+# 🗄️ SQLALCHEMY MODELS (Fee Collection ke liye)
+# ==========================================
+class Student(db.Model):
+    __tablename__ = 'students' 
+    roll_no = db.Column(db.String(50), primary_key=True)
+    name = db.Column(db.String(100))
+    class_name = db.Column(db.String(50))
+    father = db.Column(db.String(100))
+    parent_contact = db.Column(db.String(15))
 
+class StudentFee(db.Model):
+    __tablename__ = 'student_fees'
+    id = db.Column(db.Integer, primary_key=True)
+    roll_no = db.Column(db.String(50))
+    tuition_fee = db.Column(db.Float, default=0.0)
+    transport_fee = db.Column(db.Float, default=0.0)
+    hostel_fee = db.Column(db.Float, default=0.0)
+    misc_fee = db.Column(db.Float, default=0.0)
+    discount = db.Column(db.Float, default=0.0)
+    late_fee = db.Column(db.Float, default=0.0)
+    back_dues = db.Column(db.Float, default=0.0)
+    due_date = db.Column(db.Date) 
+    wallet_balance = db.Column(db.Float, default=0.0)
+
+class Payment(db.Model):
+    __tablename__ = 'payments'
+    id = db.Column(db.Integer, primary_key=True)
+    receipt_no = db.Column(db.String(50), unique=True)
+    roll_no = db.Column(db.String(50))
+    amount = db.Column(db.Float)
+    mode = db.Column(db.String(50))
+    pay_date = db.Column(db.Date)
+    remark = db.Column(db.String(255))
 # --- GOD-LEVEL TC CONFIGURATIONS ---
 SCHOOL_LAT = 28.6139  # Apne school ki exact Latitude daalein
 SCHOOL_LON = 77.2090  # Apne school ki exact Longitude daalein
@@ -1241,7 +1277,93 @@ def god_level_tc_generate(roll_no):
         "ipfs_hash": ipfs_hash,
         "pdf_base64": base64.b64encode(pdf_bytes).decode()
     })
+    # ==========================================
+# 💵 NAYA FEE COLLECTION ROUTES (Yahan Paste Karein)
+# ==========================================
+@app.route('/fees/collect', methods=['GET'])
+@login_required
+def fees_collect_page():
+    return render_template('fees/collect.html')
+
+@app.route('/api/search_student', methods=['GET'])
+@login_required
+def api_search_student():
+    query = request.args.get('q', '').strip()
+    if not query: return jsonify({"error": "No query provided"}), 400
+
+    student = Student.query.filter(
+        (Student.roll_no.ilike(f'%{query}%')) | 
+        (Student.name.ilike(f'%{query}%')) | 
+        (Student.parent_contact.contains(query))
+    ).first()
+
+    if not student: return jsonify({"error": "Student not found"}), 404
+
+    fee_data = StudentFee.query.filter_by(roll_no=student.roll_no).first()
     
+    fees_list = []
+    if fee_data:
+        if fee_data.tuition_fee > 0: fees_list.append({"id": f"tf_{fee_data.id}", "head": "Tuition Fee", "total": fee_data.tuition_fee, "paid": 0, "due": str(fee_data.due_date)})
+        if fee_data.transport_fee > 0: fees_list.append({"id": f"tr_{fee_data.id}", "head": "Transport Fee", "total": fee_data.transport_fee, "paid": 0, "due": str(fee_data.due_date)})
+        if fee_data.hostel_fee > 0: fees_list.append({"id": f"hf_{fee_data.id}", "head": "Hostel Fee", "total": fee_data.hostel_fee, "paid": 0, "due": str(fee_data.due_date)})
+        if fee_data.misc_fee > 0: fees_list.append({"id": f"mf_{fee_data.id}", "head": "Misc Fee", "total": fee_data.misc_fee, "paid": 0, "due": str(fee_data.due_date)})
+        if fee_data.back_dues > 0: fees_list.append({"id": f"bd_{fee_data.id}", "head": "Back Dues", "total": fee_data.back_dues, "paid": 0, "due": str(fee_data.due_date)})
+
+    return jsonify({
+        "id": student.roll_no,
+        "name": student.name,
+        "adm": student.roll_no,
+        "class": student.class_name,
+        "father": student.father,
+        "phone": student.parent_contact,
+        "oldDues": fee_data.back_dues if fee_data else 0,
+        "sibling": "None",
+        "fees": fees_list
+    })
+
+@app.route('/api/save_payment', methods=['POST'])
+@login_required
+def api_save_payment():
+    data = request.json
+    try:
+        receipt_no = "RCPT-" + datetime.now().strftime('%Y%m%d%H%M%S')
+        
+        new_txn = Payment(
+            receipt_no=receipt_no,
+            roll_no=data['adm_no'],
+            amount=data['amount_paid'],
+            mode=data['mode'],
+            pay_date=date.today(),
+            remark=f"Disc: {data['discount']}, Fine: {data['fine']}"
+        )
+        db.session.add(new_txn)
+
+        fee_record = StudentFee.query.filter_by(roll_no=data['adm_no']).first()
+        if fee_record and fee_record.back_dues > 0:
+            fee_record.back_dues = max(0, fee_record.back_dues - data['amount_paid'])
+        
+        db.session.commit()
+        
+        socketio.emit('new_payment_alert', {'msg': f"₹{data['amount_paid']} collected from {data['adm_no']}!"})
+        
+        return jsonify({"status": "success", "receipt_no": receipt_no})
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/fees/print_receipt/<receipt_no>")
+@login_required
+def print_new_receipt(receipt_no):
+    txn = Payment.query.filter_by(receipt_no=receipt_no).first()
+    if not txn: 
+        flash("Receipt not found", "error")
+        return redirect(url_for('fees'))
+    
+    student = Student.query.filter_by(roll_no=txn.roll_no).first()
+    return render_template("fees/receipt.html", student=student, payment=txn, now=datetime.now())
+
+
 # ==========================================
 # 🚀 APP RUN
 # ==========================================
