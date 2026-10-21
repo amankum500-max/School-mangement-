@@ -34,7 +34,7 @@ import signal
 import time  # <--- YEH MISSING THA, ADD KAR DIYA
 from geopy.distance import geodesic
 from pinatapy import PinataPy
-
+from flask_sqlalchemy import SQLAlchemy
 # Local Database Functions
 from database import init_db, run, all as db_all, one, current_month, today
 
