@@ -1156,5 +1156,5 @@ def notices():
 # ==========================================
 if __name__ == '__main__':
     init_db()
-    # socketio.run ki jagah app.run use karein
-    app.run(debug=True, port=5000) 
+    # app.run ki jagah socketio.run use karein taaki live updates kaam karein
+    socketio.run(app, debug=True, port=5000, allow_unsafe_werkzeug=True)
