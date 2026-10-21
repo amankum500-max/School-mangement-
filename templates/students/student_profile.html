@@ -415,4 +415,63 @@
         }
     }
 </script>
+<!-- JavaScript for God-Level TC -->
+<script>
+async function generateGodLevelTC(rollNo) {
+    const btn = document.getElementById('tcBtn');
+    const status = document.getElementById('tcStatus');
+    
+    btn.disabled = true;
+    status.innerHTML = "⏳ Fetching GPS Location...";
+
+    if (!navigator.geolocation) {
+        status.innerHTML = "❌ Geolocation not supported.";
+        btn.disabled = false;
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            status.innerHTML = `📍 Locating... Uploading to IPFS...`;
+
+            try {
+                const res = await fetch(`/api/tc/god-level-generate/${rollNo}`, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ lat: lat, lon: lon })
+                });
+                
+                const data = await res.json();
+                
+                if(data.status === "success") {
+                    status.innerHTML = `✅ <b>Success!</b> Stored on IPFS.`;
+                    status.classList.replace('text-blue-400', 'text-green-400');
+                    
+                    // Download PDF
+                    const link = document.createElement('a');
+                    link.href = 'data:application/pdf;base64,' + data.pdf_base64;
+                    link.download = 'Secure_TC_' + rollNo + '.pdf';
+                    link.click();
+                } else {
+                    status.innerHTML = `❌ ${data.msg}`; 
+                    status.classList.replace('text-blue-400', 'text-red-400');
+                }
+            } catch (e) {
+                status.innerHTML = "❌ Server Error.";
+                status.classList.replace('text-blue-400', 'text-red-400');
+            }
+            btn.disabled = false;
+        },
+        (error) => {
+            status.innerHTML = "❌ Location denied. Geo-fencing failed.";
+            status.classList.replace('text-blue-400', 'text-red-400');
+            btn.disabled = false;
+        },
+        { enableHighAccuracy: true }
+    );
+}
+</script>
+{% endblock %}
 {% endblock %}
