@@ -1,80 +1,1065 @@
-{% extends "shared/base.html" %}
-{% block title %}Collect Fee{% endblock %}
-{% block page_title %}Collect Fee - {{ student.name }}{% endblock %}
-
-{% block content %}
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
-  
-  <!-- Left Side: Student Info -->
-  <div class="card" style="height: fit-content;">
-    <h3 style="border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">Student Details</h3>
-    <p style="margin-bottom: 8px;"><strong>Name:</strong> {{ student.name }}</p>
-    <p style="margin-bottom: 8px;"><strong>Roll No:</strong> {{ student.roll_no }}</p>
-    <p style="margin-bottom: 8px;"><strong>Class:</strong> {{ student.class_name or '-' }}</p>
-    <p style="margin-bottom: 8px;"><strong>Father:</strong> {{ student.father or '-' }}</p>
-    <p style="margin-bottom: 8px;"><strong>Contact:</strong> {{ student.parent_contact or '-' }}</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultra v6.0 - The Absolute Final Fee Collection</title>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <div style="margin-top: 20px; padding: 15px; background: #fee2e2; border-radius: 10px; border: 1px solid #fecaca;">
-      <h4 style="color: #991b1b; margin-bottom: 5px;">Total Pending Dues</h4>
-      <h2 style="color: #dc2626; font-size: 28px;">₹{{ total_due }}</h2>
-    </div>
-  </div>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --dark: #0f172a;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f1f5f9;
+            --surface: rgba(255, 255, 255, 0.85);
+            --border: rgba(226, 232, 240, 0.6);
+            --text: #334155;
+        }
 
-  <!-- Right Side: Collection Form & Bills -->
-  <div>
-    <div class="card">
-      <h3 style="margin-bottom: 15px;">Collect Payment</h3>
-      <form method="POST" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-        <div>
-          <label style="font-weight: 600; font-size: 13px;">Amount (₹) *</label>
-          <input type="number" name="amount" step="0.01" min="1" required style="width: 100%; padding: 12px; border: 2px solid #6366f1; border-radius: 8px; font-size: 18px; font-weight: bold; margin-top: 5px;">
+        /* Dark Mode Overrides */
+        body.dark-mode {
+            --bg: #0f172a;
+            --surface: rgba(30, 41, 59, 0.9);
+            --border: rgba(71, 85, 105, 0.5);
+            --text: #e2e8f0;
+            color: var(--text);
+        }
+        body.dark-mode .stat-card { background: #1e293b; color: #fff; }
+        body.dark-mode .stat-card h3 { color: #fff; }
+        body.dark-mode .glass-card { background: var(--surface); border-color: var(--border); }
+        body.dark-mode .table-modern th { background: #1e293b; color: #94a3b8; }
+        body.dark-mode .table-modern td { border-color: #334155; }
+        body.dark-mode .search-input { background: #1e293b; color: #fff; }
+        body.dark-mode .pay-btn { background: #1e293b; border-color: #334155; color: #94a3b8; }
+        body.dark-mode .search-dropdown { background: #1e293b; border-color: #334155; }
+        body.dark-mode .search-item:hover { background: #334155; }
+        body.dark-mode .amount-input { background: #1e293b; color: #fff; }
+        body.dark-mode .checkout-panel { background: #1e293b; }
+
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg); 
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: var(--text); 
+            font-size: 0.88rem;
+            transition: background 0.3s, color 0.3s;
+        }
+        body.dark-mode { background-image: radial-gradient(#334155 1px, transparent 1px); }
+
+        /* --- Glassmorphism --- */
+        .glass-card {
+            background: var(--surface);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        /* --- Top Navbar --- */
+        .top-nav {
+            background: linear-gradient(135deg, var(--dark) 0%, #1e293b 100%);
+            color: white;
+            padding: 12px 0;
+            border-bottom: 3px solid var(--primary);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+        }
+        
+        /* --- Stat Cards --- */
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+            transition: 0.3s;
+        }
+        .stat-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: var(--primary); }
+        .stat-card.success::before { background: var(--success); }
+        .stat-card.danger::before { background: var(--danger); }
+        .stat-card.warning::before { background: var(--warning); }
+        
+        .stat-card h3 { font-weight: 800; font-size: 1.6rem; margin: 0; }
+        .stat-card p { margin: 0; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.5px; }
+        .stat-icon { position: absolute; right: 15px; top: 15px; font-size: 2rem; opacity: 0.1; }
+
+        /* --- Search --- */
+        .search-wrapper { position: relative; }
+        .search-input { border-radius: 12px; border: 2px solid transparent; background: white; padding: 15px 20px; font-weight: 600; box-shadow: 0 4px 10px rgba(0,0,0,0.03); transition: 0.3s; }
+        .search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
+        .search-dropdown { position: absolute; top: 100%; left: 0; width: 100%; border-radius: 0 0 16px 16px; box-shadow: 0 15px 30px rgba(0,0,0,0.1); z-index: 1050; max-height: 250px; overflow-y: auto; display: none; border: 1px solid var(--border); }
+        .search-item { padding: 15px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: 0.2s; }
+        .search-item:hover { padding-left: 25px; }
+
+        /* --- Student Profile --- */
+        .student-profile { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; border-radius: 16px; padding: 25px; position: relative; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.4); }
+        .student-profile::after { content: '\f19d'; font-family: 'FontAwesome'; position: absolute; right: -20px; bottom: -40px; font-size: 150px; opacity: 0.1; transform: rotate(-15deg); }
+
+        /* --- Fee Table --- */
+        .table-modern th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #64748b; background: #f8fafc; border-bottom: 2px solid #e2e8f0; padding: 12px 15px; }
+        .table-modern td { padding: 12px 15px; vertical-align: middle; border-bottom: 1px solid #f1f5f9; }
+        .fee-row { cursor: pointer; transition: all 0.2s; }
+        .fee-row:hover { transform: scale(1.002); }
+        .fee-row.selected { background: #eef2ff; border-left: 4px solid var(--primary); }
+        body.dark-mode .fee-row.selected { background: #312e81; }
+        .amount-input { max-width: 120px; text-align: right; font-weight: 700; font-size: 1rem; border: 2px solid #e2e8f0; border-radius: 8px; padding: 6px 10px; }
+
+        /* --- Checkout --- */
+        .checkout-panel { border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 10px 30px -5px rgba(0,0,0,0.08); overflow: hidden; }
+        .checkout-header { background: linear-gradient(to right, #1e293b, #0f172a); color: white; padding: 15px 20px; font-weight: 700; font-size: 0.9rem; text-transform: uppercase; }
+        .summary-item { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 600; font-size: 0.85rem; }
+        .grand-total { font-size: 2rem; font-weight: 800; color: var(--primary); letter-spacing: -1px; }
+
+        /* --- Payment Buttons --- */
+        .pay-btn-group { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .pay-btn { padding: 12px 5px; border-radius: 10px; border: 2px solid #e2e8f0; background: white; font-weight: 700; font-size: 0.7rem; color: #64748b; transition: 0.2s; cursor: pointer; }
+        .pay-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-check:checked + .pay-btn { background: var(--primary); border-color: var(--primary); color: white; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3); }
+
+        /* --- QR Box --- */
+        .qr-box { text-align: center; padding: 15px; background: #f8fafc; border-radius: 12px; border: 1px dashed #cbd5e1; display: none; }
+        .qr-box img { width: 140px; height: 140px; border-radius: 10px; }
+
+        /* --- Signature Pad --- */
+        .signature-pad { border: 2px dashed #cbd5e1; border-radius: 10px; background: #f8fafc; width: 100%; height: 100px; cursor: crosshair; }
+
+        /* --- Toast --- */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+        .custom-toast { background: white; border-left: 5px solid var(--primary); box-shadow: 0 10px 30px rgba(0,0,0,0.15); padding: 15px 20px; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; gap: 15px; animation: slideIn 0.3s ease-out forwards; }
+        .custom-toast.error { border-left-color: var(--danger); }
+        .custom-toast.success { border-left-color: var(--success); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* --- Print --- */
+        #invoiceArea, #thermalArea, #idCardArea { display: none; background: white; color: black; }
+        #invoiceArea { padding: 40px; max-width: 850px; margin: 20px auto; box-shadow: 0 0 30px rgba(0,0,0,0.1); }
+        #thermalArea { width: 80mm; padding: 5mm; font-family: 'Courier New', monospace; font-size: 12px; margin: 20px auto; border: 1px dashed #999; }
+        #idCardArea { width: 350px; margin: 20px auto; padding: 20px; border-radius: 16px; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #invoiceArea, #invoiceArea *, #thermalArea, #thermalArea *, #idCardArea, #idCardArea * { visibility: visible; }
+            #invoiceArea { position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0; box-shadow: none; }
+            #thermalArea { position: absolute; left: 0; top: 0; width: 80mm; margin: 0; border: none; }
+            #idCardArea { position: absolute; left: 0; top: 0; margin: 0; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- TOP NAVBAR -->
+<nav class="top-nav no-print">
+    <div class="container d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px; box-shadow: 0 0 15px rgba(255,255,255,0.2);">
+                <i class="fa-solid fa-building-columns fa-lg"></i>
+            </div>
+            <div>
+                <h5 class="m-0 fw-bold" style="letter-spacing: 0.5px;">ULTRA PUBLIC SCHOOL</h5>
+                <small class="text-white-50" style="font-size: 0.7rem;">FEE COLLECTION v6.0 (FINAL)</small>
+            </div>
         </div>
-        <div>
-          <label style="font-weight: 600; font-size: 13px;">Payment Mode</label>
-          <select name="mode" style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
-            <option value="Cash">Cash</option>
-            <option value="UPI">UPI / PhonePe</option>
-            <option value="Online">Bank Transfer</option>
-            <option value="Cheque">Cheque</option>
-          </select>
+        <div class="d-flex align-items-center gap-3">
+            <div class="d-none d-md-block text-end me-2">
+                <div class="fw-bold" id="liveClock" style="font-variant-numeric: tabular-nums;">00:00:00</div>
+                <small class="text-white-50" style="font-size: 0.7rem;" id="liveDate">Date</small>
+            </div>
+            <button class="btn btn-outline-warning btn-sm rounded-circle" onclick="toggleDarkMode()" id="themeBtn" style="width: 35px; height: 35px;"><i class="fa-solid fa-moon"></i></button>
+            <a href="dashboard.html" class="btn btn-outline-light btn-sm rounded-pill px-3 fw-bold">Exit</a>
         </div>
-        <div style="grid-column: span 2;">
-          <label style="font-weight: 600; font-size: 13px;">Remark (Optional)</label>
-          <input type="text" name="remark" placeholder="E.g. Paid for October month..." style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-top: 5px;">
-        </div>
-        <div style="grid-column: span 2; margin-top: 10px;">
-          <button type="submit" class="btn" style="width: 100%; padding: 15px; font-size: 16px; background: #10b981;">💰 Confirm Payment</button>
-        </div>
-      </form>
+    </div>
+</nav>
+
+<!-- MAIN UI -->
+<div class="container py-4 no-print" id="mainUI">
+    
+    <!-- Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-6 mb-3"><div class="stat-card"><i class="fa-solid fa-money-bill-wave stat-icon"></i><p>Today's Cash</p><h3>₹<span id="statCash">0</span></h3></div></div>
+        <div class="col-md-3 col-6 mb-3"><div class="stat-card success"><i class="fa-solid fa-globe stat-icon"></i><p>Today's Online</p><h3>₹<span id="statOnline">0</span></h3></div></div>
+        <div class="col-md-3 col-6 mb-3"><div class="stat-card danger"><i class="fa-solid fa-receipt stat-icon"></i><p>Total Txns</p><h3><span id="statTxns">0</span></h3></div></div>
+        <div class="col-md-3 col-6 mb-3"><div class="stat-card warning"><i class="fa-solid fa-wallet stat-icon"></i><p>Today's Expense</p><h3>₹<span id="statExpense">0</span></h3></div></div>
     </div>
 
-    <div class="card">
-      <h3 style="margin-bottom: 15px;">Pending Bills</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th>Total Bill</th>
-            <th>Paid</th>
-            <th>Balance</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for b in bills %}
-          <tr>
-            <td><strong>{{ b.month }}</strong></td>
-            <td>₹{{ b.total }}</td>
-            <td style="color: #10b981;">₹{{ b.paid }}</td>
-            <td style="color: #ef4444; font-weight: bold;">₹{{ b.balance }}</td>
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="4" style="text-align: center; color: #10b981;">No pending bills!</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="row">
+        <!-- Left: Search & Fees -->
+        <div class="col-lg-8 mb-4">
+            
+            <!-- Search -->
+            <div class="search-wrapper mb-4">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-0 rounded-start-3"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                    <input type="text" class="form-control search-input border-start-0 ps-0" placeholder="Search Student (Name / Adm No / Phone)..." id="searchInput" autocomplete="off" onkeyup="liveSearch()">
+                    <button class="btn btn-primary px-4 fw-bold rounded-end-3" onclick="loadStudentBySearch()">Search</button>
+                </div>
+                <div class="search-dropdown" id="searchDropdown"></div>
+            </div>
+
+            <!-- Fee Area -->
+            <div id="feeArea" style="display: none;">
+                
+                <!-- Student Profile -->
+                <div class="student-profile mb-4 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center z-1">
+                        <div class="bg-white text-primary rounded-circle d-flex justify-content-center align-items-center me-3 shadow" style="width: 70px; height: 70px; font-size: 1.8rem;"><i class="fa-solid fa-user-graduate"></i></div>
+                        <div>
+                            <h4 class="mb-1 fw-bold" id="stuName">Student Name</h4>
+                            <div class="d-flex gap-3 text-white-50" style="font-size: 0.8rem;">
+                                <span><i class="fa-solid fa-id-badge me-1"></i> <span id="stuAdm">ADM</span></span>
+                                <span><i class="fa-solid fa-chalkboard me-1"></i> <span id="stuClass">Class</span></span>
+                                <span><i class="fa-solid fa-phone me-1"></i> <span id="stuPhone">Phone</span></span>
+                            </div>
+                            <div class="mt-1" style="font-size: 0.8rem;"><i class="fa-solid fa-user-tie me-1"></i> Father: <span id="stuFather">Name</span></div>
+                        </div>
+                    </div>
+                    <div class="text-end z-1">
+                        <span class="badge bg-white text-success mb-2 px-3 py-2 rounded-pill fw-bold" style="font-size: 0.7rem;">ACTIVE</span>
+                        <div id="siblingTag" class="text-warning fw-bold" style="font-size: 0.7rem;"></div>
+                    </div>
+                </div>
+
+                <!-- Fee Table -->
+                <div class="glass-card">
+                    <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                        <h6 class="m-0 fw-bold"><i class="fa-solid fa-file-invoice-dollar text-primary me-2"></i> Outstanding Fees</h6>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-danger" onclick="openEditFeeModal()" title="Edit Fee Structure"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
+                            <input type="text" class="form-control form-control-sm" placeholder="Filter..." id="feeFilter" onkeyup="filterFeeTable()" style="width: 120px;">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-modern mb-0" id="feeTable">
+                            <thead>
+                                <tr>
+                                    <th width="45%">Particulars</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-end">Paid</th>
+                                    <th class="text-end">Balance</th>
+                                    <th class="text-end" style="width: 140px;">Paying (₹)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="feeTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Checkout & Tools -->
+        <div class="col-lg-4">
+            
+            <!-- Checkout -->
+            <div id="checkoutArea" style="display: none;">
+                <div class="checkout-panel mb-3">
+                    <div class="checkout-header"><i class="fa-solid fa-calculator me-2"></i> Payment Terminal</div>
+                    <div class="p-4">
+                        <!-- Summary -->
+                        <div class="mb-4">
+                            <div class="summary-item"><span class="text-muted">Selected:</span><span id="sumSelected">₹0.00</span></div>
+                            <div class="summary-item"><span class="text-muted">Old Dues:</span><span class="text-danger" id="sumOldDues">₹0.00</span></div>
+                            <div class="summary-item"><span class="text-muted">Auto Fine:</span><span class="text-danger" id="sumFine">+ ₹0.00</span></div>
+                            <div class="summary-item align-items-center">
+                                <span class="text-muted">Discount:</span>
+                                <div class="input-group input-group-sm w-50">
+                                    <input type="number" class="form-control text-end fw-bold border-success" id="inpDiscount" value="0" min="0" oninput="calculateTotal()" readonly>
+                                    <button class="btn btn-outline-danger" onclick="showPinModal()"><i class="fa-solid fa-lock"></i></button>
+                                </div>
+                            </div>
+                            <hr class="my-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold text-uppercase text-muted" style="font-size: 0.8rem;">Net Payable</span>
+                                <span class="grand-total" id="netPayable">₹0.00</span>
+                            </div>
+                        </div>
+
+                        <!-- Modes -->
+                        <label class="form-label fw-bold text-muted mb-2" style="font-size: 0.75rem;">Payment Mode</label>
+                        <div class="pay-btn-group mb-3">
+                            <input type="radio" class="btn-check" name="payMode" id="modeCash" value="Cash" checked onchange="togglePaymentFields()">
+                            <label class="pay-btn" for="modeCash"><i class="fa-solid fa-money-bill d-block mb-1 fs-5"></i>Cash</label>
+                            <input type="radio" class="btn-check" name="payMode" id="modeUpi" value="UPI" onchange="togglePaymentFields()">
+                            <label class="pay-btn" for="modeUpi"><i class="fa-solid fa-qrcode d-block mb-1 fs-5"></i>UPI</label>
+                            <input type="radio" class="btn-check" name="payMode" id="modeCard" value="Card" onchange="togglePaymentFields()">
+                            <label class="pay-btn" for="modeCard"><i class="fa-solid fa-credit-card d-block mb-1 fs-5"></i>Card</label>
+                            <input type="radio" class="btn-check" name="payMode" id="modeCheque" value="Cheque" onchange="togglePaymentFields()">
+                            <label class="pay-btn" for="modeCheque"><i class="fa-solid fa-money-check d-block mb-1 fs-5"></i>Cheque</label>
+                        </div>
+
+                        <!-- QR -->
+                        <div class="qr-box mb-3" id="qrBox">
+                            <img src="" alt="QR">
+                            <div class="small text-muted mt-2 fw-bold">Scan & Pay</div>
+                        </div>
+
+                        <!-- Split -->
+                        <div class="p-3 bg-light rounded-3 border mb-3" id="splitBox" style="display: none;">
+                            <div class="input-group input-group-sm mb-2">
+                                <span class="input-group-text bg-white w-50">Cash (₹)</span>
+                                <input type="number" class="form-control text-end fw-bold" id="splitCash" value="0" oninput="validateSplit()">
+                            </div>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white w-50">Online (₹)</span>
+                                <input type="number" class="form-control text-end fw-bold" id="splitOnline" value="0" oninput="validateSplit()">
+                            </div>
+                        </div>
+
+                        <!-- Txn -->
+                        <div id="txnFields" style="display: none;" class="p-3 bg-light rounded-3 border mb-3">
+                            <input type="text" class="form-control form-control-sm mb-2" id="inpTxn" placeholder="Txn ID / Cheque No.">
+                            <input type="text" class="form-control form-control-sm" id="inpBank" placeholder="Bank / App Name">
+                        </div>
+
+                        <!-- Signature -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <label class="form-label fw-bold text-muted mb-1" style="font-size: 0.7rem;">Signature</label>
+                                <button class="btn btn-link btn-sm text-danger p-0" style="font-size: 0.65rem;" onclick="clearSignature()">Clear</button>
+                            </div>
+                            <canvas class="signature-pad" id="sigCanvas" width="300" height="80"></canvas>
+                        </div>
+
+                        <button class="btn btn-primary w-100 py-3 fw-bold fs-5 rounded-3 shadow" onclick="processPayment()" id="btnCollect">
+                            <i class="fa-solid fa-shield-check me-2"></i> Collect Payment
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Expense & Audit Mini -->
+                <div class="glass-card p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="m-0 fw-bold text-muted" style="font-size: 0.8rem;"><i class="fa-solid fa-wallet me-1"></i> Quick Expense</h6>
+                    </div>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" id="expAmount" placeholder="Amount">
+                        <input type="text" class="form-control" id="expReason" placeholder="Reason (e.g. Stationery)">
+                        <button class="btn btn-outline-danger" onclick="addExpense()"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 </div>
-{% endblock %}
+
+<!-- ================= EDIT FEE MODAL ================= -->
+<div class="modal fade" id="editFeeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-body p-4">
+                <h5 class="fw-bold mb-3"><i class="fa-solid fa-pen-to-square text-danger me-2"></i> Manager Override</h5>
+                <p class="text-muted small mb-3">Only Manager can edit fee structure. Enter PIN to proceed.</p>
+                <input type="password" class="form-control mb-3" id="editPin" placeholder="Manager PIN (1234)">
+                <div id="editFeeFields" style="display: none;">
+                    <label class="small fw-bold">New Total Amount for First Fee Head:</label>
+                    <input type="number" class="form-control mb-2" id="newFeeAmount">
+                    <button class="btn btn-danger w-100" onclick="saveEditedFee()">Save Changes</button>
+                </div>
+                <button class="btn btn-primary w-100 mt-2" id="btnVerifyEdit" onclick="verifyEditPin()">Verify</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= PIN MODAL ================= -->
+<div class="modal fade" id="pinModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-body text-center p-4">
+                <div class="bg-danger bg-opacity-10 text-danger rounded-circle d-inline-flex justify-content-center align-items-center mb-3" style="width: 60px; height: 60px;"><i class="fa-solid fa-lock fa-2x"></i></div>
+                <h5 class="fw-bold mb-1">Manager PIN</h5>
+                <p class="text-muted small mb-3">Enter PIN to unlock discount</p>
+                <input type="password" class="form-control text-center fw-bold fs-4 mb-3" id="pinInput" placeholder="****" maxlength="4">
+                <button class="btn btn-danger w-100 fw-bold" onclick="verifyPin()">Unlock</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= A4 INVOICE ================= -->
+<div id="invoiceArea">
+    <div class="d-flex justify-content-between border-bottom border-dark pb-3 mb-4">
+        <div>
+            <h2 class="fw-bold text-uppercase mb-1" style="font-family: serif;">Ultra Public School</h2>
+            <p class="mb-0 text-muted small">CBSE Affiliated | School Code: 12345</p>
+            <p class="mb-0 text-muted small">Sector 62, Noida, UP</p>
+        </div>
+        <div class="text-end">
+            <h4 class="fw-bold text-primary mb-2">FEE RECEIPT</h4>
+            <p class="mb-0 small"><strong>Receipt No:</strong> <span id="r_no"></span></p>
+            <p class="mb-0 small"><strong>Date:</strong> <span id="r_date"></span></p>
+        </div>
+    </div>
+    <div class="row mb-4 bg-light p-3 rounded">
+        <div class="col-6">
+            <p class="mb-1 small"><strong>Student:</strong> <span id="r_name"></span></p>
+            <p class="mb-1 small"><strong>Adm No:</strong> <span id="r_adm"></span></p>
+            <p class="mb-0 small"><strong>Father:</strong> <span id="r_father"></span></p>
+        </div>
+        <div class="col-6 text-end">
+            <p class="mb-1 small"><strong>Class:</strong> <span id="r_class"></span></p>
+            <p class="mb-1 small"><strong>Mode:</strong> <span id="r_mode"></span></p>
+            <p class="mb-0 small"><strong>Txn:</strong> <span id="r_txn"></span></p>
+        </div>
+    </div>
+    <table class="table table-bordered table-sm mb-4">
+        <thead class="table-light">
+            <tr><th width="5%">#</th><th width="45%">Particulars</th><th width="15%" class="text-end">Total</th><th width="15%" class="text-end">Paid</th><th width="20%" class="text-end">Amount</th></tr>
+        </thead>
+        <tbody id="r_tbody"></tbody>
+    </table>
+    <div class="row justify-content-end">
+        <div class="col-5">
+            <table class="w-100">
+                <tr><td class="py-1 text-muted small">Sub Total:</td><td class="py-1 text-end fw-bold" id="r_subtotal"></td></tr>
+                <tr><td class="py-1 text-muted small">Fine:</td><td class="py-1 text-end fw-bold text-danger" id="r_fine"></td></tr>
+                <tr><td class="py-1 text-muted small">Discount:</td><td class="py-1 text-end fw-bold text-success" id="r_discount"></td></tr>
+                <tr class="border-top border-dark"><td class="py-2 fw-bold">Total Paid:</td><td class="py-2 text-end fw-bold text-primary" id="r_total"></td></tr>
+            </table>
+        </div>
+    </div>
+    <div class="mt-3 p-2 border rounded bg-light"><p class="mb-0 small"><strong>In Words:</strong> <span id="r_words" class="text-uppercase fw-bold text-success"></span></p></div>
+    <div class="d-flex justify-content-between align-items-end mt-5 pt-3">
+        <div class="small text-muted"><p class="mb-0">* Computer generated receipt.</p><p class="mb-0">Operator: Admin (T-01)</p></div>
+        <div class="text-center"><p class="border-top border-dark pt-1 px-4 mb-0 fw-bold small">Authorized Signatory</p></div>
+    </div>
+</div>
+
+<!-- ================= THERMAL ================= -->
+<div id="thermalArea">
+    <div style="text-align: center; margin-bottom: 5px;">
+        <h3 style="margin: 0; font-size: 16px;">ULTRA PUBLIC SCHOOL</h3>
+        <p style="margin: 0; font-size: 10px;">Sector 62, Noida</p>
+    </div>
+    <div style="border-top: 1px dashed #000; margin: 5px 0;"></div>
+    <table style="width: 100%; font-size: 10px;">
+        <tr><td>Rcpt:</td><td style="text-align: right;" id="t_no"></td></tr>
+        <tr><td>Date:</td><td style="text-align: right;" id="t_date"></td></tr>
+        <tr><td>Student:</td><td style="text-align: right;" id="t_name"></td></tr>
+        <tr><td>Class:</td><td style="text-align: right;" id="t_class"></td></tr>
+    </table>
+    <div style="border-top: 1px dashed #000; margin: 5px 0;"></div>
+    <table style="width: 100%; font-size: 10px;"><thead><tr><th style="text-align: left;">Item</th><th style="text-align: right;">Amt</th></tr></thead><tbody id="t_tbody"></tbody></table>
+    <div style="border-top: 1px dashed #000; margin: 5px 0;"></div>
+    <table style="width: 100%; font-size: 11px;">
+        <tr><td>Fine:</td><td style="text-align: right;" id="t_fine"></td></tr>
+        <tr><td>Discount:</td><td style="text-align: right;" id="t_discount"></td></tr>
+        <tr style="font-weight: bold; font-size: 13px;"><td>TOTAL:</td><td style="text-align: right;" id="t_total"></td></tr>
+    </table>
+    <div style="border-top: 1px dashed #000; margin: 5px 0;"></div>
+    <div style="text-align: center; font-size: 9px; margin-top: 5px;"><p style="margin: 0;">Thank you!</p></div>
+</div>
+
+<!-- ================= ID CARD ================= -->
+<div id="idCardArea">
+    <div style="display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 15px; margin-bottom: 15px;">
+        <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; font-size: 1.5rem;"><i class="fa-solid fa-building-columns"></i></div>
+        <div>
+            <h4 style="margin: 0; font-weight: 800;">ULTRA PUBLIC SCHOOL</h4>
+            <p style="margin: 0; font-size: 0.7rem; opacity: 0.8;">Sector 62, Noida</p>
+        </div>
+    </div>
+    <div class="text-center mb-3">
+        <div class="bg-white text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="width: 80px; height: 80px; font-size: 2.5rem;"><i class="fa-solid fa-user-graduate"></i></div>
+        <h5 class="fw-bold mb-1" id="id_name"></h5>
+        <p class="mb-1" style="font-size: 0.9rem;" id="id_class"></p>
+        <p class="mb-0" style="font-size: 0.8rem; opacity: 0.9;" id="id_adm"></p>
+    </div>
+    <div style="font-size: 0.8rem; opacity: 0.9;">
+        <p class="mb-1"><strong>Father:</strong> <span id="id_father"></span></p>
+        <p class="mb-0"><strong>Phone:</strong> <span id="id_phone"></span></p>
+    </div>
+</div>
+
+<!-- RECEIPT ACTIONS -->
+<div class="text-center mt-4 mb-5 no-print" id="receiptActions" style="display: none;">
+    <button class="btn btn-outline-dark px-3 py-2" onclick="printA4()"><i class="fa-solid fa-print me-1"></i> A4 Print</button>
+    <button class="btn btn-outline-dark px-3 py-2 ms-2" onclick="printThermal()"><i class="fa-solid fa-receipt me-1"></i> Thermal</button>
+    <button class="btn btn-outline-dark px-3 py-2 ms-2" onclick="printIdCard()"><i class="fa-solid fa-id-card me-1"></i> ID Card</button>
+    <button class="btn btn-success px-3 py-2 ms-2" onclick="sendWhatsApp()"><i class="fa-brands fa-whatsapp me-1"></i> WhatsApp</button>
+    <button class="btn btn-danger px-3 py-2 ms-2" onclick="refundTxn()"><i class="fa-solid fa-rotate-left me-1"></i> Refund</button>
+    <button class="btn btn-secondary px-3 py-2 ms-2" onclick="resetSystem()"><i class="fa-solid fa-rotate-right me-1"></i> Next</button>
+</div>
+
+
+<script>
+    // ================= DATABASE =================
+    const DB_STUDENTS = [
+        { id: 1, name: "Rahul Sharma", adm: "ADM-001", class: "10-A", father: "Rajesh Sharma", phone: "919876543210", oldDues: 500, sibling: "Priya (Class 9-B)" },
+        { id: 2, name: "Priya Singh", adm: "ADM-002", class: "9-B", father: "Amit Singh", phone: "918765432109", oldDues: 0, sibling: "Rahul (Class 10-A)" },
+        { id: 3, name: "Aarav Gupta", adm: "ADM-003", class: "12-C", father: "Vikas Gupta", phone: "917654321098", oldDues: 1200, sibling: null }
+    ];
+
+    const DB_FEES = {
+        1: [
+            { id: "f1", head: "Tuition Fee (Term 1)", total: 15000, paid: 15000, due: "2024-08-10" },
+            { id: "f2", head: "Tuition Fee (Term 2)", total: 15000, paid: 0, due: "2024-10-10" },
+            { id: "f3", head: "Transport Fee (Route 4)", total: 4000, paid: 0, due: "2024-10-15" },
+            { id: "f4", head: "Exam Fee (Mid-Term)", total: 1500, paid: 0, due: "2024-10-20" }
+        ],
+        2: [
+            { id: "f1", head: "Tuition Fee (Term 2)", total: 12000, paid: 0, due: "2024-10-10" }
+        ],
+        3: [
+            { id: "f1", head: "Tuition Fee (Term 2)", total: 18000, paid: 9000, due: "2024-10-10" }
+        ]
+    };
+
+    let currentStudent = null;
+    let currentFees = [];
+    let isSplitValid = false;
+    let isDiscountUnlocked = false;
+    let autoFineTotal = 0;
+    let stats = { cash: 0, online: 0, txns: 0, expense: 0 };
+    let currentTxnData = null;
+    let isDarkMode = false;
+
+    // ================= INIT =================
+    setInterval(() => {
+        const now = new Date();
+        document.getElementById('liveClock').innerText = now.toLocaleTimeString();
+        document.getElementById('liveDate').innerText = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }, 1000);
+
+    document.addEventListener('keydown', function(e) {
+        if(e.key === 'F1') { e.preventDefault(); document.getElementById('searchInput').focus(); }
+        if(e.key === 'F2') { e.preventDefault(); if(document.getElementById('invoiceArea').style.display === 'block' || document.getElementById('thermalArea').style.display === 'block') window.print(); }
+        if(e.key === 'Escape') { resetSystem(); }
+    });
+
+    // ================= THEME =================
+    function toggleDarkMode() {
+        isDarkMode = !isDarkMode;
+        document.body.classList.toggle('dark-mode');
+        const icon = document.querySelector('#themeBtn i');
+        if(isDarkMode) { icon.className = 'fa-solid fa-sun'; showToast("Dark Mode ON", "info"); }
+        else { icon.className = 'fa-solid fa-moon'; showToast("Light Mode ON", "info"); }
+    }
+
+    // ================= TOAST =================
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `custom-toast ${type}`;
+        let icon = type === 'error' ? 'fa-circle-xmark text-danger' : type === 'success' ? 'fa-circle-check text-success' : 'fa-circle-info text-primary';
+        toast.innerHTML = `<i class="fa-solid ${icon} fa-lg"></i> <div class="fw-bold" style="font-size: 0.85rem;">${message}</div>`;
+        container.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+    }
+
+    // ================= VOICE =================
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            let msg = new SpeechSynthesisUtterance(text);
+            msg.rate = 1;
+            msg.pitch = 1;
+            window.speechSynthesis.speak(msg);
+        }
+    }
+
+    // ================= SEARCH =================
+    function liveSearch() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const drop = document.getElementById('searchDropdown');
+        if(query.length < 2) { drop.style.display = 'none'; return; }
+
+        const matches = DB_STUDENTS.filter(s => s.name.toLowerCase().includes(query) || s.adm.toLowerCase().includes(query) || s.phone.includes(query));
+
+        if(matches.length > 0) {
+            drop.innerHTML = '';
+            matches.forEach(s => {
+                drop.innerHTML += `<div class="search-item d-flex justify-content-between" onclick="selectStudent(${s.id})"><div><div class="fw-bold">${s.name}</div><small class="text-muted">${s.adm} | Class ${s.class}</small></div><i class="fa-solid fa-arrow-right text-primary align-self-center"></i></div>`;
+            });
+            drop.style.display = 'block';
+        } else { drop.style.display = 'none'; }
+    }
+
+    function selectStudent(id) {
+        document.getElementById('searchDropdown').style.display = 'none';
+        document.getElementById('searchInput').value = '';
+        loadStudentData(id);
+    }
+
+    function loadStudentBySearch() {
+        const query = document.getElementById('searchInput').value;
+        const student = DB_STUDENTS.find(s => s.adm === query || s.name.toLowerCase() === query.toLowerCase());
+        if(student) loadStudentData(student.id);
+        else showToast("Student not found!", "error");
+    }
+
+    // ================= LOAD DATA =================
+    function loadStudentData(id) {
+        currentStudent = DB_STUDENTS.find(s => s.id === id);
+        currentFees = JSON.parse(JSON.stringify(DB_FEES[id]));
+        isDiscountUnlocked = false;
+        document.getElementById('inpDiscount').value = 0;
+        document.getElementById('inpDiscount').readOnly = true;
+        clearSignature();
+
+        document.getElementById('feeArea').style.display = 'block';
+        document.getElementById('checkoutArea').style.display = 'block';
+
+        document.getElementById('stuName').innerText = currentStudent.name;
+        document.getElementById('stuAdm').innerText = currentStudent.adm;
+        document.getElementById('stuClass').innerText = "Class " + currentStudent.class;
+        document.getElementById('stuPhone').innerText = currentStudent.phone.replace('91', '');
+        document.getElementById('stuFather').innerText = currentStudent.father;
+
+        // Sibling Discount Auto-Detect
+        if(currentStudent.sibling) {
+            document.getElementById('siblingTag').innerHTML = `<i class="fa-solid fa-users"></i> Sibling: ${currentStudent.sibling} (10% Discount)`;
+            document.getElementById('inpDiscount').value = 500; // Auto apply
+        } else {
+            document.getElementById('siblingTag').innerHTML = '';
+        }
+
+        renderFeeTable();
+        showToast("Student details loaded", "success");
+    }
+
+    // ================= FEE TABLE =================
+    function renderFeeTable() {
+        const tbody = document.getElementById('feeTableBody');
+        tbody.innerHTML = '';
+        autoFineTotal = 0;
+
+        currentFees.forEach(fee => {
+            let balance = fee.total - fee.paid;
+            let isCleared = balance <= 0;
+            
+            let fine = 0;
+            if(new Date() > new Date(fee.due) && !isCleared) {
+                let diffDays = Math.ceil((new Date() - new Date(fee.due)) / (1000 * 60 * 60 * 24));
+                fine = diffDays * 50;
+            }
+            autoFineTotal += fine;
+
+            tbody.innerHTML += `
+                <tr class="fee-row ${isCleared ? 'table-light text-muted' : 'selected'}" onclick="toggleFeeRow('${fee.id}')" id="row_${fee.id}">
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="checkbox" class="form-check-input fee-chk" id="chk_${fee.id}" ${isCleared ? 'disabled' : 'checked'} onclick="event.stopPropagation(); toggleFeeRow('${fee.id}')">
+                            <div>
+                                <div class="fw-bold ${isCleared ? 'text-decoration-line-through' : ''}" style="font-size: 0.85rem;">${fee.head}</div>
+                                <div class="text-muted" style="font-size: 0.7rem;">Due: ${fee.due} 
+                                    ${fine > 0 ? `<span class="text-danger fw-bold ms-1"><i class="fa-solid fa-triangle-exclamation"></i> Fine: ₹${fine}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="text-end fw-semibold">₹${fee.total}</td>
+                    <td class="text-end text-success fw-semibold">₹${fee.paid}</td>
+                    <td class="text-end text-danger fw-bold">₹${balance}</td>
+                    <td class="text-end" onclick="event.stopPropagation()">
+                        <input type="number" class="form-control form-control-sm amount-input fee-input" 
+                            id="in_${fee.id}" value="${isCleared ? 0 : balance}" max="${balance}" 
+                            ${isCleared ? 'disabled' : ''} oninput="calculateTotal()">
+                    </td>
+                </tr>
+            `;
+        });
+
+        document.getElementById('sumOldDues').innerText = '₹' + currentStudent.oldDues.toFixed(2);
+        document.getElementById('sumFine').innerText = '+ ₹' + autoFineTotal.toFixed(2);
+        calculateTotal();
+    }
+
+    function filterFeeTable() {
+        const filter = document.getElementById('feeFilter').value.toLowerCase();
+        document.querySelectorAll('.fee-row').forEach(row => {
+            const text = row.querySelector('.fw-bold').innerText.toLowerCase();
+            row.style.display = text.includes(filter) ? '' : 'none';
+        });
+    }
+
+    function toggleFeeRow(id) {
+        const chk = document.getElementById('chk_' + id);
+        const input = document.getElementById('in_' + id);
+        const fee = currentFees.find(f => f.id === id);
+        if(chk.disabled) return;
+
+        chk.checked = !chk.checked;
+        if(chk.checked) {
+            input.disabled = false;
+            input.value = (fee.total - fee.paid);
+            document.getElementById('row_' + id).classList.add('selected');
+        } else {
+            input.disabled = true;
+            input.value = 0;
+            document.getElementById('row_' + id).classList.remove('selected');
+        }
+        calculateTotal();
+    }
+
+    // ================= CALC =================
+    function calculateTotal() {
+        let selected = 0;
+        currentFees.forEach(fee => {
+            if(document.getElementById('chk_' + fee.id).checked) {
+                let val = parseFloat(document.getElementById('in_' + fee.id).value) || 0;
+                let max = fee.total - fee.paid;
+                if(val > max) { document.getElementById('in_' + fee.id).value = max; val = max; }
+                selected += val;
+            }
+        });
+
+        document.getElementById('sumSelected').innerText = '₹' + selected.toFixed(2);
+        let discount = parseFloat(document.getElementById('inpDiscount').value) || 0;
+        let net = (selected + currentStudent.oldDues + autoFineTotal) - discount;
+        if(net < 0) net = 0;
+
+        document.getElementById('netPayable').innerText = '₹' + net.toFixed(2);
+        
+        const qrImg = document.querySelector('#qrBox img');
+        if(qrImg) qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=ultraschool@upi&pn=Ultra%20Public%20School&am=${net}`;
+        
+        if(document.getElementById('splitBox').style.display === 'block') validateSplit();
+    }
+
+    // ================= PIN =================
+    function showPinModal() {
+        if(isDiscountUnlocked) {
+            isDiscountUnlocked = false;
+            document.getElementById('inpDiscount').readOnly = true;
+            document.getElementById('inpDiscount').value = 0;
+            calculateTotal();
+            showToast("Discount locked", "info");
+            return;
+        }
+        document.getElementById('pinInput').value = '';
+        new bootstrap.Modal(document.getElementById('pinModal')).show();
+    }
+
+    function verifyPin() {
+        let pin = document.getElementById('pinInput').value;
+        if(pin === "1234") {
+            isDiscountUnlocked = true;
+            document.getElementById('inpDiscount').readOnly = false;
+            document.getElementById('inpDiscount').focus();
+            bootstrap.Modal.getInstance(document.getElementById('pinModal')).hide();
+            showToast("Discount Unlocked!", "success");
+        } else {
+            showToast("Invalid PIN!", "error");
+        }
+    }
+
+    // ================= EDIT FEE (Manager) =================
+    function openEditFeeModal() {
+        document.getElementById('editPin').value = '';
+        document.getElementById('editFeeFields').style.display = 'none';
+        document.getElementById('btnVerifyEdit').style.display = 'block';
+        new bootstrap.Modal(document.getElementById('editFeeModal')).show();
+    }
+
+    function verifyEditPin() {
+        let pin = document.getElementById('editPin').value;
+        if(pin === "1234") {
+            document.getElementById('btnVerifyEdit').style.display = 'none';
+            document.getElementById('editFeeFields').style.display = 'block';
+            document.getElementById('newFeeAmount').value = currentFees[0].total;
+        } else {
+            showToast("Invalid Manager PIN!", "error");
+        }
+    }
+
+    function saveEditedFee() {
+        let newAmt = parseFloat(document.getElementById('newFeeAmount').value);
+        if(newAmt > 0) {
+            currentFees[0].total = newAmt;
+            renderFeeTable();
+            bootstrap.Modal.getInstance(document.getElementById('editFeeModal')).hide();
+            showToast("Fee structure updated!", "success");
+        } else {
+            showToast("Invalid amount", "error");
+        }
+    }
+
+    // ================= PAYMENT UI =================
+    function togglePaymentFields() {
+        const mode = document.querySelector('input[name="payMode"]:checked').value;
+        document.getElementById('txnFields').style.display = (mode === 'Cash') ? 'none' : 'block';
+        document.getElementById('qrBox').style.display = (mode === 'UPI') ? 'block' : 'none';
+        document.getElementById('splitBox').style.display = (mode === 'Cheque' || mode === 'Card') ? 'none' : 'block';
+    }
+
+    function validateSplit() {
+        const cash = parseFloat(document.getElementById('splitCash').value) || 0;
+        const online = parseFloat(document.getElementById('splitOnline').value) || 0;
+        const net = parseFloat(document.getElementById('netPayable').innerText.replace('₹', ''));
+        
+        if (cash === 0 && online === 0) { isSplitValid = true; return; }
+        if((cash + online) !== net) {
+            isSplitValid = false;
+            document.getElementById('splitBox').classList.add('border-danger');
+        } else {
+            isSplitValid = true;
+            document.getElementById('splitBox').classList.remove('border-danger');
+        }
+    }
+
+    // ================= SIGNATURE =================
+    const canvas = document.getElementById('sigCanvas');
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); });
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); });
+    canvas.addEventListener('touchend', stopDrawing);
+
+    function startDrawing(e) {
+        drawing = true;
+        ctx.beginPath();
+        const rect = canvas.getBoundingClientRect();
+        ctx.moveTo((e.clientX || e.pageX) - rect.left, (e.clientY || e.pageY) - rect.top);
+    }
+    function draw(e) {
+        if(!drawing) return;
+        const rect = canvas.getBoundingClientRect();
+        ctx.lineTo((e.clientX || e.pageX) - rect.left, (e.clientY || e.pageY) - rect.top);
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+    function stopDrawing() { drawing = false; }
+    function clearSignature() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+    // ================= EXPENSE =================
+    function addExpense() {
+        let amt = parseFloat(document.getElementById('expAmount').value);
+        let reason = document.getElementById('expReason').value;
+        if(!amt || amt <= 0) { showToast("Enter valid amount", "error"); return; }
+        if(!reason) { showToast("Enter expense reason", "error"); return; }
+        
+        stats.expense += amt;
+        document.getElementById('statExpense').innerText = stats.expense;
+        document.getElementById('expAmount').value = '';
+        document.getElementById('expReason').value = '';
+        showToast(`Expense ₹${amt} added (${reason})`, "success");
+    }
+
+    // ================= PROCESS =================
+    function processPayment() {
+        const net = parseFloat(document.getElementById('netPayable').innerText.replace('₹', ''));
+        if(net <= 0) { showToast("Select fees to pay", "error"); return; }
+
+        const mode = document.querySelector('input[name="payMode"]:checked').value;
+        if(document.getElementById('splitBox').style.display === 'block' && !isSplitValid) {
+            showToast("Split amounts do not match!", "error");
+            return;
+        }
+
+        const btn = document.getElementById('btnCollect');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Processing...';
+        btn.disabled = true;
+
+        setTimeout(() => {
+            const txn = document.getElementById('inpTxn').value || 'N/A';
+            const bank = document.getElementById('inpBank').value || '-';
+            const discount = parseFloat(document.getElementById('inpDiscount').value) || 0;
+            
+            let modeDisplay = mode;
+            let splitCash = 0, splitOnline = 0;
+
+            if(document.getElementById('splitBox').style.display === 'block' && (document.getElementById('splitCash').value > 0 || document.getElementById('splitOnline').value > 0)) {
+                splitCash = parseFloat(document.getElementById('splitCash').value) || 0;
+                splitOnline = parseFloat(document.getElementById('splitOnline').value) || 0;
+                modeDisplay = `Split (C:₹${splitCash} | O:₹${splitOnline})`;
+            } else {
+                if(mode === 'Cash') splitCash = net; else splitOnline = net;
+            }
+
+            stats.cash += splitCash;
+            stats.online += splitOnline;
+            stats.txns++;
+            document.getElementById('statCash').innerText = stats.cash;
+            document.getElementById('statOnline').innerText = stats.online;
+            document.getElementById('statTxns').innerText = stats.txns;
+
+            // Save Txn Data for Refund
+            currentTxnData = { net, modeDisplay, discount, fine: autoFineTotal };
+
+            const rNo = "RCPT-" + Math.floor(100000 + Math.random() * 900000);
+            const rDate = new Date().toLocaleString('en-GB');
+
+            // A4
+            document.getElementById('r_no').innerText = rNo;
+            document.getElementById('r_date').innerText = rDate;
+            document.getElementById('r_name').innerText = currentStudent.name;
+            document.getElementById('r_father').innerText = currentStudent.father;
+            document.getElementById('r_adm').innerText = currentStudent.adm;
+            document.getElementById('r_class').innerText = currentStudent.class;
+            document.getElementById('r_mode').innerText = modeDisplay;
+            document.getElementById('r_txn').innerText = `${txn} (${bank})`;
+
+            // Thermal
+            document.getElementById('t_no').innerText = rNo;
+            document.getElementById('t_date').innerText = new Date().toLocaleDateString();
+            document.getElementById('t_name').innerText = currentStudent.name;
+            document.getElementById('t_class').innerText = currentStudent.class;
+
+            // ID Card
+            document.getElementById('id_name').innerText = currentStudent.name;
+            document.getElementById('id_class').innerText = "Class " + currentStudent.class;
+            document.getElementById('id_adm').innerText = currentStudent.adm;
+            document.getElementById('id_father').innerText = currentStudent.father;
+            document.getElementById('id_phone').innerText = currentStudent.phone;
+
+            let rBody = document.getElementById('r_tbody');
+            let tBody = document.getElementById('t_tbody');
+            rBody.innerHTML = ''; tBody.innerHTML = '';
+            let subTotal = 0, sl = 1;
+
+            currentFees.forEach(fee => {
+                if(document.getElementById('chk_' + fee.id).checked) {
+                    let val = parseFloat(document.getElementById('in_' + fee.id).value) || 0;
+                    if(val > 0) {
+                        rBody.innerHTML += `<tr><td>${sl}</td><td>${fee.head}</td><td class="text-end">₹${fee.total}</td><td class="text-end">₹${fee.paid}</td><td class="text-end fw-bold">₹${val}</td></tr>`;
+                        tBody.innerHTML += `<tr><td>${fee.head}</td><td style="text-align: right;">₹${val}</td></tr>`;
+                        subTotal += val; sl++;
+                    }
+                }
+            });
+
+            if(currentStudent.oldDues > 0) {
+                rBody.innerHTML += `<tr><td>${sl}</td><td>Old Dues</td><td class="text-end">-</td><td class="text-end">-</td><td class="text-end fw-bold">₹${currentStudent.oldDues}</td></tr>`;
+                tBody.innerHTML += `<tr><td>Old Dues</td><td style="text-align: right;">₹${currentStudent.oldDues}</td></tr>`;
+                subTotal += currentStudent.oldDues;
+            }
+
+            document.getElementById('r_subtotal').innerText = '₹' + subTotal.toFixed(2);
+            document.getElementById('r_fine').innerText = '₹' + autoFineTotal.toFixed(2);
+            document.getElementById('r_discount').innerText = '₹' + discount.toFixed(2);
+            document.getElementById('r_total').innerText = '₹' + net.toFixed(2);
+            document.getElementById('r_words').innerText = numberToWords(net) + " Rupees Only";
+
+            document.getElementById('t_fine').innerText = '₹' + autoFineTotal.toFixed(2);
+            document.getElementById('t_discount').innerText = '₹' + discount.toFixed(2);
+            document.getElementById('t_total').innerText = '₹' + net.toFixed(2);
+
+            document.getElementById('mainUI').style.display = 'none';
+            document.getElementById('invoiceArea').style.display = 'block';
+            document.getElementById('receiptActions').style.display = 'block';
+            window.scrollTo(0, 0);
+
+            btn.innerHTML = '<i class="fa-solid fa-shield-check me-2"></i> Collect Payment';
+            btn.disabled = false;
+            showToast("Payment Successful!", "success");
+            speak("Payment successful. Amount " + net + " rupees collected.");
+
+        }, 800);
+    }
+
+    // ================= PRINT =================
+    function printA4() {
+        document.getElementById('invoiceArea').style.display = 'block';
+        document.getElementById('thermalArea').style.display = 'none';
+        document.getElementById('idCardArea').style.display = 'none';
+        window.print();
+    }
+
+    function printThermal() {
+        document.getElementById('invoiceArea').style.display = 'none';
+        document.getElementById('thermalArea').style.display = 'block';
+        document.getElementById('idCardArea').style.display = 'none';
+        window.print();
+    }
+
+    function printIdCard() {
+        document.getElementById('invoiceArea').style.display = 'none';
+        document.getElementById('thermalArea').style.display = 'none';
+        document.getElementById('idCardArea').style.display = 'block';
+        window.print();
+    }
+
+    // ================= WHATSAPP =================
+    function sendWhatsApp() {
+        let phone = currentStudent.phone;
+        let total = document.getElementById('r_total').innerText;
+        let msg = `*ULTRA PUBLIC SCHOOL*%0A*FEE PAYMENT SUCCESSFUL* ✅%0A%0A*Receipt No:* ${document.getElementById('r_no').innerText}%0A*Student:* ${currentStudent.name}%0A*Amount Paid:* ${total}%0A*Date:* ${new Date().toLocaleDateString()}%0A%0AThank you!`;
+        window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+    }
+
+    // ================= REFUND =================
+    function refundTxn() {
+        if(!currentTxnData) { showToast("No transaction to refund", "error"); return; }
+        let confirmRefund = confirm(`Refund ₹${currentTxnData.net} for ${currentStudent.name}?`);
+        if(confirmRefund) {
+            stats.cash = Math.max(0, stats.cash - (currentTxnData.modeDisplay.includes('Cash') ? currentTxnData.net : 0));
+            stats.online = Math.max(0, stats.online - (currentTxnData.modeDisplay.includes('Online') || currentTxnData.modeDisplay.includes('UPI') ? currentTxnData.net : 0));
+            stats.txns = Math.max(0, stats.txns - 1);
+            document.getElementById('statCash').innerText = stats.cash;
+            document.getElementById('statOnline').innerText = stats.online;
+            document.getElementById('statTxns').innerText = stats.txns;
+            showToast("Refund Processed Successfully!", "success");
+            speak("Refund processed");
+            setTimeout(resetSystem, 1500);
+        }
+    }
+
+    // ================= RESET =================
+    function resetSystem() {
+        document.getElementById('invoiceArea').style.display = 'none';
+        document.getElementById('thermalArea').style.display = 'none';
+        document.getElementById('idCardArea').style.display = 'none';
+        document.getElementById('receiptActions').style.display = 'none';
+        document.getElementById('mainUI').style.display = 'block';
+        
+        document.getElementById('feeArea').style.display = 'none';
+        document.getElementById('checkoutArea').style.display = 'none';
+        
+        document.getElementById('inpDiscount').value = 0;
+        document.getElementById('inpDiscount').readOnly = true;
+        document.getElementById('inpTxn').value = '';
+        document.getElementById('inpBank').value = '';
+        document.getElementById('splitCash').value = 0;
+        document.getElementById('splitOnline').value = 0;
+        document.getElementById('splitBox').style.display = 'none';
+        document.getElementById('modeCash').checked = true;
+        document.getElementById('feeFilter').value = '';
+        clearSignature();
+        togglePaymentFields();
+        window.scrollTo(0, 0);
+    }
+
+    // ================= WORDS =================
+    function numberToWords(num) {
+        const a = ['','One ','Two ','Three ','Four ', 'Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
+        const b = ['', '', 'Twenty','Thirty','Forty','Fifty', 'Sixty','Seventy','Eighty','Ninety'];
+        if ((num = num.toString()).length > 9) return 'overflow';
+        let n = ('000000000' + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+        if (!n) return; 
+        let str = '';
+        str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'Crore ' : '';
+        str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'Lakh ' : '';
+        str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'Thousand ' : '';
+        str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'Hundred ' : '';
+        str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
+        return str.trim();
+    }
+    
+    window.onload = () => { togglePaymentFields(); };
+</script>
+</body>
+</html>
