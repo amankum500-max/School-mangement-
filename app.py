@@ -24,7 +24,12 @@ from flask_socketio import SocketIO, emit
 from xhtml2pdf import pisa
 import google.generativeai as genai
 from fpdf import FPDF
-
+from fpdf import FPDF
+# --- Naye Imports Bulk Import ke liye ---
+import pandas as pd
+import threading
+import uuid
+import re
 # Local Database Functions (Ensure database.py exists)
 from database import init_db, run, all as db_all, one, current_month, today
 
