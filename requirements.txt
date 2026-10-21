@@ -16,5 +16,5 @@ fastapi
 fpdf2
 pandas
 openpyxl
-pinatapy-v1  # For IPFS
-geopy        # For Geo-fencing
+pinatapy-v1  
+geopy        
