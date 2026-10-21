@@ -25,12 +25,15 @@ from xhtml2pdf import pisa
 import google.generativeai as genai
 from fpdf import FPDF
 
-# --- Naye Imports Bulk Import ke liye ---
+# --- Naye Imports Bulk Import & God-Level TC ke liye ---
 import pandas as pd
 import threading
 import uuid
 import re
 import signal
+import time  # <--- YEH MISSING THA, ADD KAR DIYA
+from geopy.distance import geodesic
+from pinatapy import PinataPy
 
 # Local Database Functions
 from database import init_db, run, all as db_all, one, current_month, today
@@ -55,6 +58,15 @@ signal.signal(signal.SIGTERM, handle_sigterm)
 TEMP_UPLOAD_FOLDER = 'static/temp_imports'
 os.makedirs(TEMP_UPLOAD_FOLDER, exist_ok=True)
 STAGING_CACHE = {}
+
+# --- GOD-LEVEL TC CONFIGURATIONS ---
+SCHOOL_LAT = 28.6139  # Apne school ki exact Latitude daalein
+SCHOOL_LON = 77.2090  # Apne school ki exact Longitude daalein
+ALLOWED_RADIUS_METERS = 500 # 500 meters ke andar hi TC banega
+
+PINATA_API_KEY = os.environ.get("PINATA_API_KEY", "your_key")
+PINATA_SECRET = os.environ.get("PINATA_SECRET", "your_secret")
+pinata = PinataPy(PINATA_API_KEY, PINATA_SECRET)
 
 # ==========================================
 # 🗄️ Supabase Setup (For Photo Uploads)
@@ -1140,19 +1152,7 @@ def notices():
         
     notices_list = db_all("SELECT * FROM notices ORDER BY posted_date DESC, id DESC")
     return render_template("communication/notices.html", notices=notices_list)
-import json
-from geopy.distance import geodesic
-from pinatapy import PinataPy
-import base64
 
-# --- CONFIGURATIONS ---
-SCHOOL_LAT = 28.6139  # Apne school ki exact Latitude daalein
-SCHOOL_LON = 77.2090  # Apne school ki exact Longitude daalein
-ALLOWED_RADIUS_METERS = 500 # 500 meters ke andar hi TC banega
-
-PINATA_API_KEY = os.environ.get("PINATA_API_KEY", "your_key")
-PINATA_SECRET = os.environ.get("PINATA_SECRET", "your_secret")
-pinata = PinataPy(PINATA_API_KEY, PINATA_SECRET)
 
 # ==========================================
 # 🌍 GEO-FENCED ULTIMATE TC GENERATOR
@@ -1161,8 +1161,9 @@ pinata = PinataPy(PINATA_API_KEY, PINATA_SECRET)
 @admin_required
 def god_level_tc_generate(roll_no):
     # 1. Geo-Fencing Check
-    user_lat = request.json.get("lat")
-    user_lon = request.json.get("lon")
+    req_data = request.json
+    user_lat = req_data.get("lat")
+    user_lon = req_data.get("lon")
     
     if not user_lat or not user_lon:
         return jsonify({"status": "error", "msg": "Location access denied. Cannot generate TC."})
@@ -1176,7 +1177,7 @@ def god_level_tc_generate(roll_no):
 
     student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
     
-    # 2. Generate HTML to PDF (Aapka purana template)
+    # 2. Generate HTML to PDF (Make sure you have tc_ultimate.html template)
     html = render_template("students/tc_ultimate.html", student=student, date=datetime.now().strftime("%d-%b-%Y"), tc_no=f"TC-{roll_no}")
     pdf_stream = io.BytesIO()
     pisa.CreatePDF(html, dest=pdf_stream)
