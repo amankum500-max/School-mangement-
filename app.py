@@ -2,7 +2,7 @@
 # 🚨 CRITICAL: Eventlet Monkey Patch (Must be first)
 # ==========================================
 import eventlet
-eventlet.sleep(0)  # <--- YEH NAYI LINE ADD KAREIN
+eventlet.sleep(0) 
 eventlet.monkey_patch()
 
 import os
@@ -24,27 +24,25 @@ from flask_socketio import SocketIO, emit
 from xhtml2pdf import pisa
 import google.generativeai as genai
 from fpdf import FPDF
-from fpdf import FPDF
+
 # --- Naye Imports Bulk Import ke liye ---
 import pandas as pd
 import threading
 import uuid
 import re
-# Local Database Functions (Ensure database.py exists)
-from database import init_db, run, all as db_all, one, current_month, today
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 import signal
 
-# --- BULK IMPORT SETUP ---
-TEMP_UPLOAD_FOLDER = 'static/temp_imports'
-os.makedirs(TEMP_UPLOAD_FOLDER, exist_ok=True)
-STAGING_CACHE = {}
-# ---------------- APP SETUP ----------------
+# Local Database Functions
+from database import init_db, run, all as db_all, one, current_month, today
+
+# ==========================================
+# 🛠️ APP SETUP (Yahan Order Sabse Zaroori Hai)
+# ==========================================
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "school-secret-key-2026")
 
+# App define hone ke BAAD SocketIO banega
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
-import signal
 
 # Gunicorn ke graceful shutdown ke liye signal handler
 def handle_sigterm(signum, frame):
@@ -52,6 +50,12 @@ def handle_sigterm(signum, frame):
     socketio.stop()
 
 signal.signal(signal.SIGTERM, handle_sigterm)
+
+# --- BULK IMPORT SETUP ---
+TEMP_UPLOAD_FOLDER = 'static/temp_imports'
+os.makedirs(TEMP_UPLOAD_FOLDER, exist_ok=True)
+STAGING_CACHE = {}
+
 # ==========================================
 # 🗄️ Supabase Setup (For Photo Uploads)
 # ==========================================
@@ -233,10 +237,10 @@ def add_student():
     except Exception as e:
         flash(f"❌ Error: {e} (Roll No might already exist)", "error")
     return redirect(url_for("students"))
-    # ==========================================
+
+# ==========================================
 # 🚀 SMART BULK IMPORT PIPELINE
 # ==========================================
-
 @app.route("/students/download-template")
 @login_required
 def download_import_template():
@@ -378,25 +382,17 @@ def friendly_import_download_errors():
     
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=Errors.csv"})
 
+
 # ==========================================
-# ID CARD GENERATION ROUTE (Ye aapka purana code hai, isko mat chhedna)
-# ==========================================
-@app.route("/student/id_card/<roll_no>")
-# ...
-    # ==========================================
-# 🪪 ID CARD GENERATION ROUTE
+# 🪪 ID CARD & PROFILE GENERATION (Clean Version)
 # ==========================================
 @app.route("/student/id_card/<roll_no>")
 @login_required
 def student_id_card(roll_no):
-    # Aapke database se student ka data fetch kar raha hai
     student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
-    
     if not student:
         flash("Student not found for ID Card!", "error")
         return redirect(url_for("students"))
-        
-    # HTML template render karega jisme student ka data jayega
     return render_template("students/id_card.html", student=student)
 
 @app.route("/student/profile/<roll_no>")
@@ -410,7 +406,6 @@ def student_profile(roll_no):
         
         student = dict(student_row)
         
-        # Defaults (Agar DB me column nahi hai toh crash na ho)
         defaults = {
             'photo_url': f"https://api.dicebear.com/7.x/initials/svg?seed={student.get('name','Student')}&backgroundColor=00f3ff", 
             'house': 'Red', 'blood_group': 'O+', 'allergies': 'None', 
@@ -423,28 +418,23 @@ def student_profile(roll_no):
             if key not in student or student[key] is None:
                 student[key] = val
 
-        # Fees Data
         total_paid = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE roll_no=%s", (roll_no,))["t"]
         total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE roll_no=%s AND balance>0", (roll_no,))["t"]
         recent_payments = db_all("SELECT * FROM payments WHERE roll_no=%s ORDER BY id DESC LIMIT 5", (roll_no,))
         
-        # Attendance Data
         total_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s", (roll_no,))["c"]
         present_days = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s AND status='Present'", (roll_no,))["c"]
         attendance_pct = round((present_days / total_days * 100), 2) if total_days > 0 else 0
         heatmap_data = {str(r['att_date']): r['status'] for r in db_all("SELECT att_date, status FROM attendance WHERE roll_no=%s", (roll_no,))}
 
-        # Academic & Notes Data
         marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
         try: teacher_notes = db_all("SELECT * FROM teacher_notes WHERE roll_no=%s ORDER BY id DESC", (roll_no,))
         except: teacher_notes = []
 
-        # AI Warnings
         warnings = []
         if attendance_pct < 75 and total_days > 0: warnings.append(f"Low Attendance ({attendance_pct}%).")
         if float(total_due) > 5000: warnings.append(f"High Pending Dues (₹{total_due}).")
 
-        # Portfolio List
         portfolio_list = [link.strip() for link in student['portfolio_links'].split(',')] if student['portfolio_links'] else []
 
         return render_template("students/student_profile.html", 
@@ -660,8 +650,8 @@ def upload_photo(roll_no):
         except Exception as e:
             flash(f"❌ Error uploading photo: {str(e)}", "error")
             
-    # Function ke end mein hamesha return hona chahiye
     return redirect(url_for("student_profile", roll_no=roll_no))
+
 # ==========================================
 # 💵 ULTIMATE FEE MANAGEMENT ENGINE
 # ==========================================
@@ -1156,5 +1146,5 @@ def notices():
 # ==========================================
 if __name__ == '__main__':
     init_db()
-    # app.run ki jagah socketio.run use karein taaki live updates kaam karein
+    # SocketIO server start karein taaki real-time progress kaam kare
     socketio.run(app, debug=True, port=5000, allow_unsafe_werkzeug=True)
