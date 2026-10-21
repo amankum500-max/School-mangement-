@@ -1,0 +1,89 @@
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4">
+    <div class="max-w-2xl w-full bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-700 text-center p-10">
+        
+        <div class="w-24 h-24 bg-blue-900/50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span class="text-5xl">🛰️</span>
+        </div>
+        
+        <h1 class="text-3xl font-black text-white mb-2">Web3 Geo-Secured TC</h1>
+        <p class="text-gray-400 mb-8">This action requires GPS verification and will be permanently stored on IPFS.</p>
+        
+        <button onclick="generateWeb3TC()" id="genBtn" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 rounded-xl hover:scale-105 transition-all shadow-lg shadow-blue-500/30">
+            📍 Verify Location & Generate
+        </button>
+        
+        <div id="status" class="mt-6 text-sm font-mono text-gray-400"></div>
+        
+        <!-- W3C JSON Preview (Hidden initially) -->
+        <div id="json-preview" class="mt-6 hidden text-left">
+            <h3 class="text-white font-bold mb-2">W3C Verifiable Credential Generated:</h3>
+            <pre id="json-content" class="bg-gray-900 text-green-400 p-4 rounded-xl text-xs overflow-x-auto"></pre>
+        </div>
+    </div>
+</div>
+
+<script>
+async function generateWeb3TC() {
+    const btn = document.getElementById('genBtn');
+    const status = document.getElementById('status');
+    
+    btn.disabled = true;
+    status.innerHTML = "⏳ Requesting GPS coordinates...";
+    
+    // 1. Get Geolocation
+    if (!navigator.geolocation) {
+        status.innerHTML = "❌ Geolocation is not supported by your browser.";
+        btn.disabled = false;
+        return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            
+            status.innerHTML = `📍 Location acquired (${lat.toFixed(4)}, ${lon.toFixed(4)}). Uploading to IPFS...`;
+            
+            // 2. Call Backend API
+            try {
+                const res = await fetch("/api/tc/god-level-generate/{{ roll_no }}", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ lat: lat, lon: lon })
+                });
+                
+                const data = await res.json();
+                
+                if(data.status === "success") {
+                    status.innerHTML = `✅ <b>Success!</b> File stored on IPFS.<br>Hash: ${data.ipfs_hash}`;
+                    
+                    // Show JSON
+                    document.getElementById('json-preview').classList.remove('hidden');
+                    document.getElementById('json-content').innerText = "Loading W3C JSON...";
+                    // (In real app, you'd return the JSON from backend and show it here)
+                    
+                    // Download PDF automatically
+                    const link = document.createElement('a');
+                    link.href = 'data:application/pdf;base64,' + data.pdf_base64;
+                    link.download = 'Secure_TC_{{ roll_no }}.pdf';
+                    link.click();
+                    
+                } else {
+                    status.innerHTML = `❌ ${data.msg}`;
+                }
+            } catch (e) {
+                status.innerHTML = "❌ Server Error.";
+            }
+            btn.disabled = false;
+        },
+        (error) => {
+            status.innerHTML = "❌ Location denied. Geo-fencing failed.";
+            btn.disabled = false;
+        },
+        { enableHighAccuracy: true }
+    );
+}
+</script>
+{% endblock %}
