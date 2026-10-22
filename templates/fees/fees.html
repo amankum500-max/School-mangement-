@@ -11,6 +11,8 @@
     .aging-danger { border-left-color: #ef4444; }
     .aging-warning { border-left-color: #f59e0b; }
     .btn-action { padding: 4px 8px; font-size: 12px; border-radius: 6px; margin-right: 2px; }
+    
+    /* Table Customization */
     .dataTables_wrapper .dataTables_filter input, .dataTables_wrapper .dataTables_length select { background: #0f172a; color: white; border: 1px solid #334155; }
     .dataTables_wrapper .dataTables_info, .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter { color: #94a3b8; }
     .page-link { background: #1e293b !important; color: #38bdf8 !important; border-color: #334155 !important; }
@@ -18,6 +20,9 @@
     .action-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; border: 1px solid #38bdf8; padding: 10px 20px; border-radius: 50px; display: none; z-index: 1000; }
     .action-bar.active { display: flex; gap: 15px; align-items: center; animation: slideUp 0.3s ease; }
     @keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 20px; opacity: 1; } }
+
+    /* Custom Filters Style */
+    .filter-box { background: #1e293b; border: 1px solid #334155; color: white; border-radius: 6px; padding: 5px 10px; }
 </style>
 
 <div class="container-fluid py-4">
@@ -25,10 +30,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-white mb-0">💵 Ultimate Fee Engine</h2>
-            <a href="/fees/collect" class="btn btn-primary" style="background-color: #6366f1; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 10px; margin-bottom: 10px;">
-    ✨ Open New God-Level UI
-            </a>
-            <p class="text-secondary mb-0">DPS/KVS Grade Features Loaded.</p>
+            <p class="text-secondary mb-0">Search by ID, Roll No, Name, or filter by Class.</p>
         </div>
         <div class="d-flex gap-2">
             <button class="btn btn-outline-info" onclick="askAI()" id="aiBtn">🧠 AI Advisor</button>
@@ -75,6 +77,26 @@
         </div>
     </div>
 
+    <!-- Custom Filters (Class & Section) -->
+    <div class="glass-card p-3 mb-3 d-flex gap-3 align-items-center flex-wrap">
+        <span class="text-white fw-bold">Filters:</span>
+        <select id="filterClass" class="filter-box">
+            <option value="">All Classes</option>
+            {% set classes = fees | map(attribute='class_name') | unique | list %}
+            {% for c in classes %}
+                <option value="{{ c }}">Class {{ c }}</option>
+            {% endfor %}
+        </select>
+        <select id="filterSection" class="filter-box">
+            <option value="">All Sections</option>
+            {% set sections = fees | map(attribute='section') | unique | list %}
+            {% for s in sections %}
+                <option value="{{ s }}">Section {{ s }}</option>
+            {% endfor %}
+        </select>
+        <button class="btn btn-sm btn-outline-danger ms-auto" onclick="clearFilters()">Clear Filters</button>
+    </div>
+
     <!-- Main Table -->
     <div class="glass-card p-4">
         <form method="POST" action="/fees/bulk-action" id="bulkForm">
@@ -82,19 +104,28 @@
                 <thead>
                     <tr>
                         <th><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
-                        <th>Roll No</th><th>Name</th><th>Class</th><th>Dues</th><th>Aging</th><th>Wallet</th><th>Actions</th>
+                        <th>Roll No</th>
+                        <th>Name</th>
+                        <th>Class</th>
+                        <th>Section</th>
+                        <th>Dues</th>
+                        <th>Aging</th>
+                        <th>Wallet</th>
+                        <th>Actions</th>
+                        <!-- NAYA HIDDEN COLUMN (Search ke liye) -->
+                        <th style="display:none;">Student ID</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for f in fees %}
                     <tr>
-                        <td><input type="checkbox" name="selected_students" value="{{ f['roll_no'] }}" class="row-checkbox" onclick="updateActionBar()"></td>
+                        <td><input type="checkbox" name="selected_students" value="{{ f['student_id'] }}" class="row-checkbox" onclick="updateActionBar()"></td>
+                        
                         <td class="fw-bold text-info">{{ f['roll_no'] }}</td>
-                        <td class="text-white">
-                            {{ f['name'] }} 
-                            {% if f['is_sibling'] %}<span class="badge bg-purple text-white ms-1" style="background:#8b5cf6;">👨‍👩‍👧 Sibling</span>{% endif %}
-                        </td>
-                        <td>{{ f['class_name'] }}-{{ f['section'] }}</td>
+                        <td class="text-white">{{ f['name'] }}</td>
+                        <td>{{ f['class_name'] }}</td>
+                        <td>{{ f['section'] }}</td>
+                        
                         <td class="text-danger fw-bold">₹{{ '{:,.0f}'.format(f['back_dues'] or 0) }}</td>
                         <td>
                             {% if f['aging_bucket'] == '60+ Days' %}<span class="badge bg-danger">🔴 {{ f['aging_bucket'] }}</span>
@@ -104,20 +135,21 @@
                         </td>
                         <td class="text-success">₹{{ '{:,.0f}'.format(f['wallet']) }}</td>
                         <td>
-                            <a href="/fees/pdf/{{ f['roll_no'] }}" class="btn btn-outline-danger btn-action" title="Receipt">📄</a>
-                            <button type="button" class="btn btn-outline-success btn-action" onclick="generateAIWhatsApp('{{ f['roll_no'] }}')" title="AI WA">🤖</button>
-                            <button type="button" class="btn btn-outline-primary btn-action" onclick="showUPIQR('{{ f['roll_no'] }}')" title="UPI QR">📸</button>
+                            <a href="/fees/pdf/{{ f['student_id'] }}" class="btn btn-outline-danger btn-action" title="Receipt">📄</a>
+                            <button type="button" class="btn btn-outline-success btn-action" onclick="generateAIWhatsApp('{{ f['student_id'] }}')" title="AI WA">🤖</button>
+                            <button type="button" class="btn btn-outline-primary btn-action" onclick="showUPIQR('{{ f['student_id'] }}')" title="UPI QR">📸</button>
                             
                             {% if f['back_dues'] and f['back_dues'] > 0 %}
-                            <button type="submit" formaction="/fees/waive-off" name="roll_no" value="{{ f['roll_no'] }}" class="btn btn-outline-warning btn-action" onclick="return confirm('Dues maaf karne hain?')" title="Waive Off">⚖️</button>
+                            <button type="submit" formaction="/fees/waive-off" name="student_id" value="{{ f['student_id'] }}" class="btn btn-outline-warning btn-action" onclick="return confirm('Dues maaf karne hain?')" title="Waive Off">⚖️</button>
                             {% endif %}
                         </td>
+                        <!-- NAYA HIDDEN COLUMN (Isme UUID jayega) -->
+                        <td>{{ f['student_id'] }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
             
-            <!-- Floating Bulk Bar -->
             <div class="action-bar" id="actionBar">
                 <span class="text-white fw-bold"><span id="selectedCount">0</span> selected</span>
                 <button type="submit" name="action" value="delete" class="btn btn-danger btn-sm" onclick="return confirm('Delete selected?')">🗑️ Delete</button>
@@ -131,9 +163,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content glass-card text-white border-success">
       <div class="modal-header border-secondary"><h5 class="modal-title">🤖 AI Reminder</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <textarea id="aiMsgBox" class="form-control bg-dark text-success" rows="4"></textarea>
-      </div>
+      <div class="modal-body"><textarea id="aiMsgBox" class="form-control bg-dark text-success" rows="4"></textarea></div>
       <div class="modal-footer border-secondary"><a href="#" id="waLink" target="_blank" class="btn btn-success">📱 Send WhatsApp</a></div>
     </div>
   </div>
@@ -153,8 +183,38 @@
 </div>
 
 <script>
-    // 1. DataTables Initialization
-    $(document).ready(function() { $('#feeTable').DataTable({ "pageLength": 10, "order": [[ 4, "desc" ]] }); });
+    let table;
+
+    // 1. Advanced DataTables Initialization
+    $(document).ready(function() { 
+        table = $('#feeTable').DataTable({ 
+            "pageLength": 10, 
+            "order": [[ 5, "desc" ]], // Dues column (Index 5) se sort hoga
+            "language": {
+                "search": "🔍 Quick Search (ID, Roll, Name, Class):",
+                "searchPlaceholder": "Type ID or Name..."
+            },
+            // Hidden Column configure karein (Student ID index 9 hai)
+            "columnDefs": [
+                { "targets": [9], "visible": false, "searchable": true }
+            ]
+        }); 
+
+        // Custom Class/Section Filters
+        $('#filterClass').on('change', function() {
+            table.column(3).search(this.value).draw(); // Class column (index 3)
+        });
+        
+        $('#filterSection').on('change', function() {
+            table.column(4).search(this.value).draw(); // Section column (index 4)
+        });
+    });
+
+    function clearFilters() {
+        $('#filterClass').val('');
+        $('#filterSection').val('');
+        table.search('').columns().search('').draw();
+    }
 
     // 2. AI Advisor
     async function askAI() {
@@ -168,11 +228,11 @@
     }
 
     // 3. AI WhatsApp
-    async function generateAIWhatsApp(roll) {
+    async function generateAIWhatsApp(studentId) {
         const modal = new bootstrap.Modal(document.getElementById('aiWaModal'));
         document.getElementById('aiMsgBox').value = "Generating AI message..."; modal.show();
         try {
-            const r = await fetch(`/fees/ai-reminder/${roll}`);
+            const r = await fetch(`/fees/ai-reminder/${studentId}`);
             const d = await r.json();
             document.getElementById('aiMsgBox').value = d.message;
             let phone = d.contact ? d.contact.replace(/[^0-9]/g, '') : '';
@@ -182,12 +242,13 @@
     }
 
     // 4. UPI QR Code
-    async function showUPIQR(roll) {
+    async function showUPIQR(studentId) {
         const modal = new bootstrap.Modal(document.getElementById('qrModal'));
         document.getElementById('qrImg').style.display = 'none';
         document.getElementById('qrLoad').style.display = 'block'; modal.show();
         try {
-            const r = await fetch(`/fees/upi-qr/${roll}`); const d = await r.json();
+            const r = await fetch(`/fees/upi-qr/${studentId}`);
+            const d = await r.json();
             if(d.error) { alert(d.error); modal.hide(); return; }
             document.getElementById('qrAmt').innerText = '₹' + d.amount.toLocaleString('en-IN');
             document.getElementById('qrImg').src = `data:image/png;base64,${d.qr_code}`;
