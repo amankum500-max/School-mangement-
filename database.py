@@ -1,61 +1,47 @@
 import os
 import psycopg2
-import psycopg2.extras
-from datetime import datetime
-from dotenv import load_dotenv
+from psycopg2.extras import RealDictCursor
+from datetime import date, datetime
 
-load_dotenv()
-
+# DATABASE_URL environment variable se aayega
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-def get_conn():
-    if not DATABASE_URL:
-        raise Exception("❌ DATABASE_URL missing!")
-    # Supabase requires sslmode for secure connection
+def get_db():
+    # Render ke liye sslmode required hota hai
     return psycopg2.connect(DATABASE_URL, sslmode='require')
 
 def init_db():
-    print("✅ Connected to Supabase PostgreSQL")
+    pass # Tables pehle hi Supabase mein ban chuke hain
 
-def run(query, params=()):
-    pg_query = query.replace("?", "%s")
-    conn = get_conn()
+def run(query, params=None):
+    conn = get_db()
     cursor = conn.cursor()
     try:
-        cursor.execute(pg_query, params)
+        cursor.execute(query, params)
         conn.commit()
-    except Exception as e:
-        conn.rollback()
-        raise e
     finally:
         cursor.close()
         conn.close()
 
-def all(query, params=()):
-    pg_query = query.replace("?", "%s")
-    conn = get_conn()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+def all(query, params=None):
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        cursor.execute(pg_query, params)
-        return [dict(row) for row in cursor.fetchall()]
+        cursor.execute(query, params)
+        return cursor.fetchall()
     finally:
         cursor.close()
         conn.close()
 
-def one(query, params=()):
-    pg_query = query.replace("?", "%s")
-    conn = get_conn()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+def one(query, params=None):
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        cursor.execute(pg_query, params)
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        cursor.execute(query, params)
+        return cursor.fetchone()
     finally:
         cursor.close()
         conn.close()
-
-def current_month():
-    return datetime.now().strftime("%Y-%m")
 
 def today():
-    return datetime.now().strftime("%Y-%m-%d")
+    return date.today().strftime('%Y-%m-%d')
