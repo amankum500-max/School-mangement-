@@ -19,3 +19,4 @@ openpyxl
 pinatapy-vourhey
 geopy
 Flask-SQLAlchemy
+psycopg2-binary
