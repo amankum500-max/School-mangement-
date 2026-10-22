@@ -12,11 +12,9 @@ flask-socketio==5.3.6
 werkzeug>=3.0.0
 xhtml2pdf
 supabase
-fastapi
 fpdf2
 pandas
 openpyxl
 pinatapy-vourhey
 geopy
-Flask-SQLAlchemy
-psycopg2-binary
+Flask-SQLAlchemy==3.1.1
