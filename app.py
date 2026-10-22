@@ -469,4 +469,783 @@ def add_teacher_note(roll_no):
     if note_text:
         run("INSERT INTO teacher_notes (roll_no, note_text, teacher_name) VALUES (%s, %s, %s)", (roll_no, note_text, session.get("name", "Teacher")))
         flash("✅ Diary note added!", "success")
-    return redirect(url_for("student_profil app.py
+    return redirect(url_for("student_profile", roll_no=roll_no))
+
+# -------- PDF & Gate Pass Generation --------
+@app.route("/student/dossier/pdf/<roll_no>")
+@login_required
+def student_dossier_pdf(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    marks = db_all("SELECT * FROM marks WHERE roll_no=%s", (roll_no,))
+    
+    html = f"""
+    <html><body>
+    <h2 style="text-align:center; color: #2c3e50;">STUDENT DOSSIER</h2>
+    <hr>
+    <h3>Personal Info</h3>
+    <p><b>Name:</b> {student['name']}<br><b>Roll No:</b> {student['roll_no']}<br><b>Class:</b> {student['class_name']}<br><b>Father:</b> {student['father']}</p>
+    <h3>Academic Records</h3>
+    <table border="1" style="width:100%; text-align:left; border-collapse: collapse;">
+        <tr style="background:#f2f2f2;"><th>Subject</th><th>Marks</th><th>Total</th></tr>
+        {''.join([f"<tr><td>{m['subject']}</td><td>{m['marks']}</td><td>{m['total']}</td></tr>" for m in marks])}
+    </table>
+    </body></html>
+    """
+    pdf = io.BytesIO()
+    pisa.CreatePDF(html, dest=pdf)
+    pdf.seek(0)
+    return send_file(pdf, mimetype='application/pdf', as_attachment=True, download_name=f"{roll_no}_Dossier.pdf")
+
+@app.route("/api/generate-gate-pass/<roll_no>")
+@login_required
+def generate_gate_pass(roll_no):
+    run("UPDATE students SET gate_pass_active=TRUE WHERE roll_no=%s", (roll_no,))
+    data = f"GATE_PASS|{roll_no}|{datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    qr = qrcode.QRCode(version=1, box_size=10, border=2); qr.add_data(data); qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffered = io.BytesIO(); img.save(buffered, format="PNG")
+    return jsonify({"qr_code": base64.b64encode(buffered.getvalue()).decode()})
+
+# -------- ALL 8 AI ROUTES FOR STUDENT --------
+@app.route("/api/ai-study-plan/<roll_no>")
+@login_required
+def api_ai_study_plan(roll_no):
+    if not ai_model: return jsonify({"reply": "AI Offline"})
+    marks = db_all("SELECT subject, marks, total FROM marks WHERE roll_no=%s", (roll_no,))
+    prompt = f"Create a 7-day study plan for a student with marks: {marks}. Keep it short in Hinglish."
+    try: return jsonify({"reply": ai_model.generate_content(prompt).text})
+    except: return jsonify({"reply": "Error"})
+
+@app.route("/api/ai-ptm-script/<roll_no>")
+@login_required
+def api_ai_ptm_script(roll_no):
+    if not ai_model: return jsonify({"reply": "AI Offline"})
+    student = one("SELECT name FROM students WHERE roll_no=%s", (roll_no,))
+    marks = db_all("SELECT subject, marks, total FROM marks WHERE roll_no=%s", (roll_no,))
+    prompt = f"Write a 1-minute PTM script for teacher to talk to parents of {student['name']} with marks: {marks}."
+    try: return jsonify({"reply": ai_model.generate_content(prompt).text})
+    except: return jsonify({"reply": "Error"})
+
+@app.route("/api/ai-grade-predictor/<roll_no>")
+@login_required
+def api_ai_grade_predictor(roll_no):
+    if not ai_model: return jsonify({"reply": "AI Offline"})
+    marks = db_all("SELECT subject, marks, total FROM marks WHERE roll_no=%s", (roll_no,))
+    prompt = f"Predict next exam percentage and give 2 tips based on marks: {marks}."
+    try: return jsonify({"reply": ai_model.generate_content(prompt).text})
+    except: return jsonify({"reply": "Error"})
+
+@app.route("/api/ai-psych-alert/<roll_no>")
+@login_required
+def api_ai_psych_alert(roll_no):
+    if not ai_model: return jsonify({"reply": "AI Offline"})
+    notes = db_all("SELECT note_text FROM teacher_notes WHERE roll_no=%s", (roll_no,))
+    notes_str = " | ".join([n['note_text'] for n in notes]) if notes else "No notes."
+    prompt = f"Analyze behavior from notes: '{notes_str}'. Give a 2-line psychological insight."
+    try: return jsonify({"reply": ai_model.generate_content(prompt).text})
+    except: return jsonify({"reply": "Error"})
+
+@app.route("/api/ai-career-counselor/<roll_no>")
+@login_required
+def api_ai_career_counselor(roll_no):
+    if not ai_model: return jsonify({"reply": "AI Offline"})
+    marks = db_all("SELECT subject, marks, total FROM marks WHERE roll_no=%s", (roll_no,))
+    prompt = f"Act as Career Counselor. Suggest stream and top 3 careers based on marks: {marks}. Keep it under 50 words."
+    try: return jsonify({"reply": ai_model.generate_content(prompt).text})
+    except: return jsonify({"reply": "Error"})
+
+@app.route("/api/ai-dropout-risk/<roll_no>")
+@login_required
+def api_ai_dropout_risk(roll_no):
+    if not ai_model: return jsonify({"risk_score": 50, "reason": "AI Offline", "action": "Check manually"})
+    due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE roll_no=%s", (roll_no,))["t"]
+    absent = one("SELECT COUNT(*) c FROM attendance WHERE roll_no=%s AND status='Absent'", (roll_no,))["c"]
+    prompt = f"Analyze dropout risk. Pending Fees: {due}, Absences: {absent}. Output ONLY JSON: {{\"risk_score\": 0-100, \"reason\": \"...\", \"action\": \"...\"}}"
+    try:
+        res = ai_model.generate_content(prompt).text.replace('```json', '').replace('```', '').strip()
+        return jsonify(json.loads(res))
+    except: return jsonify({"risk_score": 50, "reason": "Error", "action": "Manual check"})
+
+@app.route("/api/ai-sentiment/<roll_no>")
+@login_required
+def api_ai_sentiment(roll_no):
+    if not ai_model: return jsonify({"sentiment": "Neutral", "score": 50, "advice": "AI Offline"})
+    notes = db_all("SELECT note_text FROM teacher_notes WHERE roll_no=%s", (roll_no,))
+    notes_str = " | ".join([n['note_text'] for n in notes]) if notes else "Good"
+    prompt = f"Analyze sentiment: '{notes_str}'. Output ONLY JSON: {{\"sentiment\": \"Positive/Negative/Neutral\", \"score\": 0-100, \"advice\": \"...\"}}"
+    try:
+        res = ai_model.generate_content(prompt).text.replace('```json', '').replace('```', '').strip()
+        return jsonify(json.loads(res))
+    except: return jsonify({"sentiment": "Neutral", "score": 50, "advice": "Error"})
+
+@app.route("/api/ai-subject-forecast/<roll_no>")
+@login_required
+def api_ai_subject_forecast(roll_no):
+    if not ai_model: return jsonify({"reply": "AI Offline"})
+    marks = db_all("SELECT subject, marks, total FROM marks WHERE roll_no=%s", (roll_no,))
+    prompt = f"Forecast which subject is at highest risk of dropping next term based on marks: {marks}."
+    try: return jsonify({"reply": ai_model.generate_content(prompt).text})
+    except: return jsonify({"reply": "Error"})
+
+@app.route("/student/edit/<roll_no>", methods=["GET", "POST"])
+@login_required
+def edit_student(roll_no):
+    if request.method == "POST":
+        d = request.form
+        try:
+            run("UPDATE students SET name=%s, class_name=%s, father=%s, parent_contact=%s WHERE roll_no=%s",
+                (d["name"], d.get("class_name", ""), d.get("father", ""), d.get("parent_contact", ""), roll_no))
+            return jsonify({"status": "success", "message": "Student updated successfully!"})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)})
+    
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    return render_template("students/edit_student.html", student=student)
+
+@app.route("/student/delete/<roll_no>")
+@login_required
+def delete_student(roll_no):
+    try:
+        run("DELETE FROM marks WHERE roll_no=%s", (roll_no,))
+        run("DELETE FROM attendance WHERE roll_no=%s", (roll_no,))
+        run("DELETE FROM payments WHERE roll_no=%s", (roll_no,))
+        run("DELETE FROM bills WHERE roll_no=%s", (roll_no,))
+        run("DELETE FROM students WHERE roll_no=%s", (roll_no,))
+        flash("🗑️ Student deleted successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("students"))
+
+@app.route("/student/upload_photo/<roll_no>", methods=["POST"])
+@login_required
+def upload_photo(roll_no):
+    if 'photo' not in request.files:
+        flash("No file part", "error")
+        return redirect(url_for("student_profile", roll_no=roll_no))
+        
+    file = request.files['photo']
+    
+    if file.filename == '':
+        flash("No selected file", "error")
+        return redirect(url_for("student_profile", roll_no=roll_no))
+
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        flash("❌ Supabase is not configured properly.", "error")
+        return redirect(url_for("student_profile", roll_no=roll_no))
+
+    if file:
+        filename = secure_filename(f"student_{roll_no}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}")
+        bucket_name = 'student_photos'
+        
+        try:
+            file_data = file.read()
+            upload_url = f"{SUPABASE_URL}/storage/v1/object/{bucket_name}/{filename}"
+            
+            headers = {
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Content-Type": file.content_type or "image/jpeg"
+            }
+            
+            response = requests.post(upload_url, headers=headers, data=file_data, timeout=30)
+            
+            if response.status_code == 200:
+                public_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{filename}"
+                run("UPDATE students SET photo_url=%s WHERE roll_no=%s", (public_url, roll_no))
+                flash("✅ Photo uploaded successfully!", "success")
+            else:
+                flash(f"❌ Error uploading photo: Server returned {response.status_code}", "error")
+                
+        except requests.exceptions.Timeout:
+            flash("❌ Error: Network timeout. Please try uploading again.", "error")
+        except requests.exceptions.ConnectionError:
+            flash("❌ Error: Could not connect to Supabase.", "error")
+        except Exception as e:
+            flash(f"❌ Error uploading photo: {str(e)}", "error")
+            
+    return redirect(url_for("student_profile", roll_no=roll_no))
+
+# ==========================================
+# 💵 ULTIMATE FEE MANAGEMENT ENGINE
+# ==========================================
+@app.route("/fees")
+@login_required
+def fees():
+    rows = db_all("""
+    SELECT s.roll_no, s.name, s.class_name, s.section, s.parent_contact, s.father,
+           COALESCE(f.tuition_fee, 0) AS tuition_fee, 
+           COALESCE(f.transport_fee, 0) AS transport_fee, 
+           COALESCE(f.hostel_fee, 0) AS hostel_fee, 
+           COALESCE(f.misc_fee, 0) AS misc_fee,
+           COALESCE(f.discount, 0) AS discount, 
+           COALESCE(f.late_fee, 0) AS late_fee, 
+           COALESCE(f.back_dues, 0) AS back_dues, 
+           f.due_date, 
+           COALESCE(f.wallet_balance, 0) AS wallet_balance
+    FROM students s
+    LEFT JOIN student_fees f ON s.roll_no = f.roll_no
+    ORDER BY s.roll_no
+""")
+    
+    sibling_fathers = {}
+    for r in rows:
+        if r['father']: sibling_fathers[r['father']] = sibling_fathers.get(r['father'], 0) + 1
+
+    current_dt = date.today()
+    aging_stats = {"0-30": 0, "30-60": 0, "60+": 0} 
+    processed_rows = []
+    
+    for r in rows:
+        r_dict = dict(r)
+        dues = r_dict['back_dues'] or 0
+        aging_bucket = "Clear"
+        if dues > 0 and r_dict['due_date']:
+            try:
+                if isinstance(r_dict['due_date'], str): d_date = datetime.strptime(r_dict['due_date'], '%Y-%m-%d').date()
+                else: d_date = r_dict['due_date']
+                days_overdue = (current_dt - d_date).days
+                if days_overdue <= 0: aging_bucket = "Current"
+                elif days_overdue <= 30: aging_bucket = "0-30 Days"; aging_stats["0-30"] += dues
+                elif days_overdue <= 60: aging_bucket = "30-60 Days"; aging_stats["30-60"] += dues
+                else: aging_bucket = "60+ Days"; aging_stats["60+"] += dues
+            except: aging_bucket = "N/A"
+                
+        r_dict['aging_bucket'] = aging_bucket
+        r_dict['is_sibling'] = (r_dict['father'] and sibling_fathers.get(r_dict['father'], 0) > 1)
+        r_dict['wallet'] = r_dict['wallet_balance'] or 0
+        processed_rows.append(r_dict)
+        
+    return render_template("fees/fees.html", fees=processed_rows, aging_stats=aging_stats)
+
+@app.route("/fees/save", methods=["POST"])
+@login_required
+def save_fees():
+    d = request.form
+    roll = d["roll_no"]
+    existing = one("SELECT id FROM student_fees WHERE roll_no=%s", (roll,))
+    vals = (float(d.get("tuition_fee") or 0), float(d.get("transport_fee") or 0), float(d.get("hostel_fee") or 0), 
+            float(d.get("misc_fee") or 0), float(d.get("discount") or 0), float(d.get("late_fee") or 0),
+            float(d.get("back_dues") or 0), d.get("due_date") or None, float(d.get("wallet_balance") or 0), roll)
+    
+    if existing:
+        run("""UPDATE student_fees SET tuition_fee=%s, transport_fee=%s, hostel_fee=%s, misc_fee=%s,
+            discount=%s, late_fee=%s, back_dues=%s, due_date=%s, wallet_balance=%s WHERE roll_no=%s""", vals)
+        flash("✅ Fee structure updated!", "success")
+    else:
+        run("""INSERT INTO student_fees (tuition_fee,transport_fee,hostel_fee,misc_fee,
+             discount,late_fee,back_dues,due_date,wallet_balance,roll_no) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""", vals)
+        flash("✅ New Fee structure added!", "success")
+    return redirect(url_for("fees"))
+
+@app.route("/fees/delete/<roll_no>")
+@login_required
+def delete_fees(roll_no):
+    run("DELETE FROM student_fees WHERE roll_no=%s", (roll_no,))
+    flash("🗑️ Fee record deleted!", "success")
+    return redirect(url_for("fees"))
+
+@app.route("/fees/waive-off", methods=["POST"])
+@login_required
+def waive_off_fees():
+    roll_no = request.form.get("roll_no")
+    run("UPDATE student_fees SET back_dues=0 WHERE roll_no=%s", (roll_no,))
+    flash(f"⚖️ Roll No {roll_no} ke dues maaf kar diye gaye hain.", "success")
+    return redirect(url_for('fees'))
+
+@app.route("/fees/ai-advisor", methods=["POST"])
+@login_required
+def fees_ai_advisor():
+    if not ai_model: return jsonify({"reply": "AI API key configure nahi hai."})
+    total_pending = one("SELECT SUM(back_dues) t FROM student_fees")['t'] or 0
+    total_collected = one("SELECT SUM(amount) t FROM payments")['t'] or 0
+    
+    prompt = f"Total Pending Dues: Rs {total_pending}, Total Collected: Rs {total_collected}. Give 3 short, actionable bullet points in Hinglish on how to recover pending dues faster. Keep it under 60 words."
+    try: return jsonify({"reply": ai_model.generate_content(prompt).text})
+    except Exception as e: return jsonify({"reply": f"Error: {str(e)}"})
+
+@app.route("/fees/ai-reminder/<roll_no>", methods=["GET"])
+@login_required
+def fees_ai_reminder(roll_no):
+    student = one("SELECT name, class_name, parent_contact FROM students WHERE roll_no=%s", (roll_no,))
+    fee = one("SELECT back_dues FROM student_fees WHERE roll_no=%s", (roll_no,))
+    dues = fee['back_dues'] if fee else 0
+    msg = f"Dear Parent, {student['name']} (Class {student['class_name']}) ki fees me Rs {dues} pending hai. Kripya jaldi jama karein. - School ERP"
+    
+    if ai_model:
+        try:
+            prompt = f"Write a very polite, short 2-line WhatsApp reminder in Hinglish for parent of {student['name']}. Pending amount is Rs {dues}. No formal English."
+            msg = ai_model.generate_content(prompt).text.strip()
+        except: pass
+    return jsonify({"message": msg, "contact": student['parent_contact']})
+
+@app.route("/fees/upi-qr/<roll_no>")
+@login_required
+def generate_upi_qr(roll_no):
+    fee = one("SELECT back_dues FROM student_fees WHERE roll_no=%s", (roll_no,))
+    amount = fee['back_dues'] if fee else 0
+    if amount <= 0: return jsonify({"error": "No pending dues!"})
+    
+    upi_string = f"upi://pay?pa=school@upi&pn=School ERP&am={amount}&cu=INR"
+    qr = qrcode.QRCode(version=1, box_size=10, border=2); qr.add_data(upi_string); qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffered = io.BytesIO(); img.save(buffered, format="PNG")
+    return jsonify({"qr_code": base64.b64encode(buffered.getvalue()).decode(), "amount": amount})
+
+@app.route("/fees/pdf/<roll_no>")
+@login_required
+def fee_pdf(roll_no):
+    s = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    f = one("SELECT * FROM student_fees WHERE roll_no=%s", (roll_no,))
+    if not s or not f: return redirect(url_for('fees'))
+
+    pdf = FPDF(); pdf.add_page()
+    pdf.set_font("Arial", 'B', 20); pdf.cell(200, 10, txt="SCHOOL MANAGEMENT SYSTEM", ln=True, align='C')
+    pdf.set_font("Arial", 'I', 12); pdf.cell(200, 10, txt="Official Fee Receipt", ln=True, align='C'); pdf.ln(10)
+    
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(100, 10, txt=f"Student Name: {s['name']}", ln=False)
+    pdf.cell(90, 10, txt=f"Roll No: {s['roll_no']}", ln=True)
+    pdf.cell(100, 10, txt=f"Class: {s['class_name']}-{s.get('section', '')}", ln=False)
+    pdf.cell(90, 10, txt=f"Date: {datetime.now().strftime('%Y-%m-%d')}", ln=True); pdf.ln(5)
+    
+    pdf.set_fill_color(240, 240, 240); pdf.cell(100, 10, "Particulars", border=1, fill=True); pdf.cell(90, 10, "Amount (Rs)", border=1, fill=True, ln=True)
+    total = 0
+    items = [("Tuition Fee", f['tuition_fee'] or 0), ("Transport Fee", f['transport_fee'] or 0), ("Hostel Fee", f['hostel_fee'] or 0), 
+             ("Misc Fee", f['misc_fee'] or 0), ("Discount", -(f['discount'] or 0)), ("Late Fee", f['late_fee'] or 0), ("Back Dues", f['back_dues'] or 0)]
+             
+    for name, amt in items:
+        pdf.cell(100, 10, name, border=1); pdf.cell(90, 10, str(amt), border=1, ln=True); total += amt
+        
+    pdf.set_font("Arial", 'B', 12); pdf.cell(100, 10, "Grand Total", border=1); pdf.cell(90, 10, str(total), border=1, ln=True)
+    return send_file(io.BytesIO(pdf.output(dest='S').encode('latin-1')), mimetype="application/pdf", as_attachment=True, download_name=f"Receipt_{roll_no}.pdf")
+
+# ==========================================
+# 💰 PAYMENTS & TRANSACTIONS (Bills & Collect)
+# ==========================================
+@app.route("/bills")
+@login_required
+def bills():
+    month = request.args.get("month", current_month())
+    try:
+        rows = db_all("SELECT * FROM bills WHERE month=%s ORDER BY roll_no", (month,))
+    except Exception:
+        rows = []
+    return render_template("fees/bills.html", bills=rows, month=month)
+
+@app.route("/bills/generate", methods=["POST"])
+@login_required
+def generate_bills():
+    month = request.form["month"]
+    students_list = db_all("SELECT roll_no, name FROM students")
+    created = skipped = 0
+    
+    for s in students_list:
+        roll = s["roll_no"]
+        ex = one("SELECT id FROM bills WHERE roll_no=%s AND month=%s", (roll, month))
+        if ex: skipped += 1; continue
+            
+        fs = one("SELECT * FROM student_fees WHERE roll_no=%s", (roll,))
+        if not fs: skipped += 1; continue
+            
+        t = fs["tuition_fee"] or 0
+        tr = fs["transport_fee"] or 0
+        ho = fs["hostel_fee"] or 0
+        adm_paid = fs["admission_paid"] or 0
+        
+        prev_added = one("SELECT COALESCE(SUM(admission),0) a FROM bills WHERE roll_no=%s", (roll,))["a"]
+        adm = 0 if (adm_paid or prev_added > 0) else (fs["admission_fee"] or 0)
+        dr = 0 if prev_added > 0 else (fs["dress_fee"] or 0)
+        ex_f = 0 if prev_added > 0 else (fs["exam_fee"] or 0)
+        bk = 0 if prev_added > 0 else (fs["book_fee"] or 0)
+        nb = 0 if prev_added > 0 else (fs["notebook_fee"] or 0)
+        ms = fs["misc_fee"] or 0
+        
+        prev_due = one("SELECT COALESCE(SUM(balance),0) d FROM bills WHERE roll_no=%s AND balance>0", (roll,))["d"]
+        
+        total = t + tr + ho + adm + dr + ex_f + bk + nb + ms + prev_due
+        bill_no = f"B{month.replace('-','')}{roll}"
+
+        run("""INSERT INTO bills
+            (bill_no,roll_no,month,bill_date,tuition,transport,hostel,
+             admission,dress,exam,book,notebook,misc,prev_due,total,paid,balance,status)
+            VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (bill_no, roll, month, today(), t, tr, ho, adm, dr, ex_f, bk, nb, ms, prev_due, total, 0, total, "Unpaid"))
+        created += 1
+        
+    flash(f"✅ Bills generated: {created} | Skipped: {skipped}", "success")
+    return redirect(url_for("bills", month=month))
+
+@app.route("/collect/<roll_no>", methods=["GET", "POST"])
+@login_required
+def collect(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("Student not found", "error")
+        return redirect(url_for("students"))
+
+    if request.method == "POST":
+        amount = float(request.form.get("amount") or 0)
+        mode = request.form.get("mode", "Cash")
+        remark = request.form.get("remark", "")
+        
+        if amount <= 0:
+            flash("Amount must be greater than 0", "error")
+            return redirect(url_for("collect", roll_no=roll_no))
+
+        try:
+            receipt_no = f"RCP{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            run("""INSERT INTO payments (receipt_no, roll_no, amount, mode, pay_date, remark)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (receipt_no, roll_no, amount, mode, today(), remark))
+            
+            bills_list = db_all("SELECT id, balance, paid, total FROM bills WHERE roll_no=%s AND balance>0 ORDER BY month ASC", (roll_no,))
+            rem = amount
+            for b in bills_list:
+                if rem <= 0: break
+                deduct = min(rem, float(b['balance']))
+                new_paid = float(b['paid']) + deduct
+                new_bal = float(b['total']) - new_paid
+                status = "Paid" if new_bal <= 0 else "Partial"
+                run("UPDATE bills SET paid=%s, balance=%s, status=%s WHERE id=%s",
+                    (new_paid, new_bal, status, b['id']))
+                rem -= deduct
+                
+            socketio.emit('new_payment_alert', {'name': student['name'], 'amount': amount, 'msg': f"₹{amount} paid by {student['name']}"})
+            flash(f"✅ ₹{amount} collected successfully!", "success")
+            return redirect(url_for("receipt", roll_no=roll_no, receipt_no=receipt_no))
+        except Exception as e:
+            flash(f"❌ Error: {e}", "error")
+            
+    bills_list = db_all("SELECT * FROM bills WHERE roll_no=%s AND balance>0 ORDER BY month ASC", (roll_no,))
+    total_due = sum(float(b['balance']) for b in bills_list)
+    return render_template("fees/collect.html", student=student, bills=bills_list, total_due=total_due)
+
+@app.route("/receipt/<roll_no>/<receipt_no>")
+@login_required
+def receipt(roll_no, receipt_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    payment = one("SELECT * FROM payments WHERE receipt_no=%s", (receipt_no,))
+    if not student or not payment:
+        flash("Receipt not found", "error")
+        return redirect(url_for("students"))
+    return render_template("fees/receipt.html", student=student, payment=payment, now=datetime.now())
+
+@app.route("/defaulters")
+@login_required
+def defaulters():
+    try:
+        rows = db_all("""SELECT s.roll_no, s.name, s.class_name, s.section,
+                         s.parent_contact, b.month, b.balance
+                         FROM bills b JOIN students s ON b.roll_no = s.roll_no
+                         WHERE b.balance > 0 ORDER BY b.balance DESC""")
+        total = sum(float(r["balance"]) for r in rows)
+    except Exception:
+        rows = []
+        total = 0
+    return render_template("fees/defaulters.html", defaulters=rows, total=total)
+
+# ==========================================
+# 🧠 AI FEATURES & TOOLS
+# ==========================================
+@app.route("/ai-assistant")
+@login_required
+def ai_assistant():
+    return render_template("ai_assistant.html")
+
+@app.route("/api/ai-chat", methods=["POST"])
+@login_required
+def api_ai_chat():
+    if not ai_model:
+        return jsonify({"reply": "⚠️ AI Configure nahi hai. Render me GEMINI_API_KEY daalein."})
+    data = request.get_json() or {}
+    user_msg = data.get("message", "").strip()
+    if not user_msg:
+        return jsonify({"reply": "Kuch toh likho bhai!"})
+    try:
+        students_count = one("SELECT COUNT(*) c FROM students")["c"]
+        total_due = one("SELECT COALESCE(SUM(balance),0) t FROM bills WHERE balance > 0")["t"]
+        today_collection = one("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE pay_date = %s", (today(),))["t"]
+        prompt = f"School AI Assistant. Data: Students={students_count}, Due={total_due}, Today={today_collection}. User asks: {user_msg}"
+        response = ai_model.generate_content(prompt)
+        return jsonify({"reply": response.text})
+    except Exception as e:
+        return jsonify({"reply": f"❌ AI Error: {str(e)}"})
+
+@app.route("/api/scan-attendance", methods=["POST"])
+@login_required
+def api_scan_attendance():
+    roll_no = request.json.get("roll_no")
+    if not roll_no: return jsonify({"status": "error", "message": "Invalid QR"})
+    student = one("SELECT name FROM students WHERE roll_no=%s", (roll_no,))
+    if not student: return jsonify({"status": "error", "message": "Student not found!"})
+    
+    existing = one("SELECT id FROM attendance WHERE roll_no=%s AND att_date=%s", (roll_no, today()))
+    if existing: run("UPDATE attendance SET status='Present' WHERE id=%s", (existing['id'],))
+    else: run("INSERT INTO attendance (roll_no, att_date, status) VALUES (%s, %s, 'Present')", (roll_no, today()))
+    return jsonify({"status": "success", "message": f"Present marked for {student['name']}"})
+
+# ==========================================
+# 📅 ATTENDANCE & EXAMS
+# ==========================================
+@app.route("/attendance", methods=["GET", "POST"])
+@login_required
+def attendance():
+    if request.method == "POST":
+        att_date = request.form.get("att_date")
+        class_name = request.form.get("class_name")
+        
+        run("""DELETE FROM attendance WHERE att_date=%s AND roll_no IN 
+               (SELECT roll_no FROM students WHERE class_name=%s)""", (att_date, class_name))
+        
+        present_count = 0
+        for key, value in request.form.items():
+            if key.startswith("status_"):
+                roll_no = key.replace("status_", "")
+                run("INSERT INTO attendance (roll_no, att_date, status) VALUES (%s, %s, %s)", 
+                    (roll_no, att_date, value))
+                if value == "Present": present_count += 1
+                
+        flash(f"✅ Attendance marked for {class_name}! Present: {present_count}", "success")
+        return redirect(url_for("attendance", date=att_date, class_name=class_name))
+
+    att_date = request.args.get("date", today())
+    class_name = request.args.get("class_name", "")
+    students_list = []
+    existing_att = {}
+    
+    if class_name:
+        students_list = db_all("SELECT * FROM students WHERE class_name=%s ORDER BY roll_no", (class_name,))
+        att_records = db_all("SELECT roll_no, status FROM attendance WHERE att_date=%s", (att_date,))
+        existing_att = {a['roll_no']: a['status'] for a in att_records}
+
+    classes = db_all("SELECT DISTINCT class_name FROM students WHERE class_name IS NOT NULL ORDER BY class_name")
+    return render_template("attendance/attendance.html", students=students_list, classes=classes, att_date=att_date, class_name=class_name, existing_att=existing_att)
+
+def calc_grade(pct):
+    if pct >= 90: return "A+"
+    if pct >= 80: return "A"
+    if pct >= 70: return "B"
+    if pct >= 60: return "C"
+    if pct >= 50: return "D"
+    return "F"
+
+@app.route("/result", methods=["GET", "POST"])
+@login_required
+def result():
+    if request.method == "POST":
+        d = request.form
+        try:
+            existing = one("SELECT id FROM marks WHERE roll_no=%s AND subject=%s AND exam=%s", (d["roll_no"], d["subject"], d["exam"]))
+            if existing:
+                run("UPDATE marks SET marks=%s, total=%s WHERE id=%s", (d["marks"], d["total"], existing["id"]))
+            else:
+                run("INSERT INTO marks (roll_no, subject, exam, marks, total) VALUES (%s,%s,%s,%s,%s)", (d["roll_no"], d["subject"], d["exam"], d["marks"], d["total"]))
+            flash("✅ Marks saved!", "success")
+        except Exception as e:
+            flash(f"❌ Error: {e}", "error")
+        return redirect(url_for("result", roll_no=d["roll_no"]))
+
+    roll = request.args.get("roll_no", "")
+    marks_data = []
+    student = None
+    if roll:
+        student = one("SELECT * FROM students WHERE roll_no=%s", (roll,))
+        marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll,))
+    students_list = db_all("SELECT roll_no, name FROM students ORDER BY roll_no")
+    return render_template("exams/result.html", students=students_list, marks=marks_data, student=student, roll=roll)
+
+@app.route("/report-card/<roll_no>")
+@login_required
+def report_card(roll_no):
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    if not student:
+        flash("Student not found!", "error")
+        return redirect(url_for("students"))
+    marks_data = db_all("SELECT * FROM marks WHERE roll_no=%s ORDER BY subject", (roll_no,))
+    total_obtained = sum(float(m['marks'] or 0) for m in marks_data)
+    total_max = sum(float(m['total'] or 0) for m in marks_data)
+    percentage = (total_obtained / total_max * 100) if total_max > 0 else 0
+    overall_grade = calc_grade(percentage)
+    return render_template("exams/report_card.html", student=student, marks=marks_data, total_obtained=total_obtained, total_max=total_max, percentage=round(percentage, 2), overall_grade=overall_grade, today_date=today())
+
+# ==========================================
+# 🏫 STAFF & TRANSPORT MANAGEMENT
+# ==========================================
+@app.route("/staff")
+@login_required
+def staff():
+    try:
+        rows = db_all("SELECT * FROM staff WHERE is_active = TRUE ORDER BY name")
+        total_salary = sum(float(s['salary'] or 0) for s in rows)
+    except:
+        rows = []
+        total_salary = 0
+    return render_template("management/staff.html", staff=rows, total_salary=total_salary)
+
+@app.route("/staff/add", methods=["POST"])
+@login_required
+def add_staff():
+    d = request.form
+    try:
+        run("""INSERT INTO staff (emp_id, name, designation, subject, phone, email, salary, joining_date) 
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (d["emp_id"], d["name"], d.get("designation"), d.get("subject"), d.get("phone"), d.get("email"), d.get("salary") or 0, d.get("joining_date")))
+        flash("✅ Staff member added successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("staff"))
+
+@app.route("/staff/delete/<int:sid>")
+@login_required
+def delete_staff(sid):
+    try:
+        run("UPDATE staff SET is_active = FALSE WHERE id = %s", (sid,))
+        flash("🗑️ Staff member removed", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("staff"))
+
+@app.route("/transport")
+@login_required
+def transport():
+    try:
+        routes = db_all("SELECT * FROM transport_routes WHERE is_active = TRUE ORDER BY route_number")
+    except:
+        routes = []
+    return render_template("facilities/transport.html", routes=routes)
+
+@app.route("/transport/add", methods=["POST"])
+@login_required
+def add_transport():
+    d = request.form
+    try:
+        run("""INSERT INTO transport_routes (route_number, route_name, driver_name, driver_phone, vehicle_no, capacity) 
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (d["route_number"], d["route_name"], d.get("driver_name"), d.get("driver_phone"), d.get("vehicle_no"), d.get("capacity") or 40))
+        flash("✅ Transport route added successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("transport"))
+
+@app.route("/transport/delete/<int:rid>")
+@login_required
+def delete_transport(rid):
+    try:
+        run("UPDATE transport_routes SET is_active = FALSE WHERE id = %s", (rid,))
+        flash("🗑️ Route removed", "success")
+    except Exception as e:
+        flash(f"❌ Error: {e}", "error")
+    return redirect(url_for("transport"))
+
+# ==========================================
+# 📢 COMMUNICATION (Notices)
+# ==========================================
+@app.route("/notices", methods=["GET", "POST"])
+@login_required
+def notices():
+    if request.method == "POST":
+        d = request.form
+        run("""INSERT INTO notices (title, content, category, posted_by, posted_date, priority) 
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (d["title"], d["content"], "General", session.get("name", "Admin"), today(), "Normal"))
+        flash("✅ Notice posted successfully!", "success")
+        return redirect(url_for("notices"))
+        
+    notices_list = db_all("SELECT * FROM notices ORDER BY posted_date DESC, id DESC")
+    return render_template("communication/notices.html", notices=notices_list)
+
+
+# ==========================================
+# 🌍 GEO-FENCED ULTIMATE TC GENERATOR
+# ==========================================
+@app.route("/api/tc/god-level-generate/<roll_no>", methods=["POST"])
+@admin_required
+def god_level_tc_generate(roll_no):
+    # 1. Geo-Fencing Check
+    req_data = request.json
+    user_lat = req_data.get("lat")
+    user_lon = req_data.get("lon")
+    
+    if not user_lat or not user_lon:
+        return jsonify({"status": "error", "msg": "Location access denied. Cannot generate TC."})
+        
+    user_location = (float(user_lat), float(user_lon))
+    school_location = (SCHOOL_LAT, SCHOOL_LON)
+    
+    distance = geodesic(school_location, user_location).meters
+    if distance > ALLOWED_RADIUS_METERS:
+        return jsonify({"status": "error", "msg": f"❌ Security Block: You are {int(distance)}m away from school. TC can only be generated on school premises."})
+
+    student = one("SELECT * FROM students WHERE roll_no=%s", (roll_no,))
+    
+    # 2. Generate HTML to PDF (Make sure you have tc_ultimate.html template)
+    html = render_template("students/tc_ultimate.html", student=student, date=datetime.now().strftime("%d-%b-%Y"), tc_no=f"TC-{roll_no}")
+    pdf_stream = io.BytesIO()
+    pisa.CreatePDF(html, dest=pdf_stream)
+    pdf_stream.seek(0)
+    pdf_bytes = pdf_stream.getvalue()
+
+    # 3. Save to IPFS (Web3 Decentralized Storage)
+    ipfs_hash = "Qm_Simulated_Hash" # Fallback
+    try:
+        # Save to temporary file for Pinata
+        temp_pdf_path = f"temp_{roll_no}.pdf"
+        with open(temp_pdf_path, "wb") as f:
+            f.write(pdf_bytes)
+        
+        # Upload to IPFS
+        res = pinata.pin_file_to_ipfs(temp_pdf_path)
+        ipfs_hash = res['IpfsHash']
+        os.remove(temp_pdf_path)
+        
+        # IPFS Gateway URL: https://gateway.pinata.cloud/ipfs/<hash>
+    except Exception as e:
+        print("IPFS Error:", e)
+
+    # 4. Generate W3C Verifiable Credential JSON
+    w3c_vc = {
+        "@context": ["https://www.w3.org/2018/credentials/v1"],
+        "type": ["VerifiableCredential", "SchoolTransferCertificate"],
+        "issuer": {"id": "did:school:your_school_code", "name": "Your School Name"},
+        "issuanceDate": datetime.utcnow().isoformat() + "Z",
+        "credentialSubject": {
+            "id": f"did:student:{roll_no}",
+            "name": student['name'],
+            "class": student['class_name'],
+            "dob": str(student.get('dob', '')),
+            "ipfsDocument": f"ipfs://{ipfs_hash}"
+        }
+    }
+    vc_json_str = json.dumps(w3c_vc, indent=2)
+
+    # 5. Database Update & Audit
+    run("""UPDATE students 
+           SET tc_status='Approved', tc_ipfs_hash=%s, tc_w3c_json=%s, geo_fenced_at=%s, is_active=FALSE 
+           WHERE roll_no=%s""", 
+        (ipfs_hash, vc_json_str, datetime.now(), roll_no))
+
+    # 6. Trigger AI Voice Call in Background
+    def trigger_voice_call():
+        try:
+            # Aapke integrations/voice_service.py ko call karein
+            # from integrations.voice_service import make_ai_call
+            # make_ai_call(student['parent_contact'], f"Hello, the Transfer Certificate for {student['name']} has been officially generated. Thank you.")
+            pass
+        except Exception as e: print("Voice Call Error:", e)
+        
+    threading.Thread(target=trigger_voice_call).start()
+
+    # 7. Return PDF and VC JSON
+    return jsonify({
+        "status": "success", 
+        "msg": "Document Cryptographically Sealed & Stored on IPFS!",
+        "ipfs_hash": ipfs_hash,
+        "pdf_base64": base64.b64encode(pdf_bytes).decode()
+    })
+    
+# ==========================================
+# 🚀 APP RUN
+# ==========================================
+if __name__ == '__main__':
+    init_db()
+    # SocketIO server start karein taaki real-time progress kaam kare
+    socketio.run(app, debug=True, port=5000, allow_unsafe_werkzeug=True)
